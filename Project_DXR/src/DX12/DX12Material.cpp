@@ -1,13 +1,4 @@
-#include <windows.h>
-#include <streambuf>
-#include <sstream>
-#include <istream>
-#include <fstream>
-#include <vector>
-#include <set>
-#include <assert.h>
-
-#include <d3dcompiler.h>
+#include "pch.h"
 #include "DX12Material.h"
 
 typedef unsigned int uint;

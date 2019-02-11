@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "../DX12/DX12Renderer.h"
 #include "Renderer.h"
 

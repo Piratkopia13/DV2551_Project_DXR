@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "DX12Mesh.h"
 #include "DX12VertexBuffer.h"
 

@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "DX12ConstantBuffer.h"
 #include "DX12Renderer.h"
 #include "DX12Material.h"

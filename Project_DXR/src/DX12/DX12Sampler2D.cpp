@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "DX12Sampler2D.h"
 
 

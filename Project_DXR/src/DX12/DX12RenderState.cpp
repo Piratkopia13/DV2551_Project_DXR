@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "DX12RenderState.h"
 
 DX12RenderState::DX12RenderState() {

@@ -73,25 +73,25 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)Intermediates\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
-    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(SolutionDir)$(SolutionName)\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)vendor\GLEW\lib\Release\win32;$(SolutionDir)vendor\SDL\lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)Intermediates\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
-    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(SolutionDir)$(SolutionName)\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)vendor\GLEW\lib\Release\win32;$(SolutionDir)vendor\SDL\lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)Intermediates\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
-    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(SolutionDir)$(SolutionName)\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)vendor\GLEW\lib\Release\x64;$(SolutionDir)vendor\SDL\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)Intermediates\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
-    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(SolutionDir)$(SolutionName)\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)vendor\GLEW\lib\Release\x64;$(SolutionDir)vendor\SDL\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -113,7 +113,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>false</ConformanceMode>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -146,7 +146,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>false</ConformanceMode>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>

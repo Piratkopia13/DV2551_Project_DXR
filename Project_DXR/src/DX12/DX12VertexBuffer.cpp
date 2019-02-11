@@ -1,6 +1,5 @@
+#include "pch.h"
 #include "DX12VertexBuffer.h"
-
-#include <cassert>
 
 #include "DX12Renderer.h"
 #include "D3DUtils.h"

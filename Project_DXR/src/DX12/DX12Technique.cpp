@@ -1,4 +1,4 @@
-#include <iostream>
+#include "pch.h"
 #include "DX12Technique.h"
 #include "DX12Renderer.h"
 

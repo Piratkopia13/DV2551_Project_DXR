@@ -1,11 +1,7 @@
-#include <string>
-#include <type_traits> 
-#include <assert.h>
-
+#include "pch.h"
 #include "Core/Renderer.h"
 #include "Core/Mesh.h"
 #include "Core/Texture2D.h"
-#include <math.h>
 
 using namespace std;
 Renderer* renderer;

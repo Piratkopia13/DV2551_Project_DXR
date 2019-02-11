@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "Material.h"
 
 Material& Material::addDefine(const std::string& defineText, ShaderType type)

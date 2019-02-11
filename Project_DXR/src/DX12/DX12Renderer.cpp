@@ -1,4 +1,5 @@
-﻿#include "DX12Renderer.h"
+﻿#include "pch.h"
+#include "DX12Renderer.h"
 
 #include "../Core/Technique.h"
 #include "DX12Technique.h"
@@ -9,8 +10,7 @@
 #include "DX12Texture2D.h"
 #include "DX12VertexBuffer.h"
 
-#include <stdio.h>
-#include <cassert>
+
 #include <guiddef.h>
 //#include <pix3.h> // Used for pix events
 
