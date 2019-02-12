@@ -1,9 +1,5 @@
 #pragma once
 
-#include <wrl.h>
-#include <d3d12.h>
-#include "d3dx12.h"
-
 #define ThrowIfFailed(hr) { \
 	if (FAILED(hr)) { \
 		throw std::exception(); \
@@ -11,12 +7,21 @@
 }
 
 template<class Interface>
-inline void SafeRelease(
-	Interface **ppInterfaceToRelease) {
+inline void SafeRelease(Interface **ppInterfaceToRelease) {
 	if (*ppInterfaceToRelease != NULL) {
 		(*ppInterfaceToRelease)->Release();
 
 		(*ppInterfaceToRelease) = NULL;
+	}
+}
+
+// Safe release for interfaces
+template<class Interface>
+inline void SafeRelease(Interface *& pInterfaceToRelease) {
+	if (pInterfaceToRelease != nullptr) {
+		pInterfaceToRelease->Release();
+
+		pInterfaceToRelease = nullptr;
 	}
 }
 

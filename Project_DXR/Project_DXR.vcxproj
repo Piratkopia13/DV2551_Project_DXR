@@ -30,14 +30,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -171,6 +171,7 @@
     <ClInclude Include="src\DX12\DX12Material.h" />
     <ClInclude Include="src\DX12\DX12RenderState.h" />
     <ClInclude Include="src\DX12\DX12Technique.h" />
+    <ClInclude Include="src\DX12\DXILShaderCompiler.h" />
     <ClInclude Include="src\DX12\Win32Window.h" />
     <ClInclude Include="src\Core\IA.h" />
     <ClInclude Include="src\Core\Material.h" />
@@ -198,6 +199,7 @@
     <ClCompile Include="src\DX12\DX12Material.cpp" />
     <ClCompile Include="src\DX12\DX12RenderState.cpp" />
     <ClCompile Include="src\DX12\DX12Technique.cpp" />
+    <ClCompile Include="src\DX12\DXILShaderCompiler.cpp" />
     <ClCompile Include="src\DX12\Win32Window.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Core\Material.cpp" />

@@ -10,8 +10,8 @@ namespace D3DUtils {
 		const void* data,
 		UINT64 byteSize,
 		UINT64 offset,
-		ID3D12Resource* defaultBuffer,
-		ID3D12Resource** uploadBuffer
+		ID3D12Resource1* defaultBuffer,
+		ID3D12Resource1** uploadBuffer
 	);
 
 };

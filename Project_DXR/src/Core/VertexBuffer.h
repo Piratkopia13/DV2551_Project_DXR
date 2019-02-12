@@ -1,8 +1,7 @@
 #pragma once
-class VertexBuffer
-{
+class VertexBuffer {
 public:
-	enum DATA_USAGE { STATIC=0, DYNAMIC=1, DONTCARE=2 };
+	enum DATA_USAGE { STATIC = 0, DYNAMIC = 1, DONTCARE = 2 };
 
 	VertexBuffer() {};
 	virtual ~VertexBuffer() {}
@@ -11,7 +10,7 @@ public:
 	virtual void unbind() = 0;
 	virtual size_t getSize() = 0;
 	void incRef() { refs++; };
-	void decRef() { if (refs>0) refs--; };
+	void decRef() { if (refs > 0) refs--; };
 	inline unsigned int refCount() { return refs; };
 protected:
 private:

@@ -9,8 +9,8 @@ void D3DUtils::UpdateDefaultBufferData(
 	const void* data,
 	UINT64 byteSize,
 	UINT64 offset,
-	ID3D12Resource* defaultBuffer,
-	ID3D12Resource** uploadBuffer) 
+	ID3D12Resource1* defaultBuffer,
+	ID3D12Resource1** uploadBuffer) 
 {
 	ThrowIfFailed(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),

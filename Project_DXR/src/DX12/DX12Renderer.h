@@ -38,17 +38,17 @@ public:
 	DX12Renderer();
 	~DX12Renderer();
 
-	Material* makeMaterial(const std::string& name);
-	Mesh* makeMesh();
-	VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage);
-	ConstantBuffer* makeConstantBuffer(std::string NAME, unsigned int location);
-	RenderState* makeRenderState();
-	Technique* makeTechnique(Material* m, RenderState* r);
-	Texture2D* makeTexture2D();
-	Sampler2D* makeSampler2D();
+	virtual Material* makeMaterial(const std::string& name) override;
+	virtual Mesh* makeMesh() override;
+	virtual VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) override;
+	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, unsigned int location) override;
+	virtual RenderState* makeRenderState() override;
+	virtual Technique* makeTechnique(Material* m, RenderState* r) override;
+	virtual Texture2D* makeTexture2D() override;
+	virtual Sampler2D* makeSampler2D() override;
 
-	std::string getShaderPath();
-	std::string getShaderExtension();
+	virtual std::string getShaderPath() override;
+	virtual std::string getShaderExtension() override;
 	ID3D12Device4* getDevice() const;
 	ID3D12CommandQueue* getCmdQueue() const;
 	ID3D12GraphicsCommandList3* getCmdList() const;
@@ -56,20 +56,21 @@ public:
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
 	UINT getFrameIndex() const;
+	ID3D12Resource1* createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps);
 
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
 
-	int initialize(unsigned int width = 640, unsigned int height = 480);
-	void setWinTitle(const char* title);
-	int shutdown();
+	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
+	virtual void setWinTitle(const char* title) override;
+	virtual int shutdown() override;
 
-	void setClearColor(float, float, float, float);
-	void clearBuffer(unsigned int);
+	virtual void setClearColor(float, float, float, float) override;
+	virtual void clearBuffer(unsigned int) override;
 	//	void setRenderTarget(RenderTarget* rt); // complete parameters
-	void setRenderState(RenderState* ps);
-	void submit(Mesh* mesh);
-	void frame();
-	void present();
+	virtual void setRenderState(RenderState* ps) override;
+	virtual void submit(Mesh* mesh) override;
+	virtual void frame() override;
+	virtual void present() override;
 	
 	//void addCbvSrvUavDescriptor();
 	//void addSamplerDescriptor();
@@ -78,12 +79,35 @@ public:
 	void reportLiveObjects();
 	
 private:
+	void createDevice();
+	void createCmdInterfacesAndSwapChain();
+	void createFenceAndEventHandle();
+	void createRenderTargets();
+	void createGlobalRootSignature();
+
+	// DXR
+	void checkRayTracingSupport();
+	void createAccelerationStructures();
+	void createShaderResources();
+	void createShaderTables();
+	void createBLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* vb);
+	void createTLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* blas);
+	void createRaytracingPSO();
+	ID3D12RootSignature* createRayGenLocalRootSignature();
+	ID3D12RootSignature* createHitGroupLocalRootSignature();
+	ID3D12RootSignature* createMissLocalRootSignature();
+
+	// Multithreading
 	void workerThread(unsigned int id);
 	struct Command {
 		wComPtr<ID3D12CommandAllocator> allocator; // Allocator only grows, use multple (one for each thing)
-		wComPtr<ID3D12GraphicsCommandList3> list;
+		wComPtr<ID3D12GraphicsCommandList4> list;
 	};
 private:
+	// Only used for initialization
+	IDXGIFactory6* m_factory;
+
+
 	std::unique_ptr<Win32Window> m_window;
 	bool m_globalWireframeMode;
 	float m_clearColor[4];
@@ -92,8 +116,51 @@ private:
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;
 
+	bool m_supportsDXR;
+
+	// DXR stuff
+	struct AccelerationStructureBuffers {
+		ID3D12Resource1* scratch = nullptr;
+		ID3D12Resource1* result = nullptr;
+		ID3D12Resource1* instanceDesc = nullptr;    // Used only for top-level AS
+	};
+	AccelerationStructureBuffers m_DXR_BottomBuffers{};
+	uint64_t m_topLevelConservativeSize = 0;
+	AccelerationStructureBuffers m_DXR_TopBuffers{};
+
+	ID3D12StateObject* m_rtPipelineState = nullptr;
+
+	struct ShaderTableData {
+		UINT64 SizeInBytes;
+		UINT32 StrideInBytes;
+		ID3D12Resource1* Resource = nullptr;
+	};
+
+	ShaderTableData m_rayGenShaderTable{};
+	ShaderTableData m_missShaderTable{};
+	ShaderTableData m_hitGroupShaderTable{};
+
+	ID3D12DescriptorHeap* m_rtDescriptorHeap = {};
+
+	D3D12_CPU_DESCRIPTOR_HANDLE m_outputUAV_CPU = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE m_outputUAV_GPU = {};
+	ID3D12Resource* m_mpOutputResource = nullptr;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtAcceleration_CPU = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE m_rtAcceleration_GPU = {};
+
+	const WCHAR* m_rayGenName = L"rayGen";
+	const WCHAR* m_closestHitName = L"closestHit";
+	const WCHAR* m_missName = L"miss";
+	const WCHAR* m_hitGroupName = L"HitGroup";
+
+	static const D3D12_HEAP_PROPERTIES sUploadHeapProperties;
+	static const D3D12_HEAP_PROPERTIES sDefaultHeapProps;
+
+
+
 	// DX12 stuff
-	wComPtr<ID3D12Device4> m_device;
+	wComPtr<ID3D12Device5> m_device;
 	wComPtr<ID3D12CommandQueue> m_commandQueue;
 	Command m_preCommand;
 	Command m_postCommand;
@@ -101,7 +168,7 @@ private:
 	wComPtr<ID3D12DescriptorHeap> m_renderTargetsHeap;
 	wComPtr<IDXGISwapChain4> m_swapChain;
 	std::vector<wComPtr<ID3D12Resource1>> m_renderTargets;
-	wComPtr<ID3D12RootSignature> m_rootSignature;
+	wComPtr<ID3D12RootSignature> m_globalRootSignature;
 
 	wComPtr<IDXGIFactory2> m_dxgiFactory;
 

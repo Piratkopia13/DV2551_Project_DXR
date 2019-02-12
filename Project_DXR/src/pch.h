@@ -12,7 +12,17 @@
 #include <set>
 #include <string>
 #include <type_traits>
+#include <memory>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 #include <windows.h>
 #include <math.h>
 #include <d3dcompiler.h>
+#include <wrl.h>
+#include <d3d12.h>
+#include <DirectXMath.h>
+#include <comdef.h>
+#include "DX12/d3dx12.h"

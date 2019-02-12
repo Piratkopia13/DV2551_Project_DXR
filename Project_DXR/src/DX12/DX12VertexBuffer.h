@@ -20,16 +20,17 @@ public:
 	virtual size_t getSize() override;
 
 	void setVertexSize(size_t size);
+	ID3D12Resource1* getBuffer() const;
 
 	void releaseBufferedObjects(); 
 
 private:
 	VertexBuffer::DATA_USAGE m_usage;
 
-	wComPtr<ID3D12Resource> m_vertexBuffer;
+	wComPtr<ID3D12Resource1> m_vertexBuffer;
 
 	// uploadBuffers to be released
-	std::vector<ID3D12Resource*> m_uploadBuffers;
+	std::vector<ID3D12Resource1*> m_uploadBuffers;
 
 	size_t m_byteSize;
 	size_t m_vertexSize;

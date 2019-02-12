@@ -31,7 +31,7 @@ DX12VertexBuffer::~DX12VertexBuffer() {
 void DX12VertexBuffer::setData(const void * data, size_t size, size_t offset) {
 	assert(size + offset <= m_byteSize);
 
-	ID3D12Resource* uploadBuffer = nullptr;
+	ID3D12Resource1* uploadBuffer = nullptr;
 	D3DUtils::UpdateDefaultBufferData(m_renderer->getDevice(), m_renderer->getCmdList(),
 		data, size, offset, m_vertexBuffer.Get(), &uploadBuffer);
 	// To be released, let renderer handle later
@@ -65,6 +65,10 @@ size_t DX12VertexBuffer::getSize() {
 
 void DX12VertexBuffer::setVertexSize(size_t size) {
 	m_vertexSize = size;
+}
+
+ID3D12Resource1 * DX12VertexBuffer::getBuffer() const {
+	return m_vertexBuffer.Get();
 }
 
 void DX12VertexBuffer::releaseBufferedObjects() {
