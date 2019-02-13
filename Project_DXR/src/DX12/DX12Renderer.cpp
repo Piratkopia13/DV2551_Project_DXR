@@ -107,7 +107,7 @@ std::string DX12Renderer::getShaderExtension() {
 	return std::string(".hlsl");
 }
 
-ID3D12Device4* DX12Renderer::getDevice() const {
+ID3D12Device5* DX12Renderer::getDevice() const {
 	return m_device.Get();
 }
 
@@ -214,6 +214,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	// DXR
 	checkRayTracingSupport();
 	createAccelerationStructures();
+	createDxrGlobalRootSignature();
 	createRaytracingPSO();
 	createShaderResources();
 	createShaderTables();
@@ -299,7 +300,7 @@ void DX12Renderer::createDevice() {
 		}
 
 		// Check to see if the adapter supports Direct3D 12, but don't create the actual device yet
-		if (SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device4), nullptr))) {
+		if (SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device5), nullptr))) {
 			break;
 		}
 
@@ -482,6 +483,44 @@ void DX12Renderer::createShaderResources() {
 	samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerDescriptorHeap)));
 	m_samplerDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+
+	// DXR
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
+	heapDescriptorDesc.NumDescriptors = 10;
+	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_rtDescriptorHeap));
+
+	// Create the output resource. The dimensions and format should match the swap-chain
+	D3D12_RESOURCE_DESC resDesc = {};
+	resDesc.DepthOrArraySize = 1;
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // The backbuffer is actually DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, but sRGB formats can't be used with UAVs. We will convert to sRGB ourselves in the shader
+	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	resDesc.Width = m_window->getWindowWidth();
+	resDesc.Height = m_window->getWindowHeight();
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resDesc.MipLevels = 1;
+	resDesc.SampleDesc.Count = 1;
+	m_device->CreateCommittedResource(&sDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&m_mpOutputResource)); // Starting as copy-source to simplify onFrameRender()
+
+	// Create the UAV. Based on the root signature we created it should be the first entry
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+	m_outputUAV_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	m_device->CreateUnorderedAccessView(m_mpOutputResource, nullptr, &uavDesc, m_outputUAV_CPU);
+
+	// Create the TLAS SRV right after the UAV. Note that we are using a different SRV desc here
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.RaytracingAccelerationStructure.Location = m_DXR_TopBuffers.result->GetGPUVirtualAddress();
+
+	m_rtAcceleration_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	m_rtAcceleration_CPU.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	m_device->CreateShaderResourceView(nullptr, &srvDesc, m_rtAcceleration_CPU);
 }
 
 void DX12Renderer::createShaderTables() {
@@ -904,11 +943,37 @@ void DX12Renderer::createAccelerationStructures() {
 	createBLAS(m_preCommand.list.Get(), vb.getBuffer());
 	createTLAS(m_preCommand.list.Get(), m_DXR_BottomBuffers.result);
 
-	m_preCommand.list.Get()->Close();
+	/*m_preCommand.list.Get()->Close();
 	ID3D12CommandList* listsToExec[] = { m_preCommand.list.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(listsToExec), listsToExec);
 
-	waitForGPU();
+	waitForGPU();*/
+
+}
+
+void DX12Renderer::createDxrGlobalRootSignature() {
+	D3D12_ROOT_PARAMETER rootParams[1]{};
+
+	//float3 ShaderTableColor;
+	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	rootParams[0].Constants.RegisterSpace = 0;
+	rootParams[0].Constants.ShaderRegister = 0;
+	rootParams[0].Constants.Num32BitValues = 1;
+
+	D3D12_ROOT_SIGNATURE_DESC desc = {};
+	desc.NumParameters = _countof(rootParams);
+	desc.pParameters = rootParams;
+	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	ID3DBlob* sigBlob;
+	ID3DBlob* errorBlob;
+	HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sigBlob, &errorBlob);
+	if (FAILED(hr)) {
+		MessageBoxA(0, (char*)errorBlob->GetBufferPointer(), "", 0);
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		return;
+	}
+	m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&m_dxrGlobalRootSignature));
 
 }
 
@@ -1046,9 +1111,9 @@ void DX12Renderer::createRaytracingPSO() {
 
 	//Init DXIL subobject
 	D3D12_EXPORT_DESC dxilExports[] = {
-		m_rayGenName, nullptr, D3D12_EXPORT_FLAG_NONE,
-		m_closestHitName, nullptr, D3D12_EXPORT_FLAG_NONE,
-		m_missName, nullptr, D3D12_EXPORT_FLAG_NONE,
+		L"rayGen", nullptr, D3D12_EXPORT_FLAG_NONE,
+		L"closestHit", nullptr, D3D12_EXPORT_FLAG_NONE,
+		L"miss", nullptr, D3D12_EXPORT_FLAG_NONE,
 	};
 	D3D12_DXIL_LIBRARY_DESC dxilLibraryDesc;
 	dxilLibraryDesc.DXILLibrary.pShaderBytecode = pShaders->GetBufferPointer();
@@ -1059,7 +1124,6 @@ void DX12Renderer::createRaytracingPSO() {
 	D3D12_STATE_SUBOBJECT* soDXIL = nextSuboject();
 	soDXIL->Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
 	soDXIL->pDesc = &dxilLibraryDesc;
-
 
 	//Init hit group
 	D3D12_HIT_GROUP_DESC hitGroupDesc;
@@ -1158,7 +1222,7 @@ void DX12Renderer::createRaytracingPSO() {
 	soPipelineConfig->Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
 	soPipelineConfig->pDesc = &pipelineConfig;
 
-	ID3D12RootSignature* groot = m_globalRootSignature.Get();
+	ID3D12RootSignature* groot = m_dxrGlobalRootSignature.Get();
 
 	D3D12_STATE_SUBOBJECT* soGlobalRoot = nextSuboject();
 	soGlobalRoot->Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
@@ -1211,7 +1275,7 @@ ID3D12RootSignature* DX12Renderer::createRayGenLocalRootSignature() {
 		return nullptr;
 	}
 	ID3D12RootSignature* pRootSig;
-	m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSig));
+	ThrowIfFailed(m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSig)));
 
 	return pRootSig;
 }

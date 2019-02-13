@@ -49,7 +49,7 @@ public:
 
 	virtual std::string getShaderPath() override;
 	virtual std::string getShaderExtension() override;
-	ID3D12Device4* getDevice() const;
+	ID3D12Device5* getDevice() const;
 	ID3D12CommandQueue* getCmdQueue() const;
 	ID3D12GraphicsCommandList3* getCmdList() const;
 	ID3D12RootSignature* getRootSignature() const;
@@ -88,6 +88,7 @@ private:
 	// DXR
 	void checkRayTracingSupport();
 	void createAccelerationStructures();
+	void createDxrGlobalRootSignature();
 	void createShaderResources();
 	void createShaderTables();
 	void createBLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* vb);
@@ -157,6 +158,7 @@ private:
 	static const D3D12_HEAP_PROPERTIES sUploadHeapProperties;
 	static const D3D12_HEAP_PROPERTIES sDefaultHeapProps;
 
+	wComPtr<ID3D12RootSignature> m_dxrGlobalRootSignature;
 
 
 	// DX12 stuff

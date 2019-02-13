@@ -74,7 +74,9 @@ HRESULT DXILShaderCompiler::compileFromFile(DXILShaderCompiler::Desc* desc, IDxc
 							IDxcBlobEncoding* pPrintBlob16 = nullptr;
 							m_library->GetBlobAsUtf16(pPrintBlob, &pPrintBlob16);
 
+							OutputDebugStringW((LPCWSTR)pPrintBlob16->GetBufferPointer());
 							MessageBox(0, (LPCWSTR)pPrintBlob16->GetBufferPointer(), L"", 0);
+
 
 							SafeRelease(pPrintBlob);
 							SafeRelease(pPrintBlob16);
