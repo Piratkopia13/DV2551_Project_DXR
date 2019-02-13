@@ -157,6 +157,18 @@ ID3D12Resource1* DX12Renderer::createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS 
 	return pBuffer;
 }
 
+void DX12Renderer::setResourceTransitionBarrier(ID3D12GraphicsCommandList * commandList, ID3D12Resource * resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter) {
+	D3D12_RESOURCE_BARRIER barrierDesc = {};
+
+	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrierDesc.Transition.pResource = resource;
+	barrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrierDesc.Transition.StateBefore = StateBefore;
+	barrierDesc.Transition.StateAfter = StateAfter;
+
+	commandList->ResourceBarrier(1, &barrierDesc);
+}
+
 ID3D12DescriptorHeap* DX12Renderer::getSamplerDescriptorHeap() const {
 	return m_samplerDescriptorHeap.Get();
 }
@@ -703,18 +715,19 @@ void DX12Renderer::frame() {
 		m_firstFrame = false;
 	}
 
+	auto frameIndex = getFrameIndex();
 	// Get the handle for the current render target used as back buffer
 	m_cdh = m_renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
-	m_cdh.ptr += m_renderTargetDescriptorSize * getFrameIndex();
+	m_cdh.ptr += m_renderTargetDescriptorSize * frameIndex;
 
-	{
-		// Notify workers to begin creating command lists
-		std::lock_guard<std::mutex> guard(m_mainMutex);
-		for (int i = 0; i < NUM_WORKER_THREADS; i++) {
-			m_runWorkers[i] = true;
-		}
-	}
-	m_mainCondVar.notify_all();
+	//{
+	//	// Notify workers to begin creating command lists
+	//	std::lock_guard<std::mutex> guard(m_mainMutex);
+	//	for (int i = 0; i < NUM_WORKER_THREADS; i++) {
+	//		m_runWorkers[i] = true;
+	//	}
+	//}
+	//m_mainCondVar.notify_all();
 
 	// Command list allocators can only be reset when the associated command lists have
 	// finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
@@ -724,7 +737,7 @@ void DX12Renderer::frame() {
 	// Indicate that the back buffer will be used as render target.
 	D3D12_RESOURCE_BARRIER barrierDesc = {};
 	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrierDesc.Transition.pResource = m_renderTargets[getFrameIndex()].Get();
+	barrierDesc.Transition.pResource = m_renderTargets[frameIndex].Get();
 	barrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -740,35 +753,86 @@ void DX12Renderer::frame() {
 		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	}
 
-	// Wait for worker threads to finish
-	{
-		std::unique_lock<std::mutex> mlock(m_workerMutex);
-		//OutputDebugStringA("wait\n");
-		m_workerCondVar.wait(mlock, [&]() { return m_numWorkersFinished >= NUM_WORKER_THREADS; });
-		//OutputDebugStringA("do\n");
-		//OutputDebugStringA("All workers finished! Executing worker command lists\n");
-		m_numWorkersFinished.store(0);
-		// Execute the worker command lists
-		ID3D12CommandList* listsToExecute[NUM_WORKER_THREADS];
-		//listsToExecute[0] = m_preCommand.list.Get();
-		for (int i = 0; i < NUM_WORKER_THREADS; i++) {
-			listsToExecute[i] = m_workerCommands[i].list.Get();
-		}
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-		// Clear submitted draw list
-		drawList.clear();
-	}
+	//// Wait for worker threads to finish
+	//{
+	//	std::unique_lock<std::mutex> mlock(m_workerMutex);
+	//	//OutputDebugStringA("wait\n");
+	//	m_workerCondVar.wait(mlock, [&]() { return m_numWorkersFinished >= NUM_WORKER_THREADS; });
+	//	//OutputDebugStringA("do\n");
+	//	//OutputDebugStringA("All workers finished! Executing worker command lists\n");
+	//	m_numWorkersFinished.store(0);
+	//	// Execute the worker command lists
+	//	ID3D12CommandList* listsToExecute[NUM_WORKER_THREADS];
+	//	//listsToExecute[0] = m_preCommand.list.Get();
+	//	for (int i = 0; i < NUM_WORKER_THREADS; i++) {
+	//		listsToExecute[i] = m_workerCommands[i].list.Get();
+	//	}
+	//	m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+	//	// Clear submitted draw list
+	//	drawList.clear();
+	//}
 
 	// Reset post command
 	m_postCommand.allocator->Reset();
 	m_postCommand.list->Reset(m_postCommand.allocator.Get(), nullptr);
 
+
+
+	// DXR
+
+	//Set constant buffer descriptor heap
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_rtDescriptorHeap };
+	m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+
+	//hack to update every frame...
+	createTLAS(m_postCommand.list.Get(), m_DXR_BottomBuffers.result);
+
+	// Let's raytrace
+	setResourceTransitionBarrier(m_postCommand.list.Get(), m_mpOutputResource, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	D3D12_DISPATCH_RAYS_DESC raytraceDesc = {};
+	raytraceDesc.Width = m_window->getWindowWidth();
+	raytraceDesc.Height = m_window->getWindowHeight();
+	raytraceDesc.Depth = 1;
+
+	//set shader tables
+	raytraceDesc.RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable.Resource->GetGPUVirtualAddress();
+	raytraceDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable.SizeInBytes;
+
+	raytraceDesc.MissShaderTable.StartAddress = m_missShaderTable.Resource->GetGPUVirtualAddress();
+	raytraceDesc.MissShaderTable.StrideInBytes = m_missShaderTable.StrideInBytes;
+	raytraceDesc.MissShaderTable.SizeInBytes = m_missShaderTable.SizeInBytes;
+
+	raytraceDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable.Resource->GetGPUVirtualAddress();
+	raytraceDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTable.StrideInBytes;
+	raytraceDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable.SizeInBytes;
+
+	// Bind the empty root signature
+	m_postCommand.list->SetComputeRootSignature(m_dxrGlobalRootSignature.Get());
+
+	// Set float RedChannel; in global root signature
+	float redColor = 1.0f;
+	m_postCommand.list->SetComputeRoot32BitConstant(0, *reinterpret_cast<UINT*>(&redColor), 0);
+
+	// Dispatch
+	m_postCommand.list->SetPipelineState1(m_rtPipelineState);
+	m_postCommand.list->DispatchRays(&raytraceDesc);
+
+	// Copy the results to the back-buffer
+	setResourceTransitionBarrier(m_postCommand.list.Get(), m_mpOutputResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
+	m_postCommand.list->CopyResource(m_renderTargets[frameIndex].Get(), m_mpOutputResource);
+
+
+
+
+
 	// Indicate that the back buffer will now be used to present
 	barrierDesc = {};
 	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrierDesc.Transition.pResource = m_renderTargets[getFrameIndex()].Get();
+	barrierDesc.Transition.pResource = m_renderTargets[frameIndex].Get();
 	barrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	m_postCommand.list->ResourceBarrier(1, &barrierDesc);
 
@@ -937,10 +1001,10 @@ void DX12Renderer::createAccelerationStructures() {
 		0.866f,  -0.5f, 0,
 		-0.866f, -0.5f, 0
 	};
-	DX12VertexBuffer vb(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC, this);
-	vb.setData(vertices, sizeof(vertices), 0);
+	DX12VertexBuffer* vb = new DX12VertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC, this); //TODO: fix mem leak
+	vb->setData(vertices, sizeof(vertices), 0);
 
-	createBLAS(m_preCommand.list.Get(), vb.getBuffer());
+	createBLAS(m_preCommand.list.Get(), vb->getBuffer());
 	createTLAS(m_preCommand.list.Get(), m_DXR_BottomBuffers.result);
 
 	/*m_preCommand.list.Get()->Close();
@@ -1196,7 +1260,7 @@ void DX12Renderer::createRaytracingPSO() {
 	//Init shader config
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig = {};
 	shaderConfig.MaxAttributeSizeInBytes = sizeof(float) * 2;
-	shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 3;
+	shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 4;
 
 	D3D12_STATE_SUBOBJECT* soShaderConfig = nextSuboject();
 	soShaderConfig->Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;

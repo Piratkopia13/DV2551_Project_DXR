@@ -13,7 +13,7 @@ cbuffer CB_ShaderTableLocal : register(b0, space1)
 
 struct RayPayload
 {
-	float3 color;
+	float4 color;
 };
 
 [shader("raygeneration")]
@@ -37,13 +37,13 @@ void rayGen()
 
 	RayPayload payload;
 	TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-	gOutput[launchIndex.xy] = float4(payload.color, 1);
+	gOutput[launchIndex.xy] = payload.color;
 }
 
 [shader("miss")]
 void miss(inout RayPayload payload)
 {
-	payload.color = float3(0.4f, 0.6f, 0.3f);
+	payload.color = float4(1.4f, 0.6f, 0.3f, 0.0f);
 }
 
 [shader("closesthit")]
@@ -54,5 +54,6 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	uint instanceID = InstanceID();
 	uint primitiveID = PrimitiveIndex();
 
-	payload.color = float3(RedChannel, 0, 0) + ShaderTableColor;
+	payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
+	payload.color.a = 1.0f;
 }

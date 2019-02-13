@@ -56,7 +56,9 @@ public:
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
 	UINT getFrameIndex() const;
+
 	ID3D12Resource1* createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps);
+	void setResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
 
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
 
