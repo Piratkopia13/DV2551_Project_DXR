@@ -123,6 +123,6 @@ void DX12Texture2D::bind(unsigned int slot, ID3D12GraphicsCommandList3* cmdList)
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_mainDescriptorHeap.Get(), m_renderer->getSamplerDescriptorHeap() };
 	cmdList->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
-	cmdList->SetGraphicsRootDescriptorTable(DX12Renderer::RootParameterIndex::DT_SAMPLERS, reinterpret_cast<DX12Sampler2D*>(sampler)->getGPUHandle());
-	cmdList->SetGraphicsRootDescriptorTable(DX12Renderer::RootParameterIndex::DT_SRVS, m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(GlobalRootParam::DT_SAMPLERS, reinterpret_cast<DX12Sampler2D*>(sampler)->getGPUHandle());
+	cmdList->SetGraphicsRootDescriptorTable(GlobalRootParam::DT_SRVS, m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 }

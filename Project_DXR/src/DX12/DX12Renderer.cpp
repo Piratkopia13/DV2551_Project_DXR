@@ -441,21 +441,21 @@ void DX12Renderer::createGlobalRootSignature() {
 	// Create root parameters
 	D3D12_ROOT_PARAMETER rootParam[4];
 
-	rootParam[CBV_TRANSLATION].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParam[CBV_TRANSLATION].Descriptor = rootDescCBV;
-	rootParam[CBV_TRANSLATION].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam[GlobalRootParam::CBV_TRANSLATION].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParam[GlobalRootParam::CBV_TRANSLATION].Descriptor = rootDescCBV;
+	rootParam[GlobalRootParam::CBV_TRANSLATION].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	rootParam[CBV_DIFFUSE_TINT].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParam[CBV_DIFFUSE_TINT].Descriptor = rootDescCBV2;
-	rootParam[CBV_DIFFUSE_TINT].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].Descriptor = rootDescCBV2;
+	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	rootParam[DT_SRVS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[DT_SRVS].DescriptorTable = dtSrv;
-	rootParam[DT_SRVS].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParam[GlobalRootParam::DT_SRVS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam[GlobalRootParam::DT_SRVS].DescriptorTable = dtSrv;
+	rootParam[GlobalRootParam::DT_SRVS].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	rootParam[DT_SAMPLERS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[DT_SAMPLERS].DescriptorTable = dtSampler;
-	rootParam[DT_SAMPLERS].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParam[GlobalRootParam::DT_SAMPLERS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam[GlobalRootParam::DT_SAMPLERS].DescriptorTable = dtSampler;
+	rootParam[GlobalRootParam::DT_SAMPLERS].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
@@ -521,18 +521,21 @@ void DX12Renderer::createShaderResources() {
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
-	m_outputUAV_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	m_device->CreateUnorderedAccessView(m_mpOutputResource, nullptr, &uavDesc, m_outputUAV_CPU);
+	D3D12_CPU_DESCRIPTOR_HANDLE outputUAV_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	m_device->CreateUnorderedAccessView(m_mpOutputResource, nullptr, &uavDesc, outputUAV_CPU);
+	m_outputUAV_GPU = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
 	// Create the TLAS SRV right after the UAV. Note that we are using a different SRV desc here
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	/*D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.RaytracingAccelerationStructure.Location = m_DXR_TopBuffers.result->GetGPUVirtualAddress();
+	srvDesc.RaytracingAccelerationStructure.Location = m_DXR_TopBuffers.result->GetGPUVirtualAddress();*/
 
-	m_rtAcceleration_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	m_rtAcceleration_CPU.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	m_device->CreateShaderResourceView(nullptr, &srvDesc, m_rtAcceleration_CPU);
+	//D3D12_CPU_DESCRIPTOR_HANDLE rtAcceleration_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	//rtAcceleration_CPU.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//m_device->CreateShaderResourceView(nullptr, &srvDesc, rtAcceleration_CPU);
+	m_rtAcceleration_GPU = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	m_rtAcceleration_GPU.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void DX12Renderer::createShaderTables() {
@@ -547,7 +550,7 @@ void DX12Renderer::createShaderTables() {
 			} tableData;
 
 			memcpy(tableData.ShaderIdentifier, rtsoProps->GetShaderIdentifier(m_rayGenName), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-			tableData.RTVDescriptor = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr;
+			tableData.RTVDescriptor = m_outputUAV_GPU.ptr;
 
 			//how big is the biggest?
 			union MaxSize {
@@ -610,7 +613,7 @@ void DX12Renderer::createShaderTables() {
 
 			int instanceCount = 3;
 			m_hitGroupShaderTable.StrideInBytes = sizeof(MaxSize);
-			m_hitGroupShaderTable.SizeInBytes = m_hitGroupShaderTable.StrideInBytes * instanceCount; //<-- only one for now...
+			m_hitGroupShaderTable.SizeInBytes = m_hitGroupShaderTable.StrideInBytes * instanceCount;
 			m_hitGroupShaderTable.Resource = createBuffer(m_hitGroupShaderTable.SizeInBytes, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, sUploadHeapProperties);
 
 			// Map the buffer
@@ -812,7 +815,10 @@ void DX12Renderer::frame() {
 
 	// Set float RedChannel; in global root signature
 	float redColor = 1.0f;
-	m_postCommand.list->SetComputeRoot32BitConstant(0, *reinterpret_cast<UINT*>(&redColor), 0);
+	m_postCommand.list->SetComputeRoot32BitConstant(DXRGlobalRootParam::FLOAT_RED_CHANNEL, *reinterpret_cast<UINT*>(&redColor), 0);
+	// Set acceleration structure
+	m_postCommand.list->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
+	//m_postCommand.list->SetComputeRootDescriptorTable(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_rtAcceleration_GPU);
 
 	// Dispatch
 	m_postCommand.list->SetPipelineState1(m_rtPipelineState);
@@ -1016,13 +1022,31 @@ void DX12Renderer::createAccelerationStructures() {
 }
 
 void DX12Renderer::createDxrGlobalRootSignature() {
-	D3D12_ROOT_PARAMETER rootParams[1]{};
+	//D3D12_DESCRIPTOR_RANGE range[1]{};
+	D3D12_ROOT_PARAMETER rootParams[2]{};
 
-	//float3 ShaderTableColor;
-	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-	rootParams[0].Constants.RegisterSpace = 0;
-	rootParams[0].Constants.ShaderRegister = 0;
-	rootParams[0].Constants.Num32BitValues = 1;
+	// gRtScene
+	//range[0].BaseShaderRegister = 0;
+	//range[0].NumDescriptors = 1;
+	//range[0].RegisterSpace = 0;
+	//range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	//range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	//float RedChannel
+	rootParams[DXRGlobalRootParam::FLOAT_RED_CHANNEL].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	rootParams[DXRGlobalRootParam::FLOAT_RED_CHANNEL].Constants.RegisterSpace = 0;
+	rootParams[DXRGlobalRootParam::FLOAT_RED_CHANNEL].Constants.ShaderRegister = 0;
+	rootParams[DXRGlobalRootParam::FLOAT_RED_CHANNEL].Constants.Num32BitValues = 2; // WHY CANT THIS BE 1??
+
+	// gRtScene
+	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.ShaderRegister = 0;
+	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.RegisterSpace = 0;
+
+	/*rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].DescriptorTable.NumDescriptorRanges = _countof(range);
+	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].DescriptorTable.pDescriptorRanges = range;*/
+
 
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.NumParameters = _countof(rootParams);
@@ -1038,6 +1062,7 @@ void DX12Renderer::createDxrGlobalRootSignature() {
 		return;
 	}
 	m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&m_dxrGlobalRootSignature));
+	m_dxrGlobalRootSignature->SetName(L"dxrGlobal");
 
 }
 
@@ -1175,9 +1200,9 @@ void DX12Renderer::createRaytracingPSO() {
 
 	//Init DXIL subobject
 	D3D12_EXPORT_DESC dxilExports[] = {
-		L"rayGen", nullptr, D3D12_EXPORT_FLAG_NONE,
-		L"closestHit", nullptr, D3D12_EXPORT_FLAG_NONE,
-		L"miss", nullptr, D3D12_EXPORT_FLAG_NONE,
+		m_rayGenName, nullptr, D3D12_EXPORT_FLAG_NONE,
+		m_closestHitName, nullptr, D3D12_EXPORT_FLAG_NONE,
+		m_missName, nullptr, D3D12_EXPORT_FLAG_NONE,
 	};
 	D3D12_DXIL_LIBRARY_DESC dxilLibraryDesc;
 	dxilLibraryDesc.DXILLibrary.pShaderBytecode = pShaders->GetBufferPointer();
@@ -1260,7 +1285,7 @@ void DX12Renderer::createRaytracingPSO() {
 	//Init shader config
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig = {};
 	shaderConfig.MaxAttributeSizeInBytes = sizeof(float) * 2;
-	shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 4;
+	shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 4 + sizeof(UINT) * 1;
 
 	D3D12_STATE_SUBOBJECT* soShaderConfig = nextSuboject();
 	soShaderConfig->Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
@@ -1280,7 +1305,7 @@ void DX12Renderer::createRaytracingPSO() {
 
 	//Init pipeline config
 	D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
-	pipelineConfig.MaxTraceRecursionDepth = 1;
+	pipelineConfig.MaxTraceRecursionDepth = 2;
 
 	D3D12_STATE_SUBOBJECT* soPipelineConfig = nextSuboject();
 	soPipelineConfig->Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
@@ -1303,25 +1328,26 @@ void DX12Renderer::createRaytracingPSO() {
 }
 
 ID3D12RootSignature* DX12Renderer::createRayGenLocalRootSignature() {
-	D3D12_DESCRIPTOR_RANGE range[2]{};
+	D3D12_DESCRIPTOR_RANGE range[1]{};
 	D3D12_ROOT_PARAMETER rootParams[1]{};
 
+	// gRtScene
+	/*range[1].BaseShaderRegister = 0;
+	range[1].NumDescriptors = 1;
+	range[1].RegisterSpace = 0;
+	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;*/
+
+	// lOutput
 	range[0].BaseShaderRegister = 0;
 	range[0].NumDescriptors = 1;
 	range[0].RegisterSpace = 0;
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-	range[0].OffsetInDescriptorsFromTableStart = 0;
+	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// gRtScene
-	range[1].BaseShaderRegister = 0;
-	range[1].NumDescriptors = 1;
-	range[1].RegisterSpace = 0;
-	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	range[1].OffsetInDescriptorsFromTableStart = 1;
-
-	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[0].DescriptorTable.NumDescriptorRanges = _countof(range);
-	rootParams[0].DescriptorTable.pDescriptorRanges = range;
+	rootParams[DXRRayGenRootParam::DT_UAV_OUTPUT].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[DXRRayGenRootParam::DT_UAV_OUTPUT].DescriptorTable.NumDescriptorRanges = _countof(range);
+	rootParams[DXRRayGenRootParam::DT_UAV_OUTPUT].DescriptorTable.pDescriptorRanges = range;
 
 	// Create the desc
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
@@ -1340,6 +1366,7 @@ ID3D12RootSignature* DX12Renderer::createRayGenLocalRootSignature() {
 	}
 	ID3D12RootSignature* pRootSig;
 	ThrowIfFailed(m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSig)));
+	pRootSig->SetName(L"RayGenLocal");
 
 	return pRootSig;
 }
@@ -1348,10 +1375,10 @@ ID3D12RootSignature* DX12Renderer::createHitGroupLocalRootSignature() {
 	D3D12_ROOT_PARAMETER rootParams[1]{};
 
 	//float3 ShaderTableColor;
-	rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-	rootParams[0].Constants.RegisterSpace = 1;
-	rootParams[0].Constants.ShaderRegister = 0;
-	rootParams[0].Constants.Num32BitValues = 3;
+	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.RegisterSpace = 1;
+	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.ShaderRegister = 0;
+	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.Num32BitValues = 3;
 
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.NumParameters = _countof(rootParams);
@@ -1369,6 +1396,7 @@ ID3D12RootSignature* DX12Renderer::createHitGroupLocalRootSignature() {
 	}
 	ID3D12RootSignature* rootSig;
 	m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&rootSig));
+	rootSig->SetName(L"HitGroupLocal");
 
 	return rootSig;
 }
@@ -1389,6 +1417,7 @@ ID3D12RootSignature* DX12Renderer::createMissLocalRootSignature() {
 	}
 	ID3D12RootSignature* pRootSig;
 	m_device->CreateRootSignature(0, sigBlob->GetBufferPointer(), sigBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSig));
+	pRootSig->SetName(L"MissLocal");
 
 	return pRootSig;
 }

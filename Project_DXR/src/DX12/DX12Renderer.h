@@ -24,15 +24,36 @@
 class DX12Mesh;
 class DX12Technique;
 
-class DX12Renderer : public Renderer {
-
-public:
-	enum RootParameterIndex {
+namespace GlobalRootParam {
+	enum Slot {
 		CBV_TRANSLATION = 0,
 		CBV_DIFFUSE_TINT,
 		DT_SRVS,
 		DT_SAMPLERS
 	};
+}
+namespace DXRGlobalRootParam {
+	enum Slot {
+		FLOAT_RED_CHANNEL = 0,
+		SRV_ACCELERATION_STRUCTURE,
+	};
+}
+namespace DXRRayGenRootParam {
+	enum Slot {
+		DT_UAV_OUTPUT = 0
+	};
+}
+namespace DXRHitGroupRootParam {
+	enum Slot {
+		FLOAT3_SHADER_TABLE_COLOR = 0
+	};
+}
+namespace DXRMissRootParam {
+	enum Slot {
+	};
+}
+
+class DX12Renderer : public Renderer {
 
 public:
 	DX12Renderer();
@@ -145,11 +166,11 @@ private:
 
 	ID3D12DescriptorHeap* m_rtDescriptorHeap = {};
 
-	D3D12_CPU_DESCRIPTOR_HANDLE m_outputUAV_CPU = {};
+	//D3D12_CPU_DESCRIPTOR_HANDLE m_outputUAV_CPU = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE m_outputUAV_GPU = {};
 	ID3D12Resource* m_mpOutputResource = nullptr;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE m_rtAcceleration_CPU = {};
+	//D3D12_CPU_DESCRIPTOR_HANDLE m_rtAcceleration_CPU = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE m_rtAcceleration_GPU = {};
 
 	const WCHAR* m_rayGenName = L"rayGen";

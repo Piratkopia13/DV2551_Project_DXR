@@ -1,5 +1,16 @@
+#define MAX_RAY_RECURSION_DEPTH 2
+
+// Retrieve hit world position.
+float3 HitWorldPosition()
+{
+    return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+}
+
+
+
+
 RaytracingAccelerationStructure gRtScene : register(t0);
-RWTexture2D<float4> gOutput : register(u0);
+RWTexture2D<float4> lOutput : register(u0);
 
 cbuffer CB_Global : register(b0, space0)
 {
@@ -14,6 +25,7 @@ cbuffer CB_ShaderTableLocal : register(b0, space1)
 struct RayPayload
 {
 	float4 color;
+	uint recursionDepth;
 };
 
 [shader("raygeneration")]
@@ -36,24 +48,62 @@ void rayGen()
 	ray.TMax = 100000;
 
 	RayPayload payload;
+	payload.recursionDepth = 0;
 	TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-	gOutput[launchIndex.xy] = payload.color;
+	lOutput[launchIndex.xy] = payload.color;
+	// lOutput[launchIndex.xy] = float4(RedChannel, 0, 0, 1);
 }
 
 [shader("miss")]
 void miss(inout RayPayload payload)
 {
-	payload.color = float4(1.4f, 0.6f, 0.3f, 0.0f);
+	payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
+
+
+	// RayDesc ray;
+	// ray.Origin = float3(0, 0, -2);
+	// ray.Direction = float3(-1,0,0);
+
+	// ray.TMin = 0;
+	// ray.TMax = 100000;
+
+	// payload.recursionDepth = 0;
+	// TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+
 }
 
 [shader("closesthit")]
 void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-	//for info
-	float3 barycentrics = float3(1.0 - attribs.barycentrics.x - attribs.barycentrics.y, attribs.barycentrics.x, attribs.barycentrics.y);
-	uint instanceID = InstanceID();
-	uint primitiveID = PrimitiveIndex();
+	payload.recursionDepth++;
+	// RayDesc ray;
+	// ray.Origin = float3(0, 0, -2);
+	// ray.Direction = float3(-1,0,0);
 
-	payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
-	payload.color.a = 1.0f;
+	// ray.TMin = 0;
+	// ray.TMax = 100000;
+
+	// payload.recursionDepth = 0;
+	// TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+
+	if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH) {
+		RayDesc ray;
+		ray.Origin = HitWorldPosition();
+		ray.Direction = float3(-1.0, 0.0, 0.0);
+		ray.TMin = 0.01;
+		ray.TMax = 100000;
+
+		TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+	} else {
+		//for info
+		float3 barycentrics = float3(1.0 - attribs.barycentrics.x - attribs.barycentrics.y, attribs.barycentrics.x, attribs.barycentrics.y);
+		uint instanceID = InstanceID();
+		uint primitiveID = PrimitiveIndex();
+
+		payload.color = float4(1.0f, 0.0f, 0.0f, 1.0f);
+		payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
+		payload.color.a = 1.0f;
+	}
+
+
 }
