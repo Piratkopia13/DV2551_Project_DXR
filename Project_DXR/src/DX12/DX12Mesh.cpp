@@ -7,7 +7,7 @@ DX12Mesh::~DX12Mesh() {}
 
 void DX12Mesh::addIAVertexBufferBinding( VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement, unsigned int inputStream) {
 	Mesh::addIAVertexBufferBinding(buffer, offset, numElements, sizeElement, inputStream);
-	static_cast<DX12VertexBuffer*>(buffer)->setVertexSize(sizeElement);
+	static_cast<DX12VertexBuffer*>(buffer)->setVertexStride(sizeElement);
 };
 
 void DX12Mesh::bindIAVertexBuffer(unsigned int location) {

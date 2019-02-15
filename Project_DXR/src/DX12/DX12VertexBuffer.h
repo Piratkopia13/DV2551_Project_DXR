@@ -19,7 +19,9 @@ public:
 	virtual void unbind() override;
 	virtual size_t getSize() override;
 
-	void setVertexSize(size_t size);
+	void setVertexStride(size_t size);
+	size_t getVertexStride() const;
+	unsigned int getVertexCount() const;
 	ID3D12Resource1* getBuffer() const;
 
 	void releaseBufferedObjects(); 
@@ -33,7 +35,7 @@ private:
 	std::vector<ID3D12Resource1*> m_uploadBuffers;
 
 	size_t m_byteSize;
-	size_t m_vertexSize;
+	size_t m_vertexStride;
 
 	UINT m_lastBoundVBSlot;
 

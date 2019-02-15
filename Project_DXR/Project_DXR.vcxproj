@@ -172,6 +172,7 @@
     <ClInclude Include="src\DX12\DX12RenderState.h" />
     <ClInclude Include="src\DX12\DX12Technique.h" />
     <ClInclude Include="src\DX12\DXILShaderCompiler.h" />
+    <ClInclude Include="src\DX12\DXR.h" />
     <ClInclude Include="src\DX12\Win32Window.h" />
     <ClInclude Include="src\Core\IA.h" />
     <ClInclude Include="src\Core\Material.h" />
@@ -200,6 +201,7 @@
     <ClCompile Include="src\DX12\DX12RenderState.cpp" />
     <ClCompile Include="src\DX12\DX12Technique.cpp" />
     <ClCompile Include="src\DX12\DXILShaderCompiler.cpp" />
+    <ClCompile Include="src\DX12\DXR.cpp" />
     <ClCompile Include="src\DX12\Win32Window.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Core\Material.cpp" />

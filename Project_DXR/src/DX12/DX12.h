@@ -6,12 +6,28 @@
 	} \
 }
 
+#define ThrowIfBlobError(hr, blob) { \
+	if (FAILED(hr)) { \
+		MessageBoxA(0, (char*)blob->GetBufferPointer(), "", 0); \
+		OutputDebugStringA((char*)blob->GetBufferPointer()); \
+		throw std::exception(); \
+	} \
+}
+
 template<class Interface>
 inline void SafeRelease(Interface **ppInterfaceToRelease) {
 	if (*ppInterfaceToRelease != NULL) {
 		(*ppInterfaceToRelease)->Release();
 
 		(*ppInterfaceToRelease) = NULL;
+	}
+}
+
+template<class T>
+inline void SafeDelete(T*& toDelete) {
+	if (toDelete != nullptr) {
+		delete toDelete;
+		toDelete = nullptr;
 	}
 }
 

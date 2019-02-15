@@ -2,6 +2,7 @@
 
 #include "../Core/Renderer.h"
 #include "DX12.h"
+#include "DXR.h"
 
 #ifdef _DEBUG
 #include <initguid.h>
@@ -33,30 +34,6 @@ namespace GlobalRootParam {
 		SIZE
 	};
 }
-namespace DXRGlobalRootParam {
-	enum Slot {
-		FLOAT_RED_CHANNEL = 0,
-		SRV_ACCELERATION_STRUCTURE,
-		SRV_VERTEX_BUFFER,
-		SIZE
-	};
-}
-namespace DXRRayGenRootParam {
-	enum Slot {
-		DT_UAV_OUTPUT = 0,
-		SIZE
-	};
-}
-namespace DXRHitGroupRootParam {
-	enum Slot {
-		FLOAT3_SHADER_TABLE_COLOR = 0,
-		SIZE
-	};
-}
-namespace DXRMissRootParam {
-	enum Slot {
-	};
-}
 
 class DX12Renderer : public Renderer {
 
@@ -82,6 +59,7 @@ public:
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
 	UINT getFrameIndex() const;
+	Win32Window* getWindow() const;
 
 	ID3D12Resource1* createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps);
 	void setResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
@@ -112,19 +90,10 @@ private:
 	void createFenceAndEventHandle();
 	void createRenderTargets();
 	void createGlobalRootSignature();
+	void createShaderResources();
 
 	// DXR
-	void checkRayTracingSupport();
-	void createAccelerationStructures();
-	void createDxrGlobalRootSignature();
-	void createShaderResources();
-	void createShaderTables();
-	void createBLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* vb);
-	void createTLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* blas);
-	void createRaytracingPSO();
-	ID3D12RootSignature* createRayGenLocalRootSignature();
-	ID3D12RootSignature* createHitGroupLocalRootSignature();
-	ID3D12RootSignature* createMissLocalRootSignature();
+	bool checkRayTracingSupport();
 
 	// Multithreading
 	void workerThread(unsigned int id);
@@ -136,8 +105,7 @@ private:
 	// Only used for initialization
 	IDXGIFactory6* m_factory;
 
-
-	std::unique_ptr<Win32Window> m_window;
+		std::unique_ptr<Win32Window> m_window;
 	bool m_globalWireframeMode;
 	float m_clearColor[4];
 	bool m_firstFrame;
@@ -147,51 +115,9 @@ private:
 
 	bool m_supportsDXR;
 
-	// DXR stuff
-	struct AccelerationStructureBuffers {
-		ID3D12Resource1* scratch = nullptr;
-		ID3D12Resource1* result = nullptr;
-		ID3D12Resource1* instanceDesc = nullptr;    // Used only for top-level AS
-	};
-	AccelerationStructureBuffers m_DXR_BottomBuffers{};
-	uint64_t m_topLevelConservativeSize = 0;
-	AccelerationStructureBuffers m_DXR_TopBuffers{};
-
-	ID3D12StateObject* m_rtPipelineState = nullptr;
-
-	struct ShaderTableData {
-		UINT64 SizeInBytes;
-		UINT32 StrideInBytes;
-		ID3D12Resource1* Resource = nullptr;
-	};
-
-	ShaderTableData m_rayGenShaderTable{};
-	ShaderTableData m_missShaderTable{};
-	ShaderTableData m_hitGroupShaderTable{};
-
-	ID3D12DescriptorHeap* m_rtDescriptorHeap = {};
-
-	//D3D12_CPU_DESCRIPTOR_HANDLE m_outputUAV_CPU = {};
-	D3D12_GPU_DESCRIPTOR_HANDLE m_outputUAV_GPU = {};
-	ID3D12Resource* m_mpOutputResource = nullptr;
-
-	//D3D12_CPU_DESCRIPTOR_HANDLE m_rtAcceleration_CPU = {};
-	D3D12_GPU_DESCRIPTOR_HANDLE m_rtAcceleration_GPU = {};
-
-	D3D12_GPU_VIRTUAL_ADDRESS m_vb_GPU = {};
-
-	const WCHAR* m_rayGenName = L"rayGen";
-	const WCHAR* m_closestHitName = L"closestHit";
-	const WCHAR* m_missName = L"miss";
-	const WCHAR* m_hitGroupName = L"HitGroup";
-
-	static const D3D12_HEAP_PROPERTIES sUploadHeapProperties;
-	static const D3D12_HEAP_PROPERTIES sDefaultHeapProps;
-
-	wComPtr<ID3D12RootSignature> m_dxrGlobalRootSignature;
-
-
 	// DX12 stuff
+	std::unique_ptr<DXR> m_dxr;
+
 	wComPtr<ID3D12Device5> m_device;
 	wComPtr<ID3D12CommandQueue> m_commandQueue;
 	Command m_preCommand;
