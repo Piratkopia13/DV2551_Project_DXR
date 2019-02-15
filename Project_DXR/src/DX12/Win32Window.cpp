@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Win32Window.h"
+#include "../Utils/Input.h"
 
 namespace {
 	// Used to forward messages to user defined proc function
@@ -80,6 +81,7 @@ bool Win32Window::initialize() {
 
 }
 
+
 LRESULT Win32Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	switch (msg) {
@@ -97,8 +99,14 @@ LRESULT Win32Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 		break;
 
 	case WM_KEYDOWN:
+		std::cout << MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR) << std::endl;
+		Input::RegisterKeyDown(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
+		break;
 	case WM_SYSKEYDOWN:
+		break;
 	case WM_KEYUP:
+		Input::RegisterKeyUp(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
+		break;
 	case WM_SYSKEYUP:
 		//Keyboard::ProcessMessage(msg, wParam, lParam);
 		break;
