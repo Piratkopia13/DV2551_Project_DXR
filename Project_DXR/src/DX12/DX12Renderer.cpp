@@ -818,7 +818,8 @@ void DX12Renderer::frame() {
 	m_postCommand.list->SetComputeRoot32BitConstant(DXRGlobalRootParam::FLOAT_RED_CHANNEL, *reinterpret_cast<UINT*>(&redColor), 0);
 	// Set acceleration structure
 	m_postCommand.list->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
-	//m_postCommand.list->SetComputeRootDescriptorTable(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_rtAcceleration_GPU);
+	// Set vertex buffer
+	m_postCommand.list->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_VERTEX_BUFFER, m_vb_GPU);
 
 	// Dispatch
 	m_postCommand.list->SetPipelineState1(m_rtPipelineState);
@@ -942,13 +943,13 @@ void DX12Renderer::frame() {
 };
 #endif
 void DX12Renderer::present() {
+	waitForGPU(); //Wait for GPU to finish.
+				  //NOT BEST PRACTICE, only used as such for simplicity.
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = {};
 	m_swapChain->Present1(0, 0, &pp);
 
-	waitForGPU(); //Wait for GPU to finish.
-				  //NOT BEST PRACTICE, only used as such for simplicity.
 
 }
 
@@ -1002,13 +1003,19 @@ void DX12Renderer::setRenderState(RenderState* ps) {
 
 void DX12Renderer::createAccelerationStructures() {
 
-	const float vertices[9] = {
-		0,          1,  0,
-		0.866f,  -0.5f, 0,
-		-0.866f, -0.5f, 0
+	const float vertices[] = {
+		0,          1,  0,		0, 0, -1,	// Vertex and normal
+		0.866f,  -0.5f, 0,		0, 0, -1,
+		-0.866f, -0.5f, 0,		0, 0, -1,
+
+		0,       -0.5f,  0,		0, 0, -1,	// Vertex and normal
+		0.866f,  -1.5f, 0,		0, 0, -1,
+		-0.866f, -1.5f, 0,		0, 0, -1
 	};
+
 	DX12VertexBuffer* vb = new DX12VertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC, this); //TODO: fix mem leak
 	vb->setData(vertices, sizeof(vertices), 0);
+	m_vb_GPU = vb->getBuffer()->GetGPUVirtualAddress();
 
 	createBLAS(m_preCommand.list.Get(), vb->getBuffer());
 	createTLAS(m_preCommand.list.Get(), m_DXR_BottomBuffers.result);
@@ -1023,7 +1030,7 @@ void DX12Renderer::createAccelerationStructures() {
 
 void DX12Renderer::createDxrGlobalRootSignature() {
 	//D3D12_DESCRIPTOR_RANGE range[1]{};
-	D3D12_ROOT_PARAMETER rootParams[2]{};
+	D3D12_ROOT_PARAMETER rootParams[DXRGlobalRootParam::SIZE]{};
 
 	// gRtScene
 	//range[0].BaseShaderRegister = 0;
@@ -1042,6 +1049,11 @@ void DX12Renderer::createDxrGlobalRootSignature() {
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.ShaderRegister = 0;
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.RegisterSpace = 0;
+
+	// Vertex buffer
+	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
 
 	/*rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].DescriptorTable.NumDescriptorRanges = _countof(range);
@@ -1070,9 +1082,9 @@ void DX12Renderer::createBLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resourc
 	D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
 	geomDesc[0].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 	geomDesc[0].Triangles.VertexBuffer.StartAddress = vb->GetGPUVirtualAddress();
-	geomDesc[0].Triangles.VertexBuffer.StrideInBytes = sizeof(float) * 3;
+	geomDesc[0].Triangles.VertexBuffer.StrideInBytes = sizeof(float) * 3 * 2;
 	geomDesc[0].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	geomDesc[0].Triangles.VertexCount = 3;
+	geomDesc[0].Triangles.VertexCount = 6;
 	geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 	// Get the size requirements for the scratch and AS buffers
@@ -1140,13 +1152,19 @@ void DX12Renderer::createTLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resourc
 	static float rotY = 0;
 	rotY += 0.001f;
 	for (int i = 0; i < instanceCount; i++) {
+
 		pInstanceDesc->InstanceID = i;                            // exposed to the shader via InstanceID()
 		pInstanceDesc->InstanceContributionToHitGroupIndex = i;   // offset inside the shader-table. we only have a single geometry, so the offset 0
 		pInstanceDesc->Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		
 		//apply transform
 		XMFLOAT3X4 m;
-		XMStoreFloat3x4(&m, XMMatrixRotationY(i * 0.25f + rotY) * XMMatrixTranslation(-1.0f + i, 0, 0));
+		if (i == 1) {
+			XMStoreFloat3x4(&m, XMMatrixRotationY(i * 0.25f + rotY) * XMMatrixTranslation(-1.0f + i, 0, 0));
+			//XMStoreFloat3x4(&m, XMMatrixRotationY(XM_PIDIV2 / 2.0f) * XMMatrixTranslation(-1.0f + i, 0, 0));
+		} else {
+			XMStoreFloat3x4(&m, XMMatrixRotationY(i * 0.25f + rotY) * XMMatrixTranslation(-1.0f + i, 0, 0));
+		}
 		memcpy(pInstanceDesc->Transform, &m, sizeof(pInstanceDesc->Transform));
 
 		pInstanceDesc->AccelerationStructure = blas->GetGPUVirtualAddress();

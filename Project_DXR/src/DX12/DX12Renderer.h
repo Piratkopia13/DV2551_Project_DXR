@@ -29,23 +29,28 @@ namespace GlobalRootParam {
 		CBV_TRANSLATION = 0,
 		CBV_DIFFUSE_TINT,
 		DT_SRVS,
-		DT_SAMPLERS
+		DT_SAMPLERS,
+		SIZE
 	};
 }
 namespace DXRGlobalRootParam {
 	enum Slot {
 		FLOAT_RED_CHANNEL = 0,
 		SRV_ACCELERATION_STRUCTURE,
+		SRV_VERTEX_BUFFER,
+		SIZE
 	};
 }
 namespace DXRRayGenRootParam {
 	enum Slot {
-		DT_UAV_OUTPUT = 0
+		DT_UAV_OUTPUT = 0,
+		SIZE
 	};
 }
 namespace DXRHitGroupRootParam {
 	enum Slot {
-		FLOAT3_SHADER_TABLE_COLOR = 0
+		FLOAT3_SHADER_TABLE_COLOR = 0,
+		SIZE
 	};
 }
 namespace DXRMissRootParam {
@@ -172,6 +177,8 @@ private:
 
 	//D3D12_CPU_DESCRIPTOR_HANDLE m_rtAcceleration_CPU = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE m_rtAcceleration_GPU = {};
+
+	D3D12_GPU_VIRTUAL_ADDRESS m_vb_GPU = {};
 
 	const WCHAR* m_rayGenName = L"rayGen";
 	const WCHAR* m_closestHitName = L"closestHit";
