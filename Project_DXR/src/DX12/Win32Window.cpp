@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Win32Window.h"
+#include "../Utils/Input.h"
 
 namespace {
 	// Used to forward messages to user defined proc function
@@ -76,9 +77,17 @@ bool Win32Window::initialize() {
 
 	ShowWindow(m_hWnd, SW_SHOW);
 
+	// Raw input registration
+	Rid[0].usUsagePage = 0x01;
+	Rid[0].usUsage = 0x02;
+	Rid[0].dwFlags = RIDEV_INPUTSINK;   // adds HID mouse and also ignores legacy mouse messages
+	Rid[0].hwndTarget = m_hWnd;
+	assert(RegisterRawInputDevices(Rid, 1, sizeof(Rid[0])) == TRUE);
+
 	return true;
 
 }
+
 
 LRESULT Win32Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
@@ -93,12 +102,17 @@ LRESULT Win32Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 		break;
 
 	case WM_INPUT:
-		//Application::getInstance()->getInput().processMessage(msg, wParam, lParam);
+		Input::ProcessMessage(msg, wParam, lParam);
 		break;
 
 	case WM_KEYDOWN:
+		Input::RegisterKeyDown(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
+		break;
 	case WM_SYSKEYDOWN:
+		break;
 	case WM_KEYUP:
+		Input::RegisterKeyUp(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
+		break;
 	case WM_SYSKEYUP:
 		//Keyboard::ProcessMessage(msg, wParam, lParam);
 		break;

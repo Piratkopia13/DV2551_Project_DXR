@@ -37,4 +37,7 @@ private:
 	DWORD m_windowStyle;
 	bool m_resized;
 
+	// Raw input
+	RAWINPUTDEVICE Rid[1];
+
 };

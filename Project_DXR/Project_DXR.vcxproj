@@ -157,6 +157,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
     <ClInclude Include="src\DX12\DX12Mesh.h" />
     <ClInclude Include="src\DX12\DX12Sampler2D.h" />
@@ -188,6 +189,7 @@
     <ClInclude Include="src\Core\VertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />
     <ClCompile Include="src\DX12\DX12Sampler2D.cpp" />
