@@ -6,20 +6,42 @@
 
 class Input {
 public:
+	enum MouseButton {
+		LEFT,
+		RIGHT
+	};
+
+	// Used by Win32Window to register keystrokes
+	static void RegisterKeyDown(const UINT keyCode);
+	// Used by Win32Window to register keystrokes
+	static void RegisterKeyUp(const UINT keyCode);
 	
-	static void Update();
+	// Call at the start of a new frame
+	static void NewFrame();
+	// Call at the end of frame
+	static void EndFrame();
 
-	static void RegisterKeyDown(const unsigned char keyCode);
-	static void RegisterKeyUp(const unsigned char keyCode);
+	// Check if key is down
+	static bool IsKeyDown(const UINT keyCode);
 
-	static bool IsKeyDown(const unsigned char keyCode);
-	//void MouseDown();
-	//void MouseUp();
+	static void ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
-	//bool IsKeyDown();
+	static float GetMouseDX();
+	static float GetMouseDY();
+	static bool GetMouseButtonDown(MouseButton button);
+
+	static void showCursor(bool show);
 
 private:
 	static std::map<unsigned char, bool> m_keys;
+
+	static bool m_mouseButtons[2];
+
+	static float m_mouseDeltaX;
+	static float m_mouseDeltaY;
+
+	static float m_mouseDeltaXSinceLastFrame;
+	static float m_mouseDeltaYSinceLastFrame;
 
 private:
 	// Disallow instances

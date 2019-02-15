@@ -77,6 +77,13 @@ bool Win32Window::initialize() {
 
 	ShowWindow(m_hWnd, SW_SHOW);
 
+	// Raw input registration
+	Rid[0].usUsagePage = 0x01;
+	Rid[0].usUsage = 0x02;
+	Rid[0].dwFlags = RIDEV_INPUTSINK;   // adds HID mouse and also ignores legacy mouse messages
+	Rid[0].hwndTarget = m_hWnd;
+	assert(RegisterRawInputDevices(Rid, 1, sizeof(Rid[0])) == TRUE);
+
 	return true;
 
 }
@@ -95,11 +102,10 @@ LRESULT Win32Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 		break;
 
 	case WM_INPUT:
-		//Application::getInstance()->getInput().processMessage(msg, wParam, lParam);
+		Input::ProcessMessage(msg, wParam, lParam);
 		break;
 
 	case WM_KEYDOWN:
-		std::cout << MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR) << std::endl;
 		Input::RegisterKeyDown(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
 		break;
 	case WM_SYSKEYDOWN:

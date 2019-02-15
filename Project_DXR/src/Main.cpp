@@ -2,6 +2,7 @@
 #include "Core/Renderer.h"
 #include "Core/Mesh.h"
 #include "Core/Texture2D.h"
+#include "Utils/Input.h"
 
 using namespace std;
 Renderer* renderer;
@@ -21,6 +22,7 @@ VertexBuffer* nor;
 VertexBuffer* uvs;
 
 // forward decls
+void processInput();
 void updateScene();
 void renderScene();
 
@@ -82,19 +84,25 @@ void run() {
 	MSG msg = { 0 };
 	// Main message loop
 	while (msg.message != WM_QUIT) {
-
 		if (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		} else {
-
+			Input::NewFrame();
 			// do the stuff
+			processInput();
 			updateScene();
 			renderScene();
 
+			Input::EndFrame();
 		}
-
 	}
+}
+
+void processInput() {
+	std::cout << "DX: " << Input::GetMouseDX() << " DY: " << Input::GetMouseDY() << std::endl;
+
+	Input::showCursor(!Input::GetMouseButtonDown(Input::MouseButton::RIGHT));
 }
 
 /*
