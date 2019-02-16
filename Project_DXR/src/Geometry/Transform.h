@@ -20,9 +20,9 @@ public:
 	void rotateAroundZ(const float radians);
 	void setTransformMatrix(DirectX::XMMATRIX matrix);
 
-	const DirectX::XMFLOAT3& getTranslation() const;
-	const DirectX::XMFLOAT3& getRotation() const;
-	const DirectX::XMFLOAT3& getScale() const;
+	const DirectX::XMFLOAT3 getTranslation() const;
+	const DirectX::XMFLOAT3 getRotation() const;
+	const DirectX::XMFLOAT3 getScale() const;
 	const DirectX::XMMATRIX& getTransformMatrix();
 
 private:

@@ -49,19 +49,19 @@ void Transform::setTransformMatrix(DirectX::XMMATRIX matrix) {
 	m_transformMatrix = matrix;
 }
 
-const DirectX::XMFLOAT3 & Transform::getTranslation() const {
+const DirectX::XMFLOAT3 Transform::getTranslation() const {
 	XMFLOAT3 toReturn;
 	XMStoreFloat3(&toReturn, m_translation);
 	return toReturn;
 }
 
-const DirectX::XMFLOAT3 & Transform::getRotation() const {
+const DirectX::XMFLOAT3 Transform::getRotation() const {
 	XMFLOAT3 toReturn;
 	XMStoreFloat3(&toReturn, m_rotation);
 	return toReturn;
 }
 
-const DirectX::XMFLOAT3 & Transform::getScale() const {
+const DirectX::XMFLOAT3 Transform::getScale() const {
 	XMFLOAT3 toReturn;
 	XMStoreFloat3(&toReturn, m_scale);
 	return toReturn;

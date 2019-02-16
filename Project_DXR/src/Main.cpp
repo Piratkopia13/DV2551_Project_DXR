@@ -100,9 +100,11 @@ void run() {
 }
 
 void processInput() {
-	std::cout << "DX: " << Input::GetMouseDX() << " DY: " << Input::GetMouseDY() << std::endl;
+	//std::cout << "DX: " << Input::GetMouseDX() << " DY: " << Input::GetMouseDY() << std::endl;
 
-	Input::showCursor(!Input::GetMouseButtonDown(Input::MouseButton::RIGHT));
+	//std::cout << Input::GetMouseButtonDown(Input::MouseButton::RIGHT) << std::endl;
+
+	//Input::showCursor(!Input::GetMouseButtonDown(Input::MouseButton::RIGHT));
 }
 
 /*

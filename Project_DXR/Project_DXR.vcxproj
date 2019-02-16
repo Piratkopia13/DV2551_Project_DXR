@@ -189,7 +189,9 @@
     <ClInclude Include="src\Core\VertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Geometry\Transform.cpp" />
+    <ClCompile Include="src\Geometry\Transform.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />
