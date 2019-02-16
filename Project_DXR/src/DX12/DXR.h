@@ -103,5 +103,8 @@ private:
 	static const D3D12_HEAP_PROPERTIES sDefaultHeapProps;
 
 	wComPtr<ID3D12RootSignature> m_dxrGlobalRootSignature;
+	wComPtr<ID3D12RootSignature> m_localSignatureRayGen;
+	wComPtr<ID3D12RootSignature> m_localSignatureHitGroup;
+	wComPtr<ID3D12RootSignature> m_localSignatureMiss;
 
 };

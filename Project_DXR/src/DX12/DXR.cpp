@@ -409,159 +409,22 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* blas)
 }
 
 void DXR::createRaytracingPSO() {
-	// TODO: PSO builder
 
-	D3D12_STATE_SUBOBJECT soMem[100]{};
-	UINT numSubobjects = 0;
-	auto nextSuboject = [&]() {
-		return soMem + numSubobjects++;
-	};
+	m_localSignatureRayGen = createRayGenLocalRootSignature();
+	m_localSignatureHitGroup = createHitGroupLocalRootSignature();
+	m_localSignatureMiss = createMissLocalRootSignature();
 
-	DXILShaderCompiler dxilCompiler;
-	dxilCompiler.init();
+	D3DUtils::PSOBuilder psoBuilder;
+	psoBuilder.addLibrary(m_renderer->getShaderPath() + "RayTracingShaders.hlsl", { m_rayGenName, m_closestHitName, m_missName });
+	psoBuilder.addHitGroup(m_hitGroupName, m_closestHitName);
+	psoBuilder.addSignatureToShaders({ m_rayGenName }, m_localSignatureRayGen.GetAddressOf());
+	psoBuilder.addSignatureToShaders({ m_closestHitName }, m_localSignatureHitGroup.GetAddressOf());
+	psoBuilder.addSignatureToShaders({ m_missName }, m_localSignatureMiss.GetAddressOf());
+	psoBuilder.setMaxPayloadSize(sizeof(float) * 4 + sizeof(UINT) * 1);
+	psoBuilder.setMaxRecursionDepth(2);
+	psoBuilder.setGlobalSignature(m_dxrGlobalRootSignature.GetAddressOf());
 
-	DXILShaderCompiler::Desc shaderDesc;
-
-	//D3DCOMPILE_IEEE_STRICTNESS
-	shaderDesc.CompileArguments.push_back(L"/Gis");
-
-	//Vertex shader
-	std::string s = m_renderer->getShaderPath() + "RayTracingShaders.hlsl";
-	std::wstring stemp = std::wstring(s.begin(), s.end());
-	shaderDesc.FilePath = stemp.c_str();
-	shaderDesc.EntryPoint = L"";
-	shaderDesc.TargetProfile = L"lib_6_3";
-
-	IDxcBlob* pShaders = nullptr;
-	ThrowIfFailed(dxilCompiler.compileFromFile(&shaderDesc, &pShaders));
-
-	//Init DXIL subobject
-	D3D12_EXPORT_DESC dxilExports[] = {
-		m_rayGenName, nullptr, D3D12_EXPORT_FLAG_NONE,
-		m_closestHitName, nullptr, D3D12_EXPORT_FLAG_NONE,
-		m_missName, nullptr, D3D12_EXPORT_FLAG_NONE,
-	};
-	D3D12_DXIL_LIBRARY_DESC dxilLibraryDesc;
-	dxilLibraryDesc.DXILLibrary.pShaderBytecode = pShaders->GetBufferPointer();
-	dxilLibraryDesc.DXILLibrary.BytecodeLength = pShaders->GetBufferSize();
-	dxilLibraryDesc.pExports = dxilExports;
-	dxilLibraryDesc.NumExports = _countof(dxilExports);
-
-	D3D12_STATE_SUBOBJECT* soDXIL = nextSuboject();
-	soDXIL->Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-	soDXIL->pDesc = &dxilLibraryDesc;
-
-	//Init hit group
-	D3D12_HIT_GROUP_DESC hitGroupDesc;
-	hitGroupDesc.AnyHitShaderImport = nullptr;
-	hitGroupDesc.ClosestHitShaderImport = m_closestHitName;
-	hitGroupDesc.HitGroupExport = m_hitGroupName;
-	hitGroupDesc.IntersectionShaderImport = nullptr;
-	hitGroupDesc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
-
-	D3D12_STATE_SUBOBJECT* soHitGroup = nextSuboject();
-	soHitGroup->Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
-	soHitGroup->pDesc = &hitGroupDesc;
-
-	//Init rayGen local root signature
-	ID3D12RootSignature* rayGenLocalRoot = createRayGenLocalRootSignature();
-	D3D12_STATE_SUBOBJECT* soRayGenLocalRoot = nextSuboject();
-	soRayGenLocalRoot->Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-	soRayGenLocalRoot->pDesc = &rayGenLocalRoot;
-
-	//Bind local root signature to rayGen shader
-	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rayGenLocalRootAssociation;
-	LPCWSTR rayGenLocalRootAssociationShaderNames[] = { m_rayGenName };
-	rayGenLocalRootAssociation.pExports = rayGenLocalRootAssociationShaderNames;
-	rayGenLocalRootAssociation.NumExports = _countof(rayGenLocalRootAssociationShaderNames);
-	rayGenLocalRootAssociation.pSubobjectToAssociate = soRayGenLocalRoot; //<-- address to local root subobject
-
-	D3D12_STATE_SUBOBJECT* soRayGenLocalRootAssociation = nextSuboject();
-	soRayGenLocalRootAssociation->Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-	soRayGenLocalRootAssociation->pDesc = &rayGenLocalRootAssociation;
-
-
-	//Init hit group local root signature
-	ID3D12RootSignature* hitGroupLocalRoot = createHitGroupLocalRootSignature();
-	D3D12_STATE_SUBOBJECT* soHitGroupLocalRoot = nextSuboject();
-	soHitGroupLocalRoot->Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-	soHitGroupLocalRoot->pDesc = &hitGroupLocalRoot;
-
-
-	//Bind local root signature to hit group shaders
-	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION hitGroupLocalRootAssociation;
-	LPCWSTR hitGroupLocalRootAssociationShaderNames[] = { m_closestHitName };
-	hitGroupLocalRootAssociation.pExports = hitGroupLocalRootAssociationShaderNames;
-	hitGroupLocalRootAssociation.NumExports = _countof(hitGroupLocalRootAssociationShaderNames);
-	hitGroupLocalRootAssociation.pSubobjectToAssociate = soHitGroupLocalRoot; //<-- address to local root subobject
-
-	D3D12_STATE_SUBOBJECT* soHitGroupLocalRootAssociation = nextSuboject();
-	soHitGroupLocalRootAssociation->Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-	soHitGroupLocalRootAssociation->pDesc = &hitGroupLocalRootAssociation;
-
-
-	//Init miss local root signature
-	ID3D12RootSignature* missLocalRoot = createMissLocalRootSignature();
-	D3D12_STATE_SUBOBJECT* soMissLocalRoot = nextSuboject();
-	soMissLocalRoot->Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-	soMissLocalRoot->pDesc = &missLocalRoot;
-
-
-	//Bind local root signature to miss shader
-	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION missLocalRootAssociation;
-	LPCWSTR missLocalRootAssociationShaderNames[] = { m_missName };
-	missLocalRootAssociation.pExports = missLocalRootAssociationShaderNames;
-	missLocalRootAssociation.NumExports = _countof(missLocalRootAssociationShaderNames);
-	missLocalRootAssociation.pSubobjectToAssociate = soMissLocalRoot; //<-- address to local root subobject
-
-	D3D12_STATE_SUBOBJECT* soMissLocalRootAssociation = nextSuboject();
-	soMissLocalRootAssociation->Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-	soMissLocalRootAssociation->pDesc = &missLocalRootAssociation;
-
-
-	//Init shader config
-	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig = {};
-	shaderConfig.MaxAttributeSizeInBytes = sizeof(float) * 2;
-	shaderConfig.MaxPayloadSizeInBytes = sizeof(float) * 4 + sizeof(UINT) * 1;
-
-	D3D12_STATE_SUBOBJECT* soShaderConfig = nextSuboject();
-	soShaderConfig->Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
-	soShaderConfig->pDesc = &shaderConfig;
-
-	//Bind the payload size to the programs
-	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderConfigAssociation;
-	const WCHAR* shaderNamesToConfig[] = { m_missName, m_closestHitName, m_rayGenName };
-	shaderConfigAssociation.pExports = shaderNamesToConfig;
-	shaderConfigAssociation.NumExports = _countof(shaderNamesToConfig);
-	shaderConfigAssociation.pSubobjectToAssociate = soShaderConfig; //<-- address to shader config subobject
-
-	D3D12_STATE_SUBOBJECT* soShaderConfigAssociation = nextSuboject();
-	soShaderConfigAssociation->Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-	soShaderConfigAssociation->pDesc = &shaderConfigAssociation;
-
-
-	//Init pipeline config
-	D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
-	pipelineConfig.MaxTraceRecursionDepth = 2;
-
-	D3D12_STATE_SUBOBJECT* soPipelineConfig = nextSuboject();
-	soPipelineConfig->Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
-	soPipelineConfig->pDesc = &pipelineConfig;
-
-	ID3D12RootSignature* groot = m_dxrGlobalRootSignature.Get();
-
-	D3D12_STATE_SUBOBJECT* soGlobalRoot = nextSuboject();
-	soGlobalRoot->Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-	soGlobalRoot->pDesc = &groot;
-
-
-	// Create the state
-	D3D12_STATE_OBJECT_DESC desc;
-	desc.NumSubobjects = numSubobjects;
-	desc.pSubobjects = soMem;
-	desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
-
-	ThrowIfFailed(m_renderer->getDevice()->CreateStateObject(&desc, IID_PPV_ARGS(&m_rtPipelineState)));
+	m_rtPipelineState = psoBuilder.generate(m_renderer->getDevice());
 }
 
 void DXR::createDxrGlobalRootSignature() {
