@@ -25,17 +25,26 @@ public:
 	const float getFarZ() const;
 
 	const DirectX::XMFLOAT3 getPosition();
-	//const DirectX::XMFLOAT3 getLookAt();
 	const DirectX::XMFLOAT3 getDirection();
+	//const DirectX::XMFLOAT3 getLookAt();
 
+	// View matrix
 	const DirectX::XMMATRIX getViewMatrix();
+	// Inverse view matrix
+	const DirectX::XMMATRIX getInvViewMatrix();
+	// Projection matrix
 	const DirectX::XMMATRIX getProjMatrix();
+	// Inverse projection matrix
+	const DirectX::XMMATRIX getInvProjMatrix();
+	// View-projection matrix
 	const DirectX::XMMATRIX getVPMatrix();
 
 
 private:
 	DirectX::XMMATRIX m_viewMatrix;
+	DirectX::XMMATRIX m_invViewMatrix;
 	DirectX::XMMATRIX m_projMatrix;
+	DirectX::XMMATRIX m_invProjMatrix;
 	DirectX::XMMATRIX m_VPMatrix;
 
 	bool m_projMatNeedsUpdate;

@@ -78,6 +78,8 @@ const DirectX::XMMATRIX & Transform::getTransformMatrix() {
 			XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(m_rotation)) *
 			// Translation
 			XMMatrixTranslationFromVector(m_translation);
+
+		m_needsUpdate = false;
 	}
 
 	return m_transformMatrix;
