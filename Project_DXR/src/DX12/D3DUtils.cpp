@@ -3,6 +3,22 @@
 
 #include "DX12.h"
 
+const D3D12_HEAP_PROPERTIES D3DUtils::sUploadHeapProperties = {
+	D3D12_HEAP_TYPE_UPLOAD,
+	D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+	D3D12_MEMORY_POOL_UNKNOWN,
+	0,
+	0,
+};
+
+const D3D12_HEAP_PROPERTIES D3DUtils::sDefaultHeapProps = {
+	D3D12_HEAP_TYPE_DEFAULT,
+	D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+	D3D12_MEMORY_POOL_UNKNOWN,
+	0,
+	0
+};
+
 void D3DUtils::UpdateDefaultBufferData(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
@@ -151,7 +167,7 @@ void D3DUtils::PSOBuilder::setMaxRecursionDepth(UINT depth) {
 	m_maxRecursionDepth = depth;
 }
 
-ID3D12StateObject* D3DUtils::PSOBuilder::generate(ID3D12Device5* device) {
+ID3D12StateObject* D3DUtils::PSOBuilder::build(ID3D12Device5* device) {
 	// Init shader config
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfig = {};
 	shaderConfig.MaxAttributeSizeInBytes = m_maxAttributeSize;
@@ -184,4 +200,84 @@ ID3D12StateObject* D3DUtils::PSOBuilder::generate(ID3D12Device5* device) {
 	ID3D12StateObject* pso;
 	ThrowIfFailed(device->CreateStateObject(&desc, IID_PPV_ARGS(&pso)));
 	return pso;
+}
+
+
+
+D3DUtils::ShaderTableBuilder::ShaderTableBuilder(LPCWSTR shaderName, ID3D12StateObject* pso, UINT numInstances, UINT maxBytesPerInstance)
+	: m_soProps(nullptr)
+	, m_shaderName(shaderName)
+	, m_numInstances(numInstances)
+	, m_maxBytesPerInstance(maxBytesPerInstance)
+{
+	// Get the properties of the pre-built pipeline state object
+	ThrowIfFailed(pso->QueryInterface(IID_PPV_ARGS(&m_soProps)));
+
+	m_data = new void*[numInstances];
+	m_dataOffsets = new UINT[numInstances];
+	for (UINT i = 0; i < numInstances; i++) {
+		m_data[i] = malloc(maxBytesPerInstance);
+		m_dataOffsets[i] = 0;
+	}
+}
+
+D3DUtils::ShaderTableBuilder::~ShaderTableBuilder() {
+	for (UINT i = 0; i < m_numInstances; i++)
+		free(m_data[i]);
+	delete m_data;
+	delete m_dataOffsets;
+}
+
+D3DUtils::ShaderTableData D3DUtils::ShaderTableBuilder::build(ID3D12Device5* device) {
+	ShaderTableData shaderTable;
+
+	UINT sizeOfLargestInstance = 0;
+	for (UINT i = 0; i < m_numInstances; i++) {
+		if (m_dataOffsets[i] > sizeOfLargestInstance)
+			sizeOfLargestInstance = m_dataOffsets[i];
+	}
+	UINT size = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeOfLargestInstance;
+
+	UINT alignTo = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+	UINT padding = (alignTo - (size % alignTo)) % alignTo;
+
+	UINT alignedSize = size + padding;
+
+	shaderTable.StrideInBytes = alignedSize;
+	shaderTable.SizeInBytes = shaderTable.StrideInBytes * m_numInstances;
+	shaderTable.Resource = D3DUtils::createBuffer(device, shaderTable.SizeInBytes, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, sUploadHeapProperties);
+
+	// Map the buffer
+	// Use a char* to to pointer arithmetic per byte
+	char* pData;
+	shaderTable.Resource->Map(0, nullptr, (void**)&pData);
+	{
+		for (UINT i = 0; i < m_numInstances; i++) {
+			// Copy shader identifier
+			memcpy(pData, m_soProps->GetShaderIdentifier(m_shaderName), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+			pData += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+			// Copy other data (descriptors, constants)
+			memcpy(pData, m_data[i], m_dataOffsets[i]);
+			pData += alignedSize - D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Append padding
+		}
+	}
+	shaderTable.Resource->Unmap(0, nullptr);
+
+	return shaderTable;
+}
+
+void D3DUtils::ShaderTableBuilder::addDescriptor(UINT64& descriptor, UINT instance) {
+	assert(instance < m_numInstances);
+	auto ptr = static_cast<char*>(m_data[instance]) + m_dataOffsets[instance];
+	*(UINT64*)ptr = descriptor;
+	m_dataOffsets[instance] += sizeof(descriptor);
+	assert(m_dataOffsets[instance] <= m_maxBytesPerInstance);
+}
+
+void D3DUtils::ShaderTableBuilder::addConstants(UINT numConstants, float* constants, UINT instance) {
+	assert(instance < m_numInstances);
+	auto ptr = static_cast<char*>(m_data[instance]) + m_dataOffsets[instance];
+	memcpy(ptr, constants, sizeof(float) * numConstants);
+	m_dataOffsets[instance] += sizeof(float) * numConstants;
+	assert(m_dataOffsets[instance] <= m_maxBytesPerInstance);
 }
