@@ -335,6 +335,20 @@ int main(int argc, char *argv[])
 	run();
 
 	shutdown();
+	/*Camera cam = Camera(1920.f/1080.f, 100.f / (1920.f/1080.f), 0.01f, 1000.f);
+	DirectX::XMVECTOR position = DirectX::XMVectorSet(1.f, 1.f, 1.f, 1.f);
+	std::cout << DirectX::XMVectorGetX(position) << " " << DirectX::XMVectorGetY(position) << " " << " " << DirectX::XMVectorGetZ(position) << std::endl;
+	
+	position = DirectX::XMVector4Transform(DirectX::XMVector4Transform(position, cam.getViewMatrix()), cam.getProjMatrix());
+	std::cout << DirectX::XMVectorGetX(position) << " " << DirectX::XMVectorGetY(position) << " " << " " << DirectX::XMVectorGetZ(position) << std::endl;
+	position = DirectX::XMVector4Transform(DirectX::XMVector4Transform(position, cam.getInvProjMatrix()), cam.getInvViewMatrix());
+	std::cout << DirectX::XMVectorGetX(position) << " " << DirectX::XMVectorGetY(position) << " " << " " << DirectX::XMVectorGetZ(position) << std::endl;
+	
+	position = DirectX::XMVector4Transform(position, cam.getViewMatrix() * cam.getProjMatrix());
+	std::cout << DirectX::XMVectorGetX(position) << " " << DirectX::XMVectorGetY(position) << " " << " " << DirectX::XMVectorGetZ(position) << std::endl;
+	position = DirectX::XMVector4Transform(position, cam.getInvProjMatrix() * cam.getInvViewMatrix());
+	std::cout << DirectX::XMVectorGetX(position) << " " << DirectX::XMVectorGetY(position) << " " << " " << DirectX::XMVectorGetZ(position) << std::endl;
 
+	getchar();*/
 	return 0;
 };

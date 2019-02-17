@@ -9,7 +9,7 @@ DX12ConstantBuffer::DX12ConstantBuffer(std::string name, unsigned int location, 
 	, m_location(location)
 {
 
-	m_constantBufferUploadHeap = new wComPtr<ID3D12Resource>[renderer->getNumSwapBuffers()];
+	m_constantBufferUploadHeap = new wComPtr<ID3D12Resource1>[renderer->getNumSwapBuffers()];
 	m_cbGPUAddress = new UINT8*[renderer->getNumSwapBuffers()];
 	
 	// Create an upload heap to hold the constant buffer
@@ -58,4 +58,9 @@ void DX12ConstantBuffer::bind(Material* material, ID3D12GraphicsCommandList3* cm
 	UINT rootIndex = (m_location == 5) ? GlobalRootParam::CBV_TRANSLATION : GlobalRootParam::CBV_DIFFUSE_TINT;
 	cmdList->SetGraphicsRootConstantBufferView(rootIndex, m_constantBufferUploadHeap[m_renderer->getFrameIndex()]->GetGPUVirtualAddress());
 
+}
+
+ID3D12Resource1 * DX12ConstantBuffer::getBuffer(unsigned int frameIndex) const
+{
+	return m_constantBufferUploadHeap[frameIndex].Get();
 }

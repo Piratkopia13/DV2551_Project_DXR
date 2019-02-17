@@ -12,11 +12,13 @@ public:
 	virtual void bind(Material*) override;
 	void bind(Material* material, ID3D12GraphicsCommandList3* cmdList);
 
+	ID3D12Resource1* getBuffer(unsigned int frameIndex) const;
+
 private:
 	DX12Renderer* m_renderer;
 
 	unsigned int m_location;
-	wComPtr<ID3D12Resource>* m_constantBufferUploadHeap;
+	wComPtr<ID3D12Resource1>* m_constantBufferUploadHeap;
 	UINT8** m_cbGPUAddress;
 	
 	std::string m_name;

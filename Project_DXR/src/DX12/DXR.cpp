@@ -3,6 +3,9 @@
 #include "DX12Renderer.h"
 #include "DX12VertexBuffer.h"
 #include "DXILShaderCompiler.h"
+#include "DX12ConstantBuffer.h"
+#include "../Core/Camera.h"
+#include "../Utils/Input.h"
 
 using namespace DirectX;
 
@@ -24,6 +27,16 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 }
 
 void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
+
+
+	if (Input::IsKeyDown('S')) {
+		m_persCamera->move(XMVectorSet(0.f, 0.f, 1.f, 0.f));
+		m_sceneCBData->cameraPosition = DirectX::XMLoadFloat3(&m_persCamera->getPosition());
+		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
+
+		std::cout << "Moving camera  Z: " << m_persCamera->getPosition().z << std::endl;
+	}
+
 
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_rtDescriptorHeap.Get() };
@@ -59,6 +72,8 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
 	// Set vertex buffer
 	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_VERTEX_BUFFER, m_vb->getBuffer()->GetGPUVirtualAddress());
+	// Set constant buffer
+	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SCENE_BUFFER, m_sceneCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
 
 	// Dispatch
 	cmdList->SetPipelineState1(m_rtPipelineState.Get());
@@ -185,6 +200,16 @@ void DXR::createShaderResources() {
 	//m_device->CreateShaderResourceView(nullptr, &srvDesc, rtAcceleration_CPU);
 	/*m_rtAcceleration_GPU = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	m_rtAcceleration_GPU.ptr += m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);*/
+
+
+	// Scene CB
+	m_persCamera = new Camera((float)m_renderer->getWindow()->getWindowWidth() / (float)m_renderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
+	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, 100.f, 0.f));
+	m_sceneCBData = new SceneConstantBuffer();
+	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
+	m_sceneCBData->cameraPosition = DirectX::XMLoadFloat3(&m_persCamera->getPosition());
+	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
+	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
 }
 
 void DXR::createShaderTables() {
@@ -369,6 +394,11 @@ void DXR::createDxrGlobalRootSignature() {
 	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
 	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
+
+	// Scene CBV
+	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].Descriptor.ShaderRegister = 0;
+	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].Descriptor.RegisterSpace = 2;
 
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.NumParameters = _countof(rootParams);

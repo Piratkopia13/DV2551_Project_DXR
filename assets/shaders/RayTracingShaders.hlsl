@@ -12,6 +12,11 @@ struct Vertex
     float3 normal;
 };
 
+struct SceneConstantBuffer {
+	float4x4 projectionToWorld;
+	float4 cameraPosition;
+};
+
 RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
 
@@ -27,35 +32,54 @@ cbuffer CB_ShaderTableLocal : register(b0, space1)
 	float3 ShaderTableColor;
 }
 
+ConstantBuffer<SceneConstantBuffer> CB_SceneData : register(b0, space2);
+
 struct RayPayload
 {
 	float4 color;
 	uint recursionDepth;
 };
 
+// Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
+inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
+{
+	float2 xy = index + 0.5f; // center in the middle of the pixel.
+	float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
+
+	// Invert Y for DirectX-style coordinates.
+	screenPos.y = -screenPos.y;
+
+	// Unproject the pixel coordinate into a ray.
+	float4 world = mul(float4(screenPos, 0, 1), CB_SceneData.projectionToWorld);
+
+	world.xyz /= world.w;
+	origin = CB_SceneData.cameraPosition.xyz;
+	direction = normalize(world.xyz - origin);
+}
+
 [shader("raygeneration")]
 void rayGen()
 {
-	uint3 launchIndex = DispatchRaysIndex();
-	uint3 launchDim = DispatchRaysDimensions();
+	float3 rayDir;
+	float3 origin;
 
-	float2 crd = float2(launchIndex.xy);
-	float2 dims = float2(launchDim.xy);
-
-	float2 d = ((crd / dims) * 2.f - 1.f);
-	float aspectRatio = dims.x / dims.y;
+	uint2 launchIndex = DispatchRaysIndex().xy;
+	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+	GenerateCameraRay(launchIndex, origin, rayDir);
 
 	RayDesc ray;
-	ray.Origin = float3(0, 0, -2);
-	ray.Direction = normalize(float3(d.x * aspectRatio, -d.y, 1));
+	ray.Origin = origin;
+	ray.Direction = rayDir;
 
-	ray.TMin = 0;
-	ray.TMax = 100000;
+	// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+	// TMin should be kept small to prevent missing geometry at close contact areas.
+	ray.TMin = 0.001;
+	ray.TMax = 10000;
 
 	RayPayload payload;
 	payload.recursionDepth = 0;
 	TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-	lOutput[launchIndex.xy] = payload.color;
+	lOutput[launchIndex] = payload.color;
 	// lOutput[launchIndex.xy] = float4(RedChannel, 0, 0, 1);
 }
 

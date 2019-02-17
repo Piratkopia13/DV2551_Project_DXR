@@ -3,15 +3,19 @@
 #include "DX12.h"
 #include <d3d12.h>
 #include "D3DUtils.h"
+#include <DirectXMath.h>
 
 class DX12Renderer;
 class DX12VertexBuffer;
+class DX12ConstantBuffer;
+class Camera;
 
 namespace DXRGlobalRootParam {
 	enum Slot {
 		FLOAT_RED_CHANNEL = 0,
 		SRV_ACCELERATION_STRUCTURE,
 		SRV_VERTEX_BUFFER,
+		CBV_SCENE_BUFFER,
 		SIZE
 	};
 }
@@ -31,6 +35,12 @@ namespace DXRMissRootParam {
 	enum Slot {
 	};
 }
+
+
+struct SceneConstantBuffer {
+	DirectX::XMMATRIX projectionToWorld;
+	DirectX::XMVECTOR cameraPosition;
+};
 
 class DXR {
 public:
@@ -62,6 +72,14 @@ private:
 	DX12Renderer* m_renderer;
 
 	DX12VertexBuffer* m_vb; // TODO: support multiple vertex buffers
+	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
+	Camera* m_persCamera;
+	union AlignedSceneConstantBuffer {
+		SceneConstantBuffer constants;
+		uint8_t alignmentPadding[D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT];
+	};
+	AlignedSceneConstantBuffer* m_mappedSceneCBData;
+	SceneConstantBuffer* m_sceneCBData;
 
 	struct AccelerationStructureBuffers {
 		wComPtr<ID3D12Resource1> scratch = nullptr;
