@@ -15,6 +15,9 @@ Camera::Camera(const float aspectRatio, const float fov, const float nearZ, cons
 	m_up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
 	m_VPMatrix = XMMatrixIdentity();
+	m_projMatrix = m_VPMatrix;
+	m_viewMatrix = m_VPMatrix;
+
 	m_viewMatNeedsUpdate = true;
 	m_projMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
