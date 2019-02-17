@@ -109,7 +109,6 @@ const DirectX::XMMATRIX Camera::getViewMatrix()
 {
 	if (m_viewMatNeedsUpdate) {
 		m_viewMatrix = XMMatrixLookToLH(m_pos, m_dir, m_up);
-		/* test if it can be nullptr */
 		m_invViewMatrix = XMMatrixInverse(nullptr, m_viewMatrix);
 		m_viewMatNeedsUpdate = false;
 	}
@@ -128,7 +127,6 @@ const DirectX::XMMATRIX Camera::getProjMatrix()
 {
 	if (m_projMatNeedsUpdate) {
 		m_projMatrix = XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ);
-		/* test if it can be nullptr */
 		m_invProjMatrix = XMMatrixInverse(nullptr, m_projMatrix);
 		m_projMatNeedsUpdate = false;
 	}
