@@ -1,16 +1,11 @@
-#define MAX_RAY_RECURSION_DEPTH 2
+#define HLSL
+#include "CommonRT.hlsl"
 
 // Retrieve hit world position.
 float3 HitWorldPosition()
 {
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
 }
-
-struct Vertex
-{
-    float3 position;
-    float3 normal;
-};
 
 RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
@@ -26,12 +21,6 @@ cbuffer CB_ShaderTableLocal : register(b0, space1)
 {
 	float3 ShaderTableColor;
 }
-
-struct RayPayload
-{
-	float4 color;
-	uint recursionDepth;
-};
 
 [shader("raygeneration")]
 void rayGen()
