@@ -157,6 +157,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\Geometry\Transform.h" />
     <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
     <ClInclude Include="src\DX12\DX12Mesh.h" />
@@ -185,10 +186,12 @@
     <ClInclude Include="src\Core\Scene.h" />
     <ClInclude Include="src\Core\Technique.h" />
     <ClInclude Include="src\Core\Texture2D.h" />
-    <ClInclude Include="src\Core\Transform.h" />
     <ClInclude Include="src\Core\VertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Geometry\Transform.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />
@@ -220,7 +223,6 @@
     <ClCompile Include="src\Core\Scene.cpp" />
     <ClCompile Include="src\Core\Technique.cpp" />
     <ClCompile Include="src\Core\Texture2D.cpp" />
-    <ClCompile Include="src\Core\Transform.cpp" />
     <ClCompile Include="src\Core\VertexBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>

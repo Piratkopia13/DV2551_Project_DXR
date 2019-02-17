@@ -3,7 +3,7 @@
 #include "IA.h"
 #include "VertexBuffer.h"
 #include "Technique.h"
-#include "Transform.h"
+#include "../Geometry/Transform.h"
 #include "ConstantBuffer.h"
 #include "Texture2D.h"
 
