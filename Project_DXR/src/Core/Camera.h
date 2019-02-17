@@ -5,6 +5,7 @@
 class Camera
 {
 public:
+	// Aspect ratio, vertical field of view, near clipping plane, far clipping plane
 	Camera(const float aspectRatio, const float fov, const float nearZ, const float farZ);
 	~Camera();
 
@@ -14,6 +15,7 @@ public:
 
 	void setPosition(const DirectX::XMVECTOR& position);
 	void setDirection(const DirectX::XMVECTOR& direction);
+	// Vertical field of view
 	void setFOV(const float fov);
 	void setAspectRatio(const float aspectRatio);
 	void setNearZ(const float nearZ);
