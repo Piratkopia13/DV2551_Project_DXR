@@ -7,6 +7,9 @@
 class D3DUtils {
 public:
 
+	static const D3D12_HEAP_PROPERTIES sUploadHeapProperties;
+	static const D3D12_HEAP_PROPERTIES sDefaultHeapProps;
+
 	static void UpdateDefaultBufferData(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmdList,
@@ -64,7 +67,7 @@ public:
 		void setMaxAttributeSize(UINT size);
 		void setMaxRecursionDepth(UINT depth);
 
-		ID3D12StateObject* generate(ID3D12Device5* device);
+		ID3D12StateObject* build(ID3D12Device5* device);
 
 	private:
 		DXILShaderCompiler m_dxilCompiler;
@@ -87,5 +90,31 @@ public:
 		std::vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> m_exportAssociations;
 	};
 
-};
 
+	struct ShaderTableData {
+		UINT64 SizeInBytes;
+		UINT32 StrideInBytes;
+		wComPtr<ID3D12Resource1> Resource = nullptr;
+	};
+
+	class ShaderTableBuilder {
+	public:
+		ShaderTableBuilder(LPCWSTR shaderName, ID3D12StateObject* pso, UINT numInstances = 1, UINT maxBytesPerInstance = 32);
+		~ShaderTableBuilder();
+
+		void addDescriptor(UINT64& descriptor, UINT instance = 0);
+		void addConstants(UINT numConstants, float* constants, UINT instance = 0);
+
+		ShaderTableData build(ID3D12Device5* device);
+
+	private:
+		wComPtr<ID3D12StateObjectProperties> m_soProps;
+		LPCWSTR m_shaderName;
+		UINT m_numInstances;
+		UINT m_maxBytesPerInstance;
+
+		void** m_data;
+		UINT* m_dataOffsets;
+	};
+
+};

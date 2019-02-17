@@ -2,6 +2,7 @@
 
 #include "DX12.h"
 #include <d3d12.h>
+#include "D3DUtils.h"
 
 class DX12Renderer;
 class DX12VertexBuffer;
@@ -72,15 +73,9 @@ private:
 
 	wComPtr<ID3D12StateObject> m_rtPipelineState = nullptr;
 
-	struct ShaderTableData {
-		UINT64 SizeInBytes;
-		UINT32 StrideInBytes;
-		wComPtr<ID3D12Resource1> Resource = nullptr;
-	};
-
-	ShaderTableData m_rayGenShaderTable{};
-	ShaderTableData m_missShaderTable{};
-	ShaderTableData m_hitGroupShaderTable{};
+	D3DUtils::ShaderTableData m_rayGenShaderTable{};
+	D3DUtils::ShaderTableData m_missShaderTable{};
+	D3DUtils::ShaderTableData m_hitGroupShaderTable{};
 
 	struct ResourceWithDescriptor {
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
@@ -98,9 +93,6 @@ private:
 	const WCHAR* m_closestHitName = L"closestHit";
 	const WCHAR* m_missName = L"miss";
 	const WCHAR* m_hitGroupName = L"HitGroup";
-
-	static const D3D12_HEAP_PROPERTIES sUploadHeapProperties;
-	static const D3D12_HEAP_PROPERTIES sDefaultHeapProps;
 
 	wComPtr<ID3D12RootSignature> m_dxrGlobalRootSignature;
 	wComPtr<ID3D12RootSignature> m_localSignatureRayGen;
