@@ -5,6 +5,7 @@
 #include "DXILShaderCompiler.h"
 #include "DX12ConstantBuffer.h"
 #include "../Core/Camera.h"
+#include "../Core/CameraController.h"
 #include "../Utils/Input.h"
 
 using namespace DirectX;
@@ -29,7 +30,7 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 
-	if (Input::IsKeyDown('S')) {
+	/*if (Input::IsKeyDown('S')) {
 		m_persCamera->move(XMVectorSet(0.f, 0.f, -0.1f, 0.f));
 		m_sceneCBData->cameraPosition = m_persCamera->getPosition();
 		m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
@@ -44,8 +45,15 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
 
 		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
-	}
+	}*/
 
+
+	/* Camera movement, Move this to main */
+	m_persCameraController->update(0.016f);
+	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
+	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
+	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
+	/**/
 
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_rtDescriptorHeap.Get() };
@@ -215,9 +223,10 @@ void DXR::createShaderResources() {
 	m_persCamera = new Camera((float)m_renderer->getWindow()->getWindowWidth() / (float)m_renderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
 	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, -2.f, 0.f));
 	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
+	m_persCameraController = new CameraController(m_persCamera);
 	m_sceneCBData = new SceneConstantBuffer();
 	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-	m_sceneCBData->cameraPosition = m_persCamera->getPosition();
+	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
 	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
 	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
 }

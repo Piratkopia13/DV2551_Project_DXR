@@ -10,6 +10,8 @@ class DX12Renderer;
 class DX12VertexBuffer;
 class DX12ConstantBuffer;
 class Camera;
+class CameraController;
+struct SceneConstantBuffer;
 
 namespace DXRGlobalRootParam {
 	enum Slot {
@@ -69,12 +71,13 @@ private:
 	DX12VertexBuffer* m_vb; // TODO: support multiple vertex buffers
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
 	Camera* m_persCamera;
-	union AlignedSceneConstantBuffer {
-		SceneConstantBuffer constants;
+	CameraController* m_persCameraController;
+	union AlignedSceneConstantBuffer { 	// TODO: Use this instead of SceneConstantBuffer
+		SceneConstantBuffer* constants;
 		uint8_t alignmentPadding[D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT];
 	};
-	AlignedSceneConstantBuffer* m_mappedSceneCBData;
-	SceneConstantBuffer* m_sceneCBData;
+	AlignedSceneConstantBuffer* m_mappedSceneCBData; // TODO: Fix memory leak
+	SceneConstantBuffer* m_sceneCBData; // TODO: Fix memory leak
 
 	struct AccelerationStructureBuffers {
 		wComPtr<ID3D12Resource1> scratch = nullptr;

@@ -26,8 +26,13 @@ public:
 	const float getNearZ() const;
 	const float getFarZ() const;
 
-	const DirectX::XMFLOAT3 getPosition();
-	const DirectX::XMFLOAT3 getDirection();
+	const DirectX::XMFLOAT3 getPositionF3();
+	const DirectX::XMFLOAT3 getDirectionF3();
+	const DirectX::XMFLOAT3 getUpF3();
+
+	const DirectX::XMVECTOR getPositionVec();
+	const DirectX::XMVECTOR getDirectionVec();
+	const DirectX::XMVECTOR getUpVec();
 	//const DirectX::XMFLOAT3 getLookAt();
 
 	// View matrix
