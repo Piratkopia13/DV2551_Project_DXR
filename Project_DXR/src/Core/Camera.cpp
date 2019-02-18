@@ -76,7 +76,6 @@ void Camera::setFarZ(const float farZ) {
 	m_VPMatNeedsUpdate = true;
 }
 
-
 const float Camera::getAspectRatio() const {
 	return m_aspectRatio;
 }
@@ -93,16 +92,38 @@ const float Camera::getFarZ() const {
 	return m_farZ;
 }
 
-const DirectX::XMFLOAT3 Camera::getPosition() {
+const DirectX::XMFLOAT3 Camera::getPositionF3() {
 	XMFLOAT3 toReturn;
 	XMStoreFloat3(&toReturn, m_pos);
 	return toReturn;
 }
 
-const DirectX::XMFLOAT3 Camera::getDirection() {
+const DirectX::XMFLOAT3 Camera::getDirectionF3() {
 	XMFLOAT3 toReturn;
 	XMStoreFloat3(&toReturn, m_dir);
 	return toReturn;
+}
+
+const DirectX::XMFLOAT3 Camera::getUpF3()
+{
+	XMFLOAT3 toReturn;
+	XMStoreFloat3(&toReturn, m_up);
+	return toReturn;
+}
+
+const DirectX::XMVECTOR Camera::getPositionVec()
+{
+	return m_pos;
+}
+
+const DirectX::XMVECTOR Camera::getDirectionVec()
+{
+	return m_dir;
+}
+
+const DirectX::XMVECTOR Camera::getUpVec()
+{
+	return m_up;
 }
 
 const DirectX::XMMATRIX Camera::getViewMatrix()

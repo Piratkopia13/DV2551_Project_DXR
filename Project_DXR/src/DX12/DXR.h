@@ -10,6 +10,7 @@ class DX12Renderer;
 class DX12VertexBuffer;
 class DX12ConstantBuffer;
 class Camera;
+class CameraController;
 struct SceneConstantBuffer;
 
 namespace DXRGlobalRootParam {
@@ -70,6 +71,7 @@ private:
 	DX12VertexBuffer* m_vb; // TODO: support multiple vertex buffers
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
 	Camera* m_persCamera;
+	CameraController* m_persCameraController;
 	union AlignedSceneConstantBuffer { 	// TODO: Use this instead of SceneConstantBuffer
 		SceneConstantBuffer* constants;
 		uint8_t alignmentPadding[D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT];

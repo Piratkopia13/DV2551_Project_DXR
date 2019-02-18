@@ -157,6 +157,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\Core\CameraController.h" />
     <ClInclude Include="src\Geometry\Transform.h" />
     <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
@@ -189,6 +190,7 @@
     <ClInclude Include="src\Core\VertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Core\CameraController.cpp" />
     <ClCompile Include="src\Geometry\Transform.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </PrecompiledHeader>
