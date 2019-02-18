@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include "D3DUtils.h"
 #include <DirectXMath.h>
+#include "../assets/shaders/CommonRT.hlsl"
 
 class DX12Renderer;
 class DX12VertexBuffer;

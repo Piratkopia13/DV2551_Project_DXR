@@ -7,8 +7,6 @@
 #include "../Core/Camera.h"
 #include "../Utils/Input.h"
 
-#include "../assets/shaders/CommonRT.hlsl"
-
 using namespace DirectX;
 
 DXR::DXR(DX12Renderer* renderer)
