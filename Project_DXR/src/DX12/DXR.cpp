@@ -47,11 +47,13 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
 	}*/
 
+
+	/* Camera movement, Move this to main */
 	m_persCameraController->update(0.016f);
 	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
 	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
 	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
-
+	/**/
 
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_rtDescriptorHeap.Get() };
