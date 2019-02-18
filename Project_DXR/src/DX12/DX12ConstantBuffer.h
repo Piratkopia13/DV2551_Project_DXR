@@ -4,6 +4,7 @@
 
 class DX12Renderer;
 
+// TODO: Make useable by both DXR and rasterization
 class DX12ConstantBuffer : public ConstantBuffer {
 public:
 	DX12ConstantBuffer(std::string name, unsigned int location, DX12Renderer* renderer);

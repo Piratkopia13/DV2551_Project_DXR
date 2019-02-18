@@ -24,12 +24,6 @@ cbuffer CB_ShaderTableLocal : register(b0, space1)
 
 ConstantBuffer<SceneConstantBuffer> CB_SceneData : register(b0, space2);
 
-struct RayPayload
-{
-	float4 color;
-	uint recursionDepth;
-};
-
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
 inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
 {
