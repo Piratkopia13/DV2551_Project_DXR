@@ -1,21 +1,11 @@
-#define MAX_RAY_RECURSION_DEPTH 2
+#define HLSL
+#include "CommonRT.hlsl"
 
 // Retrieve hit world position.
 float3 HitWorldPosition()
 {
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
 }
-
-struct Vertex
-{
-    float3 position;
-    float3 normal;
-};
-
-struct SceneConstantBuffer {
-	float4x4 projectionToWorld;
-	float4 cameraPosition;
-};
 
 RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);

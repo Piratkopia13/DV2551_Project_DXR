@@ -7,6 +7,8 @@
 #include "../Core/Camera.h"
 #include "../Utils/Input.h"
 
+#include "../assets/shaders/CommonRT.hlsl"
+
 using namespace DirectX;
 
 DXR::DXR(DX12Renderer* renderer)
@@ -150,14 +152,14 @@ void DXR::updateTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<XMFLOAT3
 }
 
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
-	const float vertices[] = {
-		0,          1,  0,		0, 0, -1,	// Vertex and normal
-		0.866f,  -0.5f, 0,		0, 0, -1,
-		-0.866f, -0.5f, 0,		0, 0, -1,
+	const Vertex vertices[] = {
+		{XMFLOAT3(0,		1,		0), XMFLOAT3(0, 0, -1)},	// Vertex and normal
+		{XMFLOAT3(0.866f,  -0.5f,	0), XMFLOAT3(0, 0, -1)},
+		{XMFLOAT3(-0.866f, -0.5f,	0), XMFLOAT3(0, 0, -1)},
 
-		0,       -0.5f,  0,		0, 0, -1,	// Vertex and normal
-		0.866f,  -1.5f, 0,		0, 0, -1,
-		-0.866f, -1.5f, 0,		0, 0, -1
+		{XMFLOAT3(0,       -0.5f, 1), XMFLOAT3(0, 0, -1)},		// Vertex and normal
+		{XMFLOAT3(0.866f,  -1.5f, 1), XMFLOAT3(0, 0, -1)},
+		{XMFLOAT3(-0.866f, -1.5f, 1), XMFLOAT3(0, 0, -1)}
 	};
 
 	m_vb = new DX12VertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC, m_renderer); //TODO: fix mem leak
@@ -377,8 +379,8 @@ void DXR::createRaytracingPSO() {
 	psoBuilder.addSignatureToShaders({ m_rayGenName }, m_localSignatureRayGen.GetAddressOf());
 	psoBuilder.addSignatureToShaders({ m_closestHitName }, m_localSignatureHitGroup.GetAddressOf());
 	psoBuilder.addSignatureToShaders({ m_missName }, m_localSignatureMiss.GetAddressOf());
-	psoBuilder.setMaxPayloadSize(sizeof(float) * 4 + sizeof(UINT) * 1);
-	psoBuilder.setMaxRecursionDepth(2);
+	psoBuilder.setMaxPayloadSize(sizeof(RayPayload));
+	psoBuilder.setMaxRecursionDepth(MAX_RAY_RECURSION_DEPTH);
 	psoBuilder.setGlobalSignature(m_dxrGlobalRootSignature.GetAddressOf());
 
 	m_rtPipelineState = psoBuilder.build(m_renderer->getDevice());
