@@ -60,11 +60,10 @@ public:
 	UINT getNumSwapBuffers() const;
 	UINT getFrameIndex() const;
 	Win32Window* getWindow() const;
-
-	ID3D12Resource1* createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps);
-	void setResourceTransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES StateBefore, D3D12_RESOURCE_STATES StateAfter);
-
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
+	
+	void enableDXR(bool enable);
+	bool isDXREnabled() const;
 
 	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
 	virtual void setWinTitle(const char* title) override;

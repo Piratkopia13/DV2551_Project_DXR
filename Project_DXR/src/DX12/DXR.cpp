@@ -162,7 +162,7 @@ void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 
 	m_vb = new DX12VertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC, m_renderer); //TODO: fix mem leak
 	m_vb->setData(vertices, sizeof(vertices), 0);
-	m_vb->setVertexStride(sizeof(float) * 6);
+	m_vb->setVertexStride(sizeof(Vertex));
 
 	createBLAS(cmdList, m_vb);
 	createTLAS(cmdList, m_DXR_BottomBuffers.result.Get());

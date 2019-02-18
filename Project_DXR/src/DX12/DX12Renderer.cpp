@@ -130,6 +130,14 @@ ID3D12DescriptorHeap* DX12Renderer::getSamplerDescriptorHeap() const {
 	return m_samplerDescriptorHeap.Get();
 }
 
+void DX12Renderer::enableDXR(bool enable) {
+	m_supportsDXR = enable;
+}
+
+bool DX12Renderer::isDXREnabled() const {
+	return m_supportsDXR;
+}
+
 VertexBuffer* DX12Renderer::makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) {
 	return new DX12VertexBuffer(size, usage, this);
 };
@@ -503,15 +511,14 @@ void DX12Renderer::workerThread(unsigned int id) {
 			list->RSSetScissorRects(1, &m_scissorRect);
 
 			for (auto mesh : work->second) {
-				size_t numberElements = mesh->geometryBuffers[0].numElements;
+				size_t numberElements = mesh->geometryBuffer.numElements;
 				for (auto t : mesh->textures) {
 					static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
 				}
 
 				// Bind vertices, normals and UVs
-				for (auto element : mesh->geometryBuffers) {
-					mesh->bindIAVertexBuffer(element.first, list.Get());
-				}
+				mesh->bindIAVertexBuffer(list.Get());
+
 				// Bind translation constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->txBuffer)->bind(work->first->getMaterial(), list.Get());
 				// Draw

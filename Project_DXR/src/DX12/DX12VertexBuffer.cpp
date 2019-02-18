@@ -20,7 +20,7 @@ DX12VertexBuffer::DX12VertexBuffer(size_t byteSize, VertexBuffer::DATA_USAGE usa
 
 	m_vertexBuffer->SetName(L"vertex buffer");
 
-	m_lastBoundVBSlot = -1;
+	//m_lastBoundVBSlot = -1;
 }
 
 DX12VertexBuffer::~DX12VertexBuffer() {
@@ -45,18 +45,18 @@ void DX12VertexBuffer::bind(size_t offset, size_t size, unsigned int location) {
 void DX12VertexBuffer::bind(size_t offset, size_t size, unsigned int location, ID3D12GraphicsCommandList3* cmdList) {
 	assert(size + offset <= m_byteSize);
 	assert(m_vertexStride > 0);
+	assert(location == 0); // This parameter is not used!
 
 	D3D12_VERTEX_BUFFER_VIEW vbView = {};
 	vbView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress() + offset;
 	vbView.SizeInBytes = static_cast<UINT>(size);
 	vbView.StrideInBytes = static_cast<UINT>(m_vertexStride);
-	m_lastBoundVBSlot = location;
 	// Later update to just put in a buffer on the renderer to set multiple vertex buffers at once
-	cmdList->IASetVertexBuffers(m_lastBoundVBSlot, 1, &vbView);
+	cmdList->IASetVertexBuffers(0, 1, &vbView);
 }
 
 void DX12VertexBuffer::unbind() {
-	m_renderer->getCmdList()->IASetVertexBuffers(m_lastBoundVBSlot, 1, nullptr);
+	m_renderer->getCmdList()->IASetVertexBuffers(0, 1, nullptr);
 }
 
 size_t DX12VertexBuffer::getSize() {
@@ -72,7 +72,7 @@ size_t DX12VertexBuffer::getVertexStride() const {
 }
 
 unsigned int DX12VertexBuffer::getVertexCount() const {
-	return m_byteSize / m_vertexStride;
+	return static_cast<unsigned int>(m_byteSize / m_vertexStride);
 }
 
 ID3D12Resource1* DX12VertexBuffer::getBuffer() const {

@@ -1,6 +1,7 @@
 #pragma once
 
 #ifdef HLSL
+typedef float2 XMFLOAT2;
 typedef float3 XMFLOAT3;
 typedef float4 XMFLOAT4;
 typedef float4x4 XMMATRIX;
@@ -15,6 +16,7 @@ using namespace DirectX;
 struct Vertex {
     XMFLOAT3 position;
     XMFLOAT3 normal;
+    XMFLOAT2 texCoord;
 };
 
 struct RayPayload {

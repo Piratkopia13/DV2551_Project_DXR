@@ -37,7 +37,7 @@ private:
 	size_t m_byteSize;
 	size_t m_vertexStride;
 
-	UINT m_lastBoundVBSlot;
+	//UINT m_lastBoundVBSlot;
 
 	DX12Renderer* m_renderer;
 
