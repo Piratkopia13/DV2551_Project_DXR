@@ -3,6 +3,7 @@
 #ifdef HLSL
 typedef float3 XMFLOAT3;
 typedef float4 XMFLOAT4;
+typedef float4x4 XMMATRIX;
 typedef uint UINT;
 #else
 using namespace DirectX;
@@ -19,4 +20,9 @@ struct Vertex {
 struct RayPayload {
 	XMFLOAT4 color;
 	UINT recursionDepth;
+};
+
+struct SceneConstantBuffer {
+	XMMATRIX projectionToWorld;
+	XMFLOAT3 cameraPosition;
 };
