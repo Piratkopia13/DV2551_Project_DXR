@@ -30,11 +30,20 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 
 	if (Input::IsKeyDown('S')) {
-		m_persCamera->move(XMVectorSet(0.f, 0.f, 1.f, 0.f));
-		m_sceneCBData->cameraPosition = DirectX::XMLoadFloat3(&m_persCamera->getPosition());
+		m_persCamera->move(XMVectorSet(0.f, 0.f, -0.1f, 0.f));
+		m_sceneCBData->cameraPosition = m_persCamera->getPosition();
+		m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
 		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
 
-		std::cout << "Moving camera  Z: " << m_persCamera->getPosition().z << std::endl;
+		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
+	}
+	if (Input::IsKeyDown('W')) {
+		m_persCamera->move(XMVectorSet(0.f, 0.f, 0.1f, 0.f));
+		m_sceneCBData->cameraPosition = m_persCamera->getPosition();
+		m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
+		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
+
+		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
 	}
 
 
@@ -204,10 +213,11 @@ void DXR::createShaderResources() {
 
 	// Scene CB
 	m_persCamera = new Camera((float)m_renderer->getWindow()->getWindowWidth() / (float)m_renderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
-	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, 100.f, 0.f));
+	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, -2.f, 0.f));
+	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
 	m_sceneCBData = new SceneConstantBuffer();
 	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-	m_sceneCBData->cameraPosition = DirectX::XMLoadFloat3(&m_persCamera->getPosition());
+	m_sceneCBData->cameraPosition = m_persCamera->getPosition();
 	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
 	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
 }

@@ -39,7 +39,7 @@ namespace DXRMissRootParam {
 
 struct SceneConstantBuffer {
 	DirectX::XMMATRIX projectionToWorld;
-	DirectX::XMVECTOR cameraPosition;
+	DirectX::XMFLOAT3 cameraPosition;
 };
 
 class DXR {

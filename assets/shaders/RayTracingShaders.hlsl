@@ -50,7 +50,7 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 	screenPos.y = -screenPos.y;
 
 	// Unproject the pixel coordinate into a ray.
-	float4 world = mul(float4(screenPos, 0, 1), CB_SceneData.projectionToWorld);
+	float4 world = mul(CB_SceneData.projectionToWorld, float4(screenPos, 0, 1));
 
 	world.xyz /= world.w;
 	origin = CB_SceneData.cameraPosition.xyz;
@@ -74,7 +74,7 @@ void rayGen()
 	// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
 	// TMin should be kept small to prevent missing geometry at close contact areas.
 	ray.TMin = 0.001;
-	ray.TMax = 10000;
+	ray.TMax = 10000.0;
 
 	RayPayload payload;
 	payload.recursionDepth = 0;
