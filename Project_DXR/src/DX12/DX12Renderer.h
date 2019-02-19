@@ -94,6 +94,9 @@ private:
 	// DXR
 	bool checkRayTracingSupport();
 
+	// ImGui
+	HRESULT initImGui();
+
 	// Multithreading
 	void workerThread(unsigned int id);
 	struct Command {
@@ -126,6 +129,9 @@ private:
 	wComPtr<IDXGISwapChain4> m_swapChain;
 	std::vector<wComPtr<ID3D12Resource1>> m_renderTargets;
 	wComPtr<ID3D12RootSignature> m_globalRootSignature;
+
+	// ImGui
+	wComPtr<ID3D12DescriptorHeap> m_ImGuiSrvDescHeap;
 
 	wComPtr<IDXGIFactory2> m_dxgiFactory;
 

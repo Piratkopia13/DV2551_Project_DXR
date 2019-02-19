@@ -11,6 +11,10 @@
 #include "DX12VertexBuffer.h"
 #include "D3DUtils.h"
 
+#include "../ImGui/imgui.h"
+#include "../ImGui/imgui_impl_win32.h"
+#include "../ImGui/imgui_impl_dx12.h"
+
 #include <guiddef.h>
 //#include <pix3.h> // Used for pix events
 
@@ -47,6 +51,11 @@ DX12Renderer::~DX12Renderer() {
 	m_mainCondVar.notify_all();
 
 	waitForGPU();
+
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
 	reportLiveObjects();
 
 	for (std::thread& thread : m_workerThreads)
@@ -191,7 +200,6 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
-	//m_supportsDXR = false;
 	if (m_supportsDXR) {
 		m_dxr = std::make_unique<DXR>(this);
 		m_dxr->init(m_preCommand.list.Get());
@@ -228,6 +236,9 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 		// Create thread
 		m_workerThreads.emplace_back(&DX12Renderer::workerThread, this, i);
 	}
+
+	// ImGui
+	initImGui();
 
 	return 0;
 }
@@ -453,6 +464,35 @@ bool DX12Renderer::checkRayTracingSupport() {
 	return true;
 }
 
+HRESULT DX12Renderer::initImGui() {
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NumDescriptors = 1;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	if (m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiSrvDescHeap)) != S_OK)
+		return E_FAIL;
+
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsClassic();
+
+	// Setup Platform/Renderer bindings
+	ImGui_ImplWin32_Init(*getWindow()->getHwnd());
+	ImGui_ImplDX12_Init(getDevice(),
+		getNumSwapBuffers(),
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		m_ImGuiSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
+		m_ImGuiSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+	return S_OK;
+}
+
 void DX12Renderer::createShaderResources() {
 	// Create descriptor heap for samplers
 	D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
@@ -619,9 +659,7 @@ void DX12Renderer::frame() {
 	m_postCommand.list->Reset(m_postCommand.allocator.Get(), nullptr);
 
 
-
 	// DXR
-
 	if (m_supportsDXR) {
 		static float rotY = 0;
 		rotY += 0.001f;
@@ -640,13 +678,40 @@ void DX12Renderer::frame() {
 
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 		
-	} else {
-		// Indicate that the back buffer will now be used to present
-		D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	}
 
 
+	// ImGui
+	{
+		m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+		m_postCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 
+		// Start the Dear ImGui frame
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+			
+		RECT rect;
+		GetClientRect(*m_window->getHwnd(), &rect);
+
+		bool show_demo_window = true;
+		bool show_another_window = true;
+		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
+
+		// Set the descriptor heaps
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
+	}
+
+	if(!m_supportsDXR) {
+		// Indicate that the back buffer will now be used to present
+		D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	}
 
 
 
