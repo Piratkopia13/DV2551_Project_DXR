@@ -13,22 +13,27 @@ Transform::~Transform() {}
 
 void Transform::translate(const DirectX::XMVECTOR translation) {
 	m_translation += translation;
+	m_needsUpdate = true;
 }
 
 void Transform::setTranslation(const DirectX::XMVECTOR translation) {
 	m_translation = translation;
+	m_needsUpdate = true;
 }
 
 void Transform::scale(const DirectX::XMVECTOR scale) {
 	m_scale *= scale;
+	m_needsUpdate = true;
 }
 
 void Transform::scaleUniformly(const float scale) {
 	m_scale *= scale;
+	m_needsUpdate = true;
 }
 
 void Transform::setScale(const DirectX::XMVECTOR scale) {
 	m_scale = scale;
+	m_needsUpdate = true;
 }
 
 void Transform::rotateAroundX(const float radians) {

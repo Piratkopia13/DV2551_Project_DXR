@@ -1,13 +1,30 @@
-#pragma once
-
 #ifdef HLSL
 typedef float2 XMFLOAT2;
 typedef float3 XMFLOAT3;
 typedef float4 XMFLOAT4;
 typedef float4x4 XMMATRIX;
 typedef uint UINT;
+
+#ifndef POSITION
+	#define POSITION 0
+	#define NORMAL 1
+	#define TEXTCOORD 2
+	#define INDEXBUFF 4
+
+	#define TRANSFORM 5
+	#define TRANSFORM_NAME TranslationBlock
+
+	#define DIFFUSE_TINT 6
+	#define DIFFUSE_TINT_NAME DiffuseColor
+
+	#define DIFFUSE_SLOT 0
+#endif
+
+#define MERGE(a, b) a##b
+
 #else
-using namespace DirectX;
+	#pragma once
+	using namespace DirectX;
 #endif
 
 

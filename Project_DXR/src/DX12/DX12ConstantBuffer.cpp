@@ -35,7 +35,7 @@ DX12ConstantBuffer::~DX12ConstantBuffer() {
 
 }
 
-void DX12ConstantBuffer::setData(const void* data, size_t size, Material* m, unsigned int location) {
+void DX12ConstantBuffer::setData(const void* data, size_t size, unsigned int location) {
 	m_location = location;
 	
 	for (UINT i = 0; i < m_renderer->getNumSwapBuffers(); ++i) {
@@ -55,7 +55,7 @@ void DX12ConstantBuffer::bind(Material* m) {
 
 void DX12ConstantBuffer::bind(Material* material, ID3D12GraphicsCommandList3* cmdList) {
 
-	UINT rootIndex = (m_location == 5) ? GlobalRootParam::CBV_TRANSLATION : GlobalRootParam::CBV_DIFFUSE_TINT;
+	UINT rootIndex = (m_location == 5) ? GlobalRootParam::CBV_TRANSFORM : GlobalRootParam::CBV_DIFFUSE_TINT;
 	cmdList->SetGraphicsRootConstantBufferView(rootIndex, m_constantBufferUploadHeap[m_renderer->getFrameIndex()]->GetGPUVirtualAddress());
 
 }

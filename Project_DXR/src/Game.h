@@ -5,6 +5,8 @@
 #include "Core/Texture2D.h"
 #include "Core/Mesh.h"
 
+class DX12Renderer;
+
 class Game : public Application {
 public:
 	Game();
@@ -15,6 +17,8 @@ public:
 	virtual void render(double dt) override;
 	
 private:
+	DX12Renderer* m_dxRenderer;
+
 	std::unique_ptr<Technique> m_technique;
 	std::unique_ptr<Texture2D> m_texture;
 	std::unique_ptr<Sampler2D> m_sampler;

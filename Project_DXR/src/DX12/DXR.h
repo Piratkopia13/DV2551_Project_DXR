@@ -45,20 +45,19 @@ public:
 	virtual ~DXR();
 
 	void init(ID3D12GraphicsCommandList4* cmdList);
+	void updateAS(ID3D12GraphicsCommandList4* cmdList);
 	void doTheRays(ID3D12GraphicsCommandList4* cmdList);
 	void copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target);
 
-	void updateTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {}, UINT instanceCount = 3);
-
-protected:
-
+	void updateBLASnextFrame(DX12VertexBuffer* vb, bool inPlace = true);
+	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {}, UINT instanceCount = 3);
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
 	void createShaderResources();
 	void createShaderTables();
-	void createBLAS(ID3D12GraphicsCommandList4* cmdList, DX12VertexBuffer* vb);
-	void createTLAS(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource1* blas);
+	void createBLAS(ID3D12GraphicsCommandList4* cmdList, DX12VertexBuffer* vb = nullptr, bool onlyUpdate = false);
+	void createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = [](int) {DirectX::XMFLOAT3X4 m; DirectX::XMStoreFloat3x4(&m, DirectX::XMMatrixIdentity()); return m;}, UINT instanceCount = 3);
 	void createRaytracingPSO();
 	void createDxrGlobalRootSignature();
 	ID3D12RootSignature* createRayGenLocalRootSignature();
@@ -66,9 +65,19 @@ private:
 	ID3D12RootSignature* createMissLocalRootSignature();
 
 private:
+	bool m_updateBLAS;
+	DX12VertexBuffer* m_newVb;
+	bool m_newInPlace;
+
+	bool m_updateTLAS;
+	std::function<DirectX::XMFLOAT3X4(int)> m_newInstanceTransform;
+	UINT m_newInstanceCount;
+
+private:
 	DX12Renderer* m_renderer;
 
-	DX12VertexBuffer* m_vb; // TODO: support multiple vertex buffers
+	DX12VertexBuffer* m_vb; // Not owned by DXR. TODO: support multiple vertex buffers
+
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
 	Camera* m_persCamera;
 	CameraController* m_persCameraController;
