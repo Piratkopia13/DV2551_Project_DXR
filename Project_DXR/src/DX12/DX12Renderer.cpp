@@ -51,6 +51,11 @@ DX12Renderer::~DX12Renderer() {
 	m_mainCondVar.notify_all();
 
 	waitForGPU();
+
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
 	reportLiveObjects();
 
 	for (std::thread& thread : m_workerThreads)
@@ -187,8 +192,6 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
-	//m_supportsDXR = false; // TODO: REMOVE
-	//m_supportsDXR = false;
 	if (m_supportsDXR) {
 		m_dxr = std::make_unique<DXR>(this);
 		m_dxr->init(m_preCommand.list.Get());
