@@ -6,24 +6,29 @@ float Input::m_mouseDeltaX = 0.f;
 float Input::m_mouseDeltaY = 0.f;
 float Input::m_mouseDeltaXSinceLastFrame = 0.f;
 float Input::m_mouseDeltaYSinceLastFrame = 0.f;
-bool Input::m_mouseButtons[2] = { false, false };
-std::map<unsigned char, bool> Input::m_keys = {};
+bool Input::m_mouseButtonsDown[2] = { false, false };
+bool Input::m_mouseButtonsPressed[2] = { false, false };
+bool Input::m_cursorHidden = false;
+std::map<unsigned int, bool> Input::m_keysDown = {};
+std::vector<unsigned int> Input::m_keysPressed = {};
 
 void Input::RegisterKeyDown(const UINT keyCode) {
-	auto iter = m_keys.find(keyCode);
-	if(iter != m_keys.end())
+	auto iter = m_keysDown.find(keyCode);
+	if (iter != m_keysDown.end()) {
 		iter->second = true;
-	else {
-		m_keys.emplace(keyCode, true);
 	}
+	else {
+		m_keysDown.emplace(keyCode, true);
+	}
+	m_keysPressed.emplace_back(keyCode);
 }
 
 void Input::RegisterKeyUp(const UINT keyCode) {
-	auto iter = m_keys.find(keyCode);
-	if (iter != m_keys.end())
+	auto iter = m_keysDown.find(keyCode);
+	if (iter != m_keysDown.end())
 		iter->second = false;
 	else {
-		m_keys.emplace(keyCode, false);
+		m_keysDown.emplace(keyCode, false);
 	}
 }
 
@@ -36,14 +41,23 @@ void Input::NewFrame() {
 }
 
 void Input::EndFrame() {
+	m_keysPressed.clear();
+
+	for (unsigned int i = 0; i < MouseButton::NUM_MOUSE_BUTTONS; i++)
+		m_mouseButtonsPressed[i] = false;
 }
 
 bool Input::IsKeyDown(const UINT keyCode) {
-	auto iter = m_keys.find(keyCode);
-	if (iter != m_keys.end()) {
+	auto iter = m_keysDown.find(keyCode);
+	if (iter != m_keysDown.end()) {
 		return iter->second;
 	}
 	return false;
+}
+
+bool Input::IsKeyPressed(const UINT keyCode)
+{
+	return std::find(m_keysPressed.begin(), m_keysPressed.end(), keyCode) != m_keysPressed.end();
 }
 
 void Input::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -67,17 +81,19 @@ void Input::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
 		m_mouseDeltaY += raw->data.mouse.lLastY;
 
 		if ((RI_MOUSE_LEFT_BUTTON_DOWN & raw->data.mouse.usButtonFlags) == RI_MOUSE_LEFT_BUTTON_DOWN) {
-			m_mouseButtons[MouseButton::LEFT] = true;
+			m_mouseButtonsDown[MouseButton::LEFT] = true;
+			m_mouseButtonsPressed[MouseButton::LEFT] = true;
 		}
 		else if ((RI_MOUSE_LEFT_BUTTON_UP & raw->data.mouse.usButtonFlags) == RI_MOUSE_LEFT_BUTTON_UP) {
-			m_mouseButtons[MouseButton::LEFT] = false;
+			m_mouseButtonsDown[MouseButton::LEFT] = false;
 		}
 
 		if ((RI_MOUSE_RIGHT_BUTTON_DOWN & raw->data.mouse.usButtonFlags) == RI_MOUSE_RIGHT_BUTTON_DOWN) {
-			m_mouseButtons[MouseButton::RIGHT] = true;
+			m_mouseButtonsDown[MouseButton::RIGHT] = true;
+			m_mouseButtonsPressed[MouseButton::RIGHT] = true;
 		}
 		else if ((RI_MOUSE_RIGHT_BUTTON_UP & raw->data.mouse.usButtonFlags) == RI_MOUSE_RIGHT_BUTTON_UP) {
-			m_mouseButtons[MouseButton::RIGHT] = false;
+			m_mouseButtonsDown[MouseButton::RIGHT] = false;
 		}
 	}
 
@@ -94,10 +110,22 @@ float Input::GetMouseDY() {
 	return m_mouseDeltaYSinceLastFrame;
 }
 
-bool Input::GetMouseButtonDown(MouseButton button) {
-	return m_mouseButtons[button];
+bool Input::IsMouseButtonDown(MouseButton button) {
+	assert(button >= 0 && button < MouseButton::NUM_MOUSE_BUTTONS);
+	return m_mouseButtonsDown[button];
+}
+
+bool Input::IsMouseButtonPressed(MouseButton button) {
+	assert(button >= 0 && button < MouseButton::NUM_MOUSE_BUTTONS);
+	return m_mouseButtonsPressed[button];
 }
 
 void Input::showCursor(bool show) {
+	m_cursorHidden = !show;
 	ShowCursor(show);
+}
+
+bool Input::IsCursorHidden()
+{
+	return m_cursorHidden;
 }
