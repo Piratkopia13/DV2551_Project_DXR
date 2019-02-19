@@ -8,7 +8,8 @@ class Input {
 public:
 	enum MouseButton {
 		LEFT,
-		RIGHT
+		RIGHT,
+		NUM_MOUSE_BUTTONS
 	};
 
 	// Used by Win32Window to register keystrokes
@@ -23,25 +24,33 @@ public:
 
 	// Check if key is down
 	static bool IsKeyDown(const UINT keyCode);
+	static bool IsKeyPressed(const UINT keyCode);
 
 	static void ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
 	static float GetMouseDX();
 	static float GetMouseDY();
-	static bool GetMouseButtonDown(MouseButton button);
+	static bool IsMouseButtonDown(MouseButton button);
+	static bool IsMouseButtonPressed(MouseButton button);
 
 	static void showCursor(bool show);
+	static bool IsCursorHidden();
 
 private:
-	static std::map<unsigned char, bool> m_keys;
+	static std::map<unsigned int, bool> m_keysDown;
+	static std::vector<unsigned int> m_keysPressed;
+	// TODO: Implement isKeyPressed
 
-	static bool m_mouseButtons[2];
+	static bool m_mouseButtonsDown[2];
+	static bool m_mouseButtonsPressed[2];
 
 	static float m_mouseDeltaX;
 	static float m_mouseDeltaY;
 
 	static float m_mouseDeltaXSinceLastFrame;
 	static float m_mouseDeltaYSinceLastFrame;
+
+	static bool m_cursorHidden;
 
 private:
 	// Disallow instances

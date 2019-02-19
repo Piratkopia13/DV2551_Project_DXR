@@ -40,8 +40,10 @@ void CameraController::update(float dt) {
 
 
 	// Camera rotation
-	m_pitch -= (float)(Input::GetMouseDY()) * lookSensitivity;
-	m_yaw -= (float)(Input::GetMouseDX()) * lookSensitivity;
+	if (Input::IsCursorHidden()) {
+		m_pitch -= (float)(Input::GetMouseDY()) * lookSensitivity;
+		m_yaw -= (float)(Input::GetMouseDX()) * lookSensitivity;
+	}
 
 	// Lock pitch to the range -89 - 89
 	if (m_pitch >= 89.f)

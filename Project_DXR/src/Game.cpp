@@ -87,6 +87,19 @@ void Game::update(double dt) {
 		pressed = false;
 	}
 
+	if (Input::IsMouseButtonPressed(Input::MouseButton::RIGHT)) {
+		Input::showCursor(Input::IsCursorHidden());
+	}
+
+	// Lock mouse
+	if (Input::IsCursorHidden()) {
+		POINT p;
+		p.x = reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getWindowWidth() / 2;
+		p.y = reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getWindowHeight() / 2;
+		ClientToScreen(*reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getHwnd(), &p);
+		SetCursorPos(p.x, p.y);
+	}
+
 	/*
 //	    For each mesh in scene list, update their position
 //	*/
