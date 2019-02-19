@@ -76,15 +76,9 @@ void Game::init() {
 
 void Game::update(double dt) {
 
-	static bool pressed = false;
-	if (Input::IsKeyDown(' ')) {
-		if (!pressed) {
-			pressed = true;
-			auto& r = static_cast<DX12Renderer&>(getRenderer());
-			r.enableDXR(!r.isDXREnabled());
-		}
-	} else {
-		pressed = false;
+	if (Input::IsKeyPressed(' ')) {
+		auto& r = static_cast<DX12Renderer&>(getRenderer());
+		r.enableDXR(!r.isDXREnabled());
 	}
 
 	if (Input::IsMouseButtonPressed(Input::MouseButton::RIGHT)) {

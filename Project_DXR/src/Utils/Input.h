@@ -39,7 +39,7 @@ public:
 private:
 	static std::map<unsigned int, bool> m_keysDown;
 	static std::vector<unsigned int> m_keysPressed;
-	// TODO: Implement isKeyPressed
+	// TODO: Add system keys
 
 	static bool m_mouseButtonsDown[2];
 	static bool m_mouseButtonsPressed[2];
