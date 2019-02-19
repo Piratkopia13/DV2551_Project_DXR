@@ -11,6 +11,10 @@
 #include "DX12VertexBuffer.h"
 #include "D3DUtils.h"
 
+#include "../ImGui/imgui.h"
+#include "../ImGui/imgui_impl_win32.h"
+#include "../ImGui/imgui_impl_dx12.h"
+
 #include <guiddef.h>
 //#include <pix3.h> // Used for pix events
 
@@ -183,6 +187,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
+	m_supportsDXR = false; // TODO: REMOVE
 	//m_supportsDXR = false;
 	if (m_supportsDXR) {
 		m_dxr = std::make_unique<DXR>(this);
@@ -220,6 +225,9 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 		// Create thread
 		m_workerThreads.emplace_back(&DX12Renderer::workerThread, this, i);
 	}
+
+	// ImGui
+	initImGui();
 
 	return 0;
 }
@@ -445,6 +453,33 @@ bool DX12Renderer::checkRayTracingSupport() {
 	return true;
 }
 
+HRESULT DX12Renderer::initImGui() {
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NumDescriptors = 1;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	if (m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiSrvDescHeap)) != S_OK)
+		return E_FAIL;
+
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsClassic();
+
+	// Setup Platform/Renderer bindings
+	ImGui_ImplWin32_Init(*getWindow()->getHwnd());
+	ImGui_ImplDX12_Init(getDevice(),
+		getNumSwapBuffers(),
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		m_ImGuiSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
+		m_ImGuiSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
 void DX12Renderer::createShaderResources() {
 	// Create descriptor heap for samplers
 	D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
@@ -612,9 +647,7 @@ void DX12Renderer::frame() {
 	m_postCommand.list->Reset(m_postCommand.allocator.Get(), nullptr);
 
 
-
 	// DXR
-
 	if (m_supportsDXR) {
 		static float rotY = 0;
 		rotY += 0.001f;
@@ -634,12 +667,65 @@ void DX12Renderer::frame() {
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 		
 	} else {
+		// ImGui
+		{
+			// Start the Dear ImGui frame
+			ImGui_ImplDX12_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+			
+			RECT rect;
+			GetClientRect(*m_window->getHwnd(), &rect);
+
+			bool show_demo_window = true;
+			bool show_another_window = true;
+			ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+			// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+			if (show_demo_window)
+				ImGui::ShowDemoWindow(&show_demo_window);
+
+			// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+			{
+				static float f = 0.0f;
+				static int counter = 0;
+
+				ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+				ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+				ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+				ImGui::Checkbox("Another Window", &show_another_window);
+
+				ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+				ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+				if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+					counter++;
+				ImGui::SameLine();
+				ImGui::Text("counter = %d", counter);
+
+				ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+				ImGui::End();
+			}
+
+			// 3. Show another simple window.
+			if (show_another_window) {
+				ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+				ImGui::Text("Hello from another window!");
+				if (ImGui::Button("Close Me"))
+					show_another_window = false;
+				ImGui::End();
+			}
+
+			// Set the descriptor heaps
+			ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+			m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+			ImGui::Render();
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
+		}
+
 		// Indicate that the back buffer will now be used to present
 		D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	}
-
-
-
 
 
 

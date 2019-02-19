@@ -117,6 +117,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor\imgui\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -150,6 +151,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor\imgui\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -159,6 +161,12 @@
   <ItemGroup>
     <ClInclude Include="src\Core\CameraController.h" />
     <ClInclude Include="src\Geometry\Transform.h" />
+    <ClInclude Include="src\ImGui\imconfig.h" />
+    <ClInclude Include="src\ImGui\imgui.h" />
+    <ClInclude Include="src\ImGui\imgui_impl_dx12.h" />
+    <ClInclude Include="src\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="src\ImGui\imgui_internal.h" />
+    <ClInclude Include="src\ImGui\imstb_textedit.h" />
     <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
     <ClInclude Include="src\DX12\DX12Mesh.h" />
@@ -197,6 +205,30 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\ImGui\imgui.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ImGui\imgui_demo.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ImGui\imgui_draw.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ImGui\imgui_impl_dx12.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ImGui\imgui_impl_win32.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\ImGui\imgui_widgets.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />
@@ -207,7 +239,10 @@
     <ClCompile Include="src\DX12\D3DUtils.cpp" />
     <ClCompile Include="src\DX12\DX12Renderer.cpp" />
     <ClCompile Include="src\DX12\DX12VertexBuffer.cpp" />
-    <ClCompile Include="src\DX12\DX12Material.cpp" />
+    <ClCompile Include="src\DX12\DX12Material.cpp">
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="src\DX12\DX12RenderState.cpp" />
     <ClCompile Include="src\DX12\DX12Technique.cpp" />
     <ClCompile Include="src\DX12\DXILShaderCompiler.cpp" />
