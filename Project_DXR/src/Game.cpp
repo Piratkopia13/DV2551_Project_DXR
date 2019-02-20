@@ -108,7 +108,7 @@ void Game::update(double dt) {
 	Transform& t = m_mesh->getTransform();
 	t.setTranslation(translation);
 	//std::cout << t.getTranslation().x << std::endl;
-	m_mesh->setTransform(t); // Updates constant buffer
+	m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 
 
 	if (m_dxRenderer->isDXREnabled()) {
@@ -125,8 +125,7 @@ void Game::update(double dt) {
 			}
 			return m;*/
 		};
-
-		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform, 1);
+		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform, 1); // Updates transform matrix for raytracing
 	}
 
 
