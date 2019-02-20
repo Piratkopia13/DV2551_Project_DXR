@@ -197,6 +197,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	createRenderTargets();
 	createShaderResources();
 	createGlobalRootSignature();
+	createDepthStencilResources();
 
 	// Reset pre allocator and command list to prep for initialization commands
 	ThrowIfFailed(m_preCommand.allocator->Reset());
@@ -515,6 +516,39 @@ void DX12Renderer::createShaderResources() {
 	m_samplerDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 }
 
+void DX12Renderer::createDepthStencilResources() {
+	// create a depth stencil descriptor heap so we can get a pointer to the depth stencil buffer
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsDescriptorHeap)));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+	depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+	depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+	depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
+	depthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+	m_device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_window->getWindowWidth(), m_window->getWindowHeight(), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthOptimizedClearValue,
+		IID_PPV_ARGS(&m_depthStencilBuffer)
+	);
+	m_dsDescriptorHeap->SetName(L"Depth/Stencil Resource Heap");
+	m_depthStencilBuffer->SetName(L"Depth/Stencil Resource Buffer");
+	m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &depthStencilDesc, m_dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	m_dsvDescHandle = m_dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
 void DX12Renderer::workerThread(unsigned int id) {
 
 	while (true) {
@@ -534,7 +568,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 		allocator->Reset();
 		list->Reset(allocator.Get(), nullptr);
 		
-		list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+		list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 		list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 
 		// Iterate part of the drawlist and draw
@@ -640,8 +674,9 @@ void DX12Renderer::frame() {
 	barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	m_preCommand.list->ResourceBarrier(1, &barrierDesc);
 
-	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 	m_preCommand.list->ClearRenderTargetView(m_cdh, m_clearColor, 0, nullptr);
+	m_preCommand.list->ClearDepthStencilView(m_dsvDescHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	{
 		//Execute the pre command list
