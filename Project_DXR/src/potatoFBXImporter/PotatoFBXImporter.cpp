@@ -122,8 +122,9 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 #if _DEBUG
 		cout << "\tC:" + to_string(i) << " ";
 		if (child) {
+			cout << "Children: " << to_string(child->GetChildCount());
 			if (mesh) {
-				cout << "Points: " << to_string(mesh->GetControlPointsCount()) << " ";
+				cout << " Points: " << to_string(mesh->GetControlPointsCount()) << " ";
 				
 			}
 			else {
@@ -140,7 +141,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 
 		for (int v = 0; v < mesh->GetControlPointsCount(); v++) {
 			//mesh->getNormal
-			model->addVertex({ DirectX::XMFLOAT3(points[v].mData[0],points[i].mData[i],points[i].mData[2]),DirectX::XMFLOAT3(0.0f,0.0f,0.0f),DirectX::XMFLOAT2(0,0) });
+			model->addVertex({ DirectX::XMFLOAT3(points[v].mData[0],points[v].mData[1],points[v].mData[2]),DirectX::XMFLOAT3(0.0f,0.0f,0.0f),DirectX::XMFLOAT2(0,0) });
 		}
 
 	/*	for (int m = 0; m < child->GetMaterialCount(); m++) {
@@ -165,7 +166,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	QueryPerformanceCounter(&end);
 	float loadTime = (float)((end.QuadPart - start.QuadPart) * 1.0 / frequency.QuadPart);
 
-	cout << "\t LOAD TIME OF " << fileName << ": " << to_string(loadTime) << "s" << endl;
+	cout << "\t LOAD TIME OF " << fileName << ": " << to_string(loadTime) << "s" << " Size: " << to_string(model->getModelData().size()) << " Vertices" << endl;
 
 
 

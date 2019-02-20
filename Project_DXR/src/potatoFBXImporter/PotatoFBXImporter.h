@@ -25,7 +25,7 @@ public:
 	};
 
 
-	const std::vector<PotatoModel::Vertex> getModelData() {
+	const std::vector<PotatoModel::Vertex>& getModelData() {
 		return data;
 	}
 
