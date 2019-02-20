@@ -25,7 +25,20 @@ void Mesh::addTexture(Texture2D* texture, unsigned int slot) {
 	textures[slot] = texture;
 }
 
+Transform& Mesh::getTransform() {
+	return transform;
+}
+
+void Mesh::setTransform(Transform& transform) {
+	this->transform = transform;
+	transformCB->setData(&transform.getTransformMatrix(), sizeof(transform.getTransformMatrix()), TRANSFORM);
+}
+
+ConstantBuffer* Mesh::getTransformCB() {
+	return transformCB;
+}
+
 Mesh::~Mesh() {
 	geometryBuffer.buffer->decRef();
-	delete txBuffer;
+	delete transformCB;
 }

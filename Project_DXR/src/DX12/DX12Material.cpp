@@ -63,7 +63,7 @@ std::vector<DX12ConstantBuffer*> DX12Material::getConstantBuffers() const {
 
 // location identifies the constant buffer in a unique way
 void DX12Material::updateConstantBuffer(const void* data, size_t size, unsigned int location) {
-	m_constantBuffers[location]->setData(data, size, this, location);
+	m_constantBuffers[location]->setData(data, size, location);
 }
 
 void DX12Material::removeShader(ShaderType type) {
@@ -117,16 +117,16 @@ int DX12Material::compileShader(ShaderType type) {
 	HRESULT hr;
 	switch (type) {
 	case Material::ShaderType::VS:
-		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), nullptr, nullptr, nullptr, "VSMain", "vs_5_1", flags, 0, &shaderBlob, &errorBlob);
+		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), shaderFileNames[type].c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", flags, 0, &shaderBlob, &errorBlob);
 		break;
 	case Material::ShaderType::PS:
-		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), nullptr, nullptr, nullptr, "PSMain", "ps_5_1", flags, 0, &shaderBlob, &errorBlob);
+		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), shaderFileNames[type].c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", flags, 0, &shaderBlob, &errorBlob);
 		break;
 	case Material::ShaderType::GS:
-		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), nullptr, nullptr, nullptr, "GSMain", "gs_5_1", flags, 0, &shaderBlob, &errorBlob);
+		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), shaderFileNames[type].c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "GSMain", "gs_5_1", flags, 0, &shaderBlob, &errorBlob);
 		break;
 	case Material::ShaderType::CS:
-		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), nullptr, nullptr, nullptr, "CSMain", "cs_5_1", flags, 0, &shaderBlob, &errorBlob);
+		hr = D3DCompile(shaderSource.c_str(), shaderSource.length(), shaderFileNames[type].c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_1", flags, 0, &shaderBlob, &errorBlob);
 		break;
 	}
 

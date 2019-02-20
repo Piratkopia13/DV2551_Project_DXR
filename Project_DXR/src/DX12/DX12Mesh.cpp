@@ -1,8 +1,11 @@
 #include "pch.h"
 #include "DX12Mesh.h"
 #include "DX12VertexBuffer.h"
+#include "DX12Renderer.h"
 
-DX12Mesh::DX12Mesh() {}
+DX12Mesh::DX12Mesh(DX12Renderer* renderer) {
+	transformCB = renderer->makeConstantBuffer(TRANSFORM_NAME, TRANSFORM);
+}
 DX12Mesh::~DX12Mesh() {}
 
 void DX12Mesh::setIAVertexBufferBinding( VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) {

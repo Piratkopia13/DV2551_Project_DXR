@@ -16,11 +16,6 @@ public:
 	// technique has: Material, RenderState, Attachments (color, depth, etc)
 	Technique* technique; 
 
-	// translation buffers
-	ConstantBuffer* txBuffer;
-	// local copy of the translation
-	Transform* transform;
-
 	// Not used since vertices are interleaved now
 	// TODO: remove?
 	struct VertexBufferBind {
@@ -29,6 +24,10 @@ public:
 	};
 	
 	void addTexture(Texture2D* texture, unsigned int slot);
+
+	Transform& getTransform();
+	void setTransform(Transform& transform);
+	ConstantBuffer* getTransformCB();
 
 	// array of buffers with locations (binding points in shaders)
 	virtual void setIAVertexBufferBinding(
@@ -41,4 +40,12 @@ public:
 	//std::unordered_map<unsigned int, VertexBufferBind> geometryBuffers;
 	VertexBufferBind geometryBuffer;
 	std::unordered_map<unsigned int, Texture2D*> textures;
+
+protected:
+	// Transform buffer
+	ConstantBuffer* transformCB;
+	// local copy of the transform
+	Transform transform;
+
+
 };

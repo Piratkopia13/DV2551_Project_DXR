@@ -21,7 +21,7 @@
 using namespace DirectX;
 
 #define MULTITHREADED
-const UINT DX12Renderer::NUM_WORKER_THREADS = 4;
+const UINT DX12Renderer::NUM_WORKER_THREADS = 1;
 const UINT DX12Renderer::NUM_SWAP_BUFFERS = 2;
 const UINT DX12Renderer::MAX_NUM_SAMPLERS = 1;
 
@@ -67,7 +67,7 @@ int DX12Renderer::shutdown() {
 }
 
 Mesh* DX12Renderer::makeMesh() {
-	return new DX12Mesh();
+	return new DX12Mesh(this);
 }
 
 Texture2D* DX12Renderer::makeTexture2D() {
@@ -108,8 +108,8 @@ ID3D12CommandQueue* DX12Renderer::getCmdQueue() const {
 	return m_commandQueue.Get();
 }
 
-ID3D12GraphicsCommandList3* DX12Renderer::getCmdList() const {
-	assert(m_firstFrame); // Should never be called after initialization
+ID3D12GraphicsCommandList4* DX12Renderer::getCmdList() const {
+	//assert(m_firstFrame); // Should never be called after initialization
 	// Returns the pre command list
 	return m_preCommand.list.Get();
 }
@@ -145,6 +145,10 @@ void DX12Renderer::enableDXR(bool enable) {
 
 bool DX12Renderer::isDXREnabled() const {
 	return m_supportsDXR;
+}
+
+DXR& DX12Renderer::getDXR() {
+	return *m_dxr;
 }
 
 VertexBuffer* DX12Renderer::makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) {
@@ -249,6 +253,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 */
 
 void DX12Renderer::submit(Mesh* mesh) {
+	assert(drawList.empty()); // Restricted to only one mesh atm (DXR needs to update otherwise)
 	drawList[(DX12Technique*)mesh->technique].push_back((DX12Mesh*)mesh);
 };
 
@@ -408,7 +413,7 @@ void DX12Renderer::createGlobalRootSignature() {
 
 	// Create root descriptors
 	D3D12_ROOT_DESCRIPTOR rootDescCBV = {};
-	rootDescCBV.ShaderRegister = TRANSLATION;
+	rootDescCBV.ShaderRegister = TRANSFORM;
 	rootDescCBV.RegisterSpace = 0;
 	D3D12_ROOT_DESCRIPTOR rootDescCBV2 = {};
 	rootDescCBV2.ShaderRegister = DIFFUSE_TINT;
@@ -417,9 +422,9 @@ void DX12Renderer::createGlobalRootSignature() {
 	// Create root parameters
 	D3D12_ROOT_PARAMETER rootParam[4];
 
-	rootParam[GlobalRootParam::CBV_TRANSLATION].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParam[GlobalRootParam::CBV_TRANSLATION].Descriptor = rootDescCBV;
-	rootParam[GlobalRootParam::CBV_TRANSLATION].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam[GlobalRootParam::CBV_TRANSFORM].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParam[GlobalRootParam::CBV_TRANSFORM].Descriptor = rootDescCBV;
+	rootParam[GlobalRootParam::CBV_TRANSFORM].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].Descriptor = rootDescCBV2;
@@ -560,7 +565,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 				mesh->bindIAVertexBuffer(list.Get());
 
 				// Bind translation constant buffer
-				static_cast<DX12ConstantBuffer*>(mesh->txBuffer)->bind(work->first->getMaterial(), list.Get());
+				static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
 				// Draw
 				list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
 			}
@@ -582,6 +587,9 @@ void DX12Renderer::workerThread(unsigned int id) {
 //*/
 #ifdef MULTITHREADED
 void DX12Renderer::frame() {
+
+	// TODO: check if drawList differs from last frame, if so rebuild DXR acceleration structures
+
 
 	if(m_firstFrame) {
 		//Execute the initialization command list
@@ -649,10 +657,10 @@ void DX12Renderer::frame() {
 				listsToExecute[i] = m_workerCommands[i].list.Get();
 			}
 			m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-			// Clear submitted draw list
-			drawList.clear();
 		}
 	}
+	// Clear submitted draw list
+	drawList.clear();
 
 	// Reset post command
 	m_postCommand.allocator->Reset();
@@ -661,21 +669,8 @@ void DX12Renderer::frame() {
 
 	// DXR
 	if (m_supportsDXR) {
-		static float rotY = 0;
-		rotY += 0.001f;
-		auto instanceTransform = [](int instanceID) {
-			XMFLOAT3X4 m;
-			if (instanceID == 1) {
-				XMStoreFloat3x4(&m, XMMatrixRotationY(instanceID * 0.25f + rotY) * XMMatrixTranslation(-1.0f + instanceID, 0, 0));
-			} else {
-				XMStoreFloat3x4(&m, XMMatrixRotationY(instanceID * 0.25f + rotY) * XMMatrixTranslation(-1.0f + instanceID, 0, 0));
-			}
-			return m;
-		};
-
-		m_dxr->updateTLAS(m_postCommand.list.Get(), instanceTransform);
+		m_dxr->updateAS(m_postCommand.list.Get());
 		m_dxr->doTheRays(m_postCommand.list.Get());
-
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 		
 	}

@@ -27,7 +27,7 @@ class DX12Technique;
 
 namespace GlobalRootParam {
 	enum Slot {
-		CBV_TRANSLATION = 0,
+		CBV_TRANSFORM = 0,
 		CBV_DIFFUSE_TINT,
 		DT_SRVS,
 		DT_SAMPLERS,
@@ -54,7 +54,7 @@ public:
 	virtual std::string getShaderExtension() override;
 	ID3D12Device5* getDevice() const;
 	ID3D12CommandQueue* getCmdQueue() const;
-	ID3D12GraphicsCommandList3* getCmdList() const;
+	ID3D12GraphicsCommandList4* getCmdList() const;
 	ID3D12RootSignature* getRootSignature() const;
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
@@ -64,6 +64,7 @@ public:
 	
 	void enableDXR(bool enable);
 	bool isDXREnabled() const;
+	DXR& getDXR();
 
 	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
 	virtual void setWinTitle(const char* title) override;
@@ -107,7 +108,7 @@ private:
 	// Only used for initialization
 	IDXGIFactory6* m_factory;
 
-		std::unique_ptr<Win32Window> m_window;
+	std::unique_ptr<Win32Window> m_window;
 	bool m_globalWireframeMode;
 	float m_clearColor[4];
 	bool m_firstFrame;

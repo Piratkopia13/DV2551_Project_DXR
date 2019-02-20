@@ -6,7 +6,7 @@
 Game::Game() 
 	: Application(1280, 720, "DX12 DXR Raytracer thing with soon to come skinned animated models")
 {
-	//static_cast<DX12Renderer&>(getRenderer()).enableDXR(false);
+	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
 }
 
 Game::~Game() {
@@ -61,14 +61,12 @@ void Game::init() {
 	// create texture
 	m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 	m_texture->loadFromFile("../assets/textures/fatboy.png");
-	m_sampler = std::unique_ptr<Sampler2D>(getRenderer().makeSampler2D());
+	m_sampler = std::unique_ptr<Sampler2D>(getRenderer().makeSampler2D()); // Sampler does not work in RT mode
 	m_sampler->setWrap(WRAPPING::REPEAT, WRAPPING::REPEAT);
 	m_texture->sampler = m_sampler.get();
 
-	// pre-allocate one single vertex buffer for ALL triangles
 	m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC));
 
-	// Create a mesh array with 3 basic vertex buffers.
 	m_mesh = std::unique_ptr<Mesh>(getRenderer().makeMesh());
 
 	constexpr auto numberOfPosElements = std::extent<decltype(vertices)>::value;
@@ -77,45 +75,71 @@ void Game::init() {
 	m_mesh->setIAVertexBufferBinding(m_vertexBuffer.get(), offset, numberOfPosElements, sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
 	
 	// we can create a constant buffer outside the material, for example as part of the Mesh.
-	m_mesh->txBuffer = getRenderer().makeConstantBuffer(std::string(TRANSLATION_NAME), TRANSLATION);
 
 	m_mesh->technique = m_technique.get();
 	m_mesh->addTexture(m_texture.get(), DIFFUSE_SLOT);
+
+
+	if (m_dxRenderer->isDXREnabled()) {
+		// Update raytracing acceleration structures
+		m_dxRenderer->getDXR().updateBLASnextFrame((DX12VertexBuffer*)m_vertexBuffer.get(), true);
+	}
 
 }
 
 void Game::update(double dt) {
 
-	static bool pressed = false;
-	if (Input::IsKeyDown(' ')) {
-		if (!pressed) {
-			pressed = true;
-			auto& r = static_cast<DX12Renderer&>(getRenderer());
-			r.enableDXR(!r.isDXREnabled());
-		}
-	} else {
-		pressed = false;
+	if (Input::IsKeyPressed(' ')) {
+		auto& r = static_cast<DX12Renderer&>(getRenderer());
+		r.enableDXR(!r.isDXREnabled());
 	}
 
-	/*
-//	    For each mesh in scene list, update their position
-//	*/
-//	{
-//		static long long shift = 0;
-//		size_t size = scene.size();
-//		for (size_t i = 0; i < size; i++)
-//		{
-//			const float4 trans { 
-//				xt[(int)(float)(i + shift) % (TOTAL_PLACES)], 
-//				yt[(int)(float)(i + shift) % (TOTAL_PLACES)], 
-//				i * (-1.0f / TOTAL_PLACES),
-//				0.0f
-//			};
-//			scene[i]->txBuffer->setData(&trans, sizeof(trans), scene[i]->technique->getMaterial(), TRANSLATION);
-//		}
-//		// just to make them move...
-//		shift += static_cast<long long>(max(TOTAL_TRIS / 1000.0, TOTAL_TRIS / 100.0));
-//	}
+	if (Input::IsMouseButtonPressed(Input::MouseButton::RIGHT)) {
+		Input::showCursor(Input::IsCursorHidden());
+	}
+
+	// Lock mouse
+	if (Input::IsCursorHidden()) {
+		POINT p;
+		p.x = reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getWindowWidth() / 2;
+		p.y = reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getWindowHeight() / 2;
+		ClientToScreen(*reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getHwnd(), &p);
+		SetCursorPos(p.x, p.y);
+	}
+
+	static float shift = 0.0f;
+	if (dt < 10.0) {
+		shift += dt * 0.001f;
+	}
+	if (shift >= XM_PI * 2.0f) shift -= XM_PI * 2.0f;
+
+
+	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
+	Transform& t = m_mesh->getTransform();
+	t.setTranslation(translation);
+	//std::cout << t.getTranslation().x << std::endl;
+	m_mesh->setTransform(t); // Updates constant buffer
+
+
+	if (m_dxRenderer->isDXREnabled()) {
+		auto instanceTransform = [&t](int instanceID) {
+			XMFLOAT3X4 m;
+			XMStoreFloat3x4(&m, t.getTransformMatrix());
+			return m;
+			/*XMFLOAT3X4 m;
+			XMStoreFloat3x4(&m, XMMatrixIdentity());
+			if (instanceID == 1) {
+				XMStoreFloat3x4(&m, XMMatrixRotationY(instanceID * 0.25f) * XMMatrixTranslation(-1.0f + instanceID, 0, 0));
+			} else {
+				XMStoreFloat3x4(&m, XMMatrixRotationY(instanceID * 0.25f) * XMMatrixTranslation(-1.0f + instanceID, 0, 0));
+			}
+			return m;*/
+		};
+
+		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform, 1);
+	}
+
+
 }
 
 void Game::render(double dt) {
