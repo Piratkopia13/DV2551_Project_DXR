@@ -98,7 +98,7 @@ void Game::update(double dt) {
 	/* Camera movement, Move this to main */
 	m_persCameraController->update(dt);
 
-	if (Input::IsKeyPressed(' ')) {
+	if (Input::IsKeyPressed(VK_RETURN)) {
 		auto& r = static_cast<DX12Renderer&>(getRenderer());
 		r.enableDXR(!r.isDXREnabled());
 	}

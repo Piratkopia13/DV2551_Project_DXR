@@ -33,8 +33,8 @@ void CameraController::update(float dt) {
 	if (Input::IsKeyDown('D'))
 		setCameraPosition(getCameraPosition() - right * movementSpeed);
 
-	/*if (Input::IsKeyDown(' '))
-		setCameraPosition(getCameraPosition() + worldUp * movementSpeed);*/
+	if (Input::IsKeyDown(' '))
+		setCameraPosition(getCameraPosition() + worldUp * movementSpeed);
 	if (Input::IsKeyDown('C'))
 		setCameraPosition(getCameraPosition() - worldUp * movementSpeed);
 

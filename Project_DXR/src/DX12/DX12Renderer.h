@@ -92,6 +92,7 @@ private:
 	void createRenderTargets();
 	void createGlobalRootSignature();
 	void createShaderResources();
+	void createDepthStencilResources();
 
 	// DXR
 	bool checkRayTracingSupport();
@@ -131,6 +132,10 @@ private:
 	wComPtr<IDXGISwapChain4> m_swapChain;
 	std::vector<wComPtr<ID3D12Resource1>> m_renderTargets;
 	wComPtr<ID3D12RootSignature> m_globalRootSignature;
+	// Depth/Stencil
+	wComPtr<ID3D12Resource> m_depthStencilBuffer;
+	wComPtr<ID3D12DescriptorHeap> m_dsDescriptorHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvDescHandle;
 
 	// ImGui
 	wComPtr<ID3D12DescriptorHeap> m_ImGuiSrvDescHeap;
