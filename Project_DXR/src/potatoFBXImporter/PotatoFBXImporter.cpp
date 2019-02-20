@@ -12,7 +12,8 @@ PotatoFBXImporter::PotatoFBXImporter() {
 }
 
 PotatoFBXImporter::~PotatoFBXImporter() {
-	m_Manager->Destroy();
+	if(m_Manager)
+		m_Manager->Destroy();
 }
 
 PotatoModel* PotatoFBXImporter::importModelFromScene(std::string fileName) {
@@ -84,59 +85,49 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	QueryPerformanceFrequency(&frequency);
 	QueryPerformanceCounter(&start);
 	
-	if (fileName.find(".fbx") != fileName.size() - 4) {
-		#if _DEBUG
-			cout << "Not an Fbx File: " << fileName << endl;
-		#endif
+	if (!validFile(fileName)) {
 		return nullptr;
 	}
 
+	std::string objName = getObjName(fileName);
+	FbxScene* scene = makeScene(fileName, objName+"Scene");
+	if (!scene) {
+		return nullptr;
+	}
+	else {
+		#if _DEBUG
+		std::cout << "Loaded '" + objName + "'" << std::endl;
+		#endif
+	}
 
 	PotatoModel* model = new PotatoModel();
-	FbxImporter* importer = FbxImporter::Create(m_Manager, "");
-	if (!importer->Initialize(fileName.c_str(), -1, m_Manager->GetIOSettings())) {
-		importer->Destroy();
+	
+	FbxNode * root = scene->GetRootNode();
 
-	#if _DEBUG
-			std::cout << "Could not Load '" + fileName + "'" << std::endl;
-	#endif
+	
 
-		return nullptr;
-	}
-	FbxScene* lScene = FbxScene::Create(m_Manager, "myScene");
-	importer->Import(lScene);
-	importer->Destroy();
-
-	#if _DEBUG
-		std::cout << "Loaded '" + fileName + "'" << std::endl;
-	#endif
-
-
-
-	FbxNode * root = lScene->GetRootNode();
 	for (int i = 0; i < root->GetChildCount(); i++) {
 		FbxNode * child = root->GetChild(i);
 		FbxMesh * mesh = child->GetMesh();
 		FbxVector4* points = mesh->GetControlPoints();
 
-#if _DEBUG
-		cout << "\tC:" + to_string(i) << " ";
-		if (child) {
-			cout << "Children: " << to_string(child->GetChildCount());
-			if (mesh) {
-				cout << " Points: " << to_string(mesh->GetControlPointsCount()) << " ";
-				
-			}
-			else {
-				cout << "mesh not found" << endl;
-			}
-		}
-		else {
-			cout << " not found " << endl;
-		}
-		cout << endl;
-
-#endif
+		//#if _DEBUG
+		//	cout << "\tC:" + to_string(i) << " ";
+		//	if (child) {
+		//		cout << "Children: " << to_string(child->GetChildCount());
+		//		if (mesh) {
+		//			cout << " Points: " << to_string(mesh->GetControlPointsCount()) << " ";
+		//		
+		//		}
+		//		else {
+		//			cout << "mesh not found" << endl;
+		//		}
+		//	}
+		//	else {
+		//		cout << " not found " << endl;
+		//	}
+		//	cout << endl;
+		//#endif
 
 
 		for (int v = 0; v < mesh->GetControlPointsCount(); v++) {
@@ -382,7 +373,73 @@ PotatoModel * PotatoFBXImporter::createDefaultCube(float width, float height) {
 	return nullptr;
 }
 
-void PotatoFBXImporter::traverse() {
+bool PotatoFBXImporter::validFile(std::string fileName) {
+
+	if (fileName.find(".fbx") != fileName.size() - 4) {
+		#if _DEBUG
+		cout << "Not an Fbx File: " << fileName << endl;
+		#endif
+		return false;
+	}
+
+	return true;
+}
+FbxScene* PotatoFBXImporter::makeScene(std::string fileName, std::string sceneName) {
+	FbxImporter* importer = FbxImporter::Create(m_Manager, "");
+	if (!importer->Initialize(fileName.c_str(), -1, m_Manager->GetIOSettings())) {
+		importer->Destroy();
+		#if _DEBUG
+		std::cout << "Could not Load '" + fileName + "'" << std::endl;
+		#endif
+		return nullptr;
+	}
+	FbxScene* lScene = FbxScene::Create(m_Manager, sceneName.c_str());
+	importer->Import(lScene);
+	importer->Destroy();
+	return lScene;
+}
+std::string PotatoFBXImporter::getObjName(std::string fileName) {
+	if (fileName.find("/") != string::npos) {
+		return fileName.substr(fileName.rfind("/") + 1, (fileName.size() - fileName.rfind("/")) - 5);
+
+	}
+	else if (fileName.find("\\") != string::npos) {
+		return fileName.substr(fileName.rfind("\\") + 1, (fileName.size() - fileName.rfind("\\")) - 5);
+	}
+	else 
+		return fileName.substr(0, fileName.size() - 4);
+}
+
+void PotatoFBXImporter::traverse(FbxNode*node) {
+
+
+
+	int numAttributes = node->GetNodeAttributeCount();
+	FbxMesh * mesh = node->GetMesh();
+	for (int j = 0; j < numAttributes; j++) {
+		FbxNodeAttribute *nodeAttributeFbx = node->GetNodeAttributeByIndex(j);
+		FbxNodeAttribute::EType attributeType = nodeAttributeFbx->GetAttributeType();
+
+		FbxMesh* mesh;
+		switch (attributeType) {
+
+		case FbxNodeAttribute::eMesh:
+			break;
+		case FbxNodeAttribute::eSkeleton:
+
+			break;
+		default:
+
+
+			break;
+		}
+	}
+
+	for (int i = 0; i < node->GetChildCount(); i++) {
+		traverse(node->GetChild(i));
+	}
+
+
 
 
 }

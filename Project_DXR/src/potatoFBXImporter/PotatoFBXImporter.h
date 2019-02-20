@@ -55,7 +55,12 @@ private:
 	FbxIOSettings* m_IOSettings;
 
 
-	void traverse( );
+	bool validFile(std::string fileName);
+	FbxScene* makeScene(std::string fileName, std::string sceneName);
+	std::string getObjName(std::string fileName);
+
+	void traverse(FbxNode*node);
+
 	std::string GetAttributeTypeName(FbxNodeAttribute::EType type) {
 		switch (type) {
 		case FbxNodeAttribute::eUnknown: return "unidentified";
@@ -87,7 +92,6 @@ private:
 		std::string typeName = GetAttributeTypeName(pAttribute->GetAttributeType());
 		std::string attrName = pAttribute->GetName();
 
-		// Note: to retrieve the character array of a FbxString, use its Buffer() method.
 		return typeName + " " + attrName;
 	}
 };
