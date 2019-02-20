@@ -16,13 +16,13 @@ void Game::init() {
 	// triangle geometry
 
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
-	PotatoModel * dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/DinoThing.fbx");
+	//PotatoModel * dino;
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/DinoThing.fbx");
 	
 
 
-	if(dino)
-		delete dino;
+	//if(dino)
+		//delete dino;
 
 	const Vertex vertices[] = {
 		{XMFLOAT3(0,		1,	  0), XMFLOAT3(0, 0, -1), XMFLOAT2(0.5f, 0.0f)},	// Vertex, normal and UV

@@ -10,7 +10,7 @@ bool Input::m_mouseButtonsDown[2] = { false, false };
 bool Input::m_mouseButtonsPressed[2] = { false, false };
 bool Input::m_cursorHidden = false;
 std::map<unsigned int, bool> Input::m_keysDown = {};
-std::vector<unsigned int> Input::m_keysPressed = {};
+std::vector<unsigned int> Input::m_keysPressedPreviousFrame = {};
 
 void Input::RegisterKeyDown(const UINT keyCode) {
 	auto iter = m_keysDown.find(keyCode);
@@ -20,7 +20,6 @@ void Input::RegisterKeyDown(const UINT keyCode) {
 	else {
 		m_keysDown.emplace(keyCode, true);
 	}
-	m_keysPressed.emplace_back(keyCode);
 }
 
 void Input::RegisterKeyUp(const UINT keyCode) {
@@ -41,7 +40,11 @@ void Input::NewFrame() {
 }
 
 void Input::EndFrame() {
-	m_keysPressed.clear();
+	m_keysPressedPreviousFrame.clear();
+	for (auto key : m_keysDown) {
+		if (key.second)
+			m_keysPressedPreviousFrame.emplace_back(key.first);
+	}
 
 	for (unsigned int i = 0; i < MouseButton::NUM_MOUSE_BUTTONS; i++)
 		m_mouseButtonsPressed[i] = false;
@@ -57,7 +60,8 @@ bool Input::IsKeyDown(const UINT keyCode) {
 
 bool Input::IsKeyPressed(const UINT keyCode)
 {
-	return std::find(m_keysPressed.begin(), m_keysPressed.end(), keyCode) != m_keysPressed.end();
+	return std::find(m_keysPressedPreviousFrame.begin(), m_keysPressedPreviousFrame.end(), keyCode) == m_keysPressedPreviousFrame.end()
+			&& IsKeyDown(keyCode);
 }
 
 void Input::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
