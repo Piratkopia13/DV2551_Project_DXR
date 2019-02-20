@@ -26,3 +26,5 @@
 #include <DirectXMath.h>
 #include <comdef.h>
 #include "DX12/d3dx12.h"
+
+#include <fbxsdk.h>

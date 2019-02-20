@@ -85,14 +85,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)Intermediates\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
-    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(SolutionDir)$(SolutionName)\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)vendor\GLEW\lib\Release\x64;$(SolutionDir)vendor\SDL\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)vendor\stb\include;$(SolutionDir)$(SolutionName)\src;$(SolutionDir)vendor\FBXSDK\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)vendor\FBXSDK\lib\vs2017\x64\debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)Intermediates\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
-    <IncludePath>$(SolutionDir)vendor;$(SolutionDir)vendor\stb\include;$(SolutionDir)vendor\GLEW\include;$(SolutionDir)vendor\SDL\include;$(SolutionDir)$(SolutionName)\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)vendor\GLEW\lib\Release\x64;$(SolutionDir)vendor\SDL\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)vendor\stb\include;$(SolutionDir)$(SolutionName)\src;$(SolutionDir)vendor\FBXSDK\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)vendor\FBXSDK\lib\vs2017\x64\release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -118,7 +118,11 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -152,10 +156,12 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -169,6 +175,7 @@
     <ClInclude Include="src\ImGui\imgui_impl_win32.h" />
     <ClInclude Include="src\ImGui\imgui_internal.h" />
     <ClInclude Include="src\ImGui\imstb_textedit.h" />
+    <ClInclude Include="src\potatoFBXImporter\PotatoFBXImporter.h" />
     <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
     <ClInclude Include="src\DX12\DX12Mesh.h" />
@@ -233,6 +240,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="src\potatoFBXImporter\PotatoFBXImporter.cpp" />
     <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />

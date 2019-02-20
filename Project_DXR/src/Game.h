@@ -4,6 +4,7 @@
 
 #include "Core/Texture2D.h"
 #include "Core/Mesh.h"
+#include "potatoFBXImporter/PotatoFBXImporter.h"
 
 class Game : public Application {
 public:
@@ -21,5 +22,7 @@ private:
 	std::unique_ptr<Material> m_material;
 	std::unique_ptr<VertexBuffer> m_vertexBuffer;
 	std::unique_ptr<Mesh> m_mesh;
+
+	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 
 };
