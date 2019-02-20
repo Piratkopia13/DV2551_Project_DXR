@@ -15,11 +15,15 @@ public:
 	virtual void bind(unsigned int slot) override;
 	void bind(unsigned int slot, ID3D12GraphicsCommandList3* cmdList);
 
+	DXGI_FORMAT getFormat();
+	UINT getMips();
+	ID3D12Resource* getResource();
+
 private:
 	DX12Renderer* m_renderer;
 
 	unsigned char* m_rgba;
-
+	D3D12_RESOURCE_DESC m_textureDesc;
 	wComPtr<ID3D12Resource> m_textureBuffer;
 	wComPtr<ID3D12DescriptorHeap> m_mainDescriptorHeap;
 	wComPtr<ID3D12Resource> m_textureBufferUploadHeap;

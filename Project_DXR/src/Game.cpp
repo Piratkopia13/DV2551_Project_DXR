@@ -87,7 +87,7 @@ void Game::init() {
 
 	if (m_dxRenderer->isDXREnabled()) {
 		// Update raytracing acceleration structures
-		m_dxRenderer->getDXR().updateBLASnextFrame((DX12VertexBuffer*)m_vertexBuffer.get(), true);
+		m_dxRenderer->getDXR().setMesh(static_cast<DX12Mesh*>(m_mesh.get()));
 		m_dxRenderer->getDXR().useCamera(m_persCamera.get());
 	}
 
