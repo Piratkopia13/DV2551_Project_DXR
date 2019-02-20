@@ -716,41 +716,37 @@ void DX12Renderer::frame() {
 		m_dxr->updateAS(m_postCommand.list.Get());
 		m_dxr->doTheRays(m_postCommand.list.Get());
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
-		
 	}
-
 
 	// ImGui
 	{
-		//m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
-		//m_postCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
+		m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+		m_postCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 
-		//// Start the Dear ImGui frame
-		//ImGui_ImplDX12_NewFrame();
-		//ImGui_ImplWin32_NewFrame();
-		//ImGui::NewFrame();
-		//	
-		//RECT rect;
-		//GetClientRect(*m_window->getHwnd(), &rect);
+		// Start the Dear ImGui frame
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+			
+		RECT rect;
+		GetClientRect(*m_window->getHwnd(), &rect);
 
-		//bool show_demo_window = true;
-		//bool show_another_window = true;
-		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-		//// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		//if (show_demo_window)
-		//	ImGui::ShowDemoWindow(&show_demo_window);
+		bool show_demo_window = true;
+		bool show_another_window = true;
+		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
 
-		//// Set the descriptor heaps
-		//ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
-		//m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-		//ImGui::Render();
-		//ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
+		// Set the descriptor heaps
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
 	}
 
-	if(!m_supportsDXR) {
-		// Indicate that the back buffer will now be used to present
-		D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	}
+	// Indicate that the back buffer will now be used to present
+	D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
 
 
