@@ -4,6 +4,8 @@
 
 #include "Core/Texture2D.h"
 #include "Core/Mesh.h"
+#include "Core/Camera.h"
+#include "Core/CameraController.h"
 #include "potatoFBXImporter/PotatoFBXImporter.h"
 
 class DX12Renderer;
@@ -19,6 +21,9 @@ public:
 	
 private:
 	DX12Renderer* m_dxRenderer;
+
+	std::unique_ptr<Camera> m_persCamera;
+	std::unique_ptr<CameraController> m_persCameraController;
 
 	std::unique_ptr<Technique> m_technique;
 	std::unique_ptr<Texture2D> m_texture;

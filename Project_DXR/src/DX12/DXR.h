@@ -4,7 +4,6 @@
 #include <d3d12.h>
 #include "D3DUtils.h"
 #include <DirectXMath.h>
-#include "../../assets/shaders/CommonRT.hlsl"
 
 class DX12Renderer;
 class DX12VertexBuffer;
@@ -52,6 +51,8 @@ public:
 	void updateBLASnextFrame(DX12VertexBuffer* vb, bool inPlace = true);
 	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {}, UINT instanceCount = 3);
 
+	void useCamera(Camera* camera);
+
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
 	void createShaderResources();
@@ -77,10 +78,10 @@ private:
 	DX12Renderer* m_renderer;
 
 	DX12VertexBuffer* m_vb; // Not owned by DXR. TODO: support multiple vertex buffers
-
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
-	Camera* m_persCamera;
-	CameraController* m_persCameraController;
+
+	Camera* m_camera;
+	
 	union AlignedSceneConstantBuffer { 	// TODO: Use this instead of SceneConstantBuffer
 		SceneConstantBuffer* constants;
 		uint8_t alignmentPadding[D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT];

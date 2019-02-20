@@ -29,6 +29,7 @@ namespace GlobalRootParam {
 	enum Slot {
 		CBV_TRANSFORM = 0,
 		CBV_DIFFUSE_TINT,
+		CBV_CAMERA,
 		DT_SRVS,
 		DT_SAMPLERS,
 		SIZE

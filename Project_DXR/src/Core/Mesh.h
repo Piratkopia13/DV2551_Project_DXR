@@ -1,11 +1,11 @@
 #pragma once
 #include <unordered_map>
-#include "IA.h"
 #include "VertexBuffer.h"
 #include "Technique.h"
 #include "../Geometry/Transform.h"
 #include "ConstantBuffer.h"
 #include "Texture2D.h"
+#include "../Core/Camera.h"
 
 class Mesh
 {
@@ -29,6 +29,9 @@ public:
 	void setTransform(Transform& transform);
 	ConstantBuffer* getTransformCB();
 
+	void updateCamera(Camera& cam);
+	ConstantBuffer* getCameraCB();
+
 	// array of buffers with locations (binding points in shaders)
 	virtual void setIAVertexBufferBinding(
 		VertexBuffer* buffer, 
@@ -44,6 +47,8 @@ public:
 protected:
 	// Transform buffer
 	ConstantBuffer* transformCB;
+	// Camera buffer
+	ConstantBuffer* cameraCB;
 	// local copy of the transform
 	Transform transform;
 

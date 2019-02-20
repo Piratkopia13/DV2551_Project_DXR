@@ -413,14 +413,17 @@ void DX12Renderer::createGlobalRootSignature() {
 
 	// Create root descriptors
 	D3D12_ROOT_DESCRIPTOR rootDescCBV = {};
-	rootDescCBV.ShaderRegister = TRANSFORM;
+	rootDescCBV.ShaderRegister = CB_REG_TRANSFORM;
 	rootDescCBV.RegisterSpace = 0;
 	D3D12_ROOT_DESCRIPTOR rootDescCBV2 = {};
-	rootDescCBV2.ShaderRegister = DIFFUSE_TINT;
+	rootDescCBV2.ShaderRegister = CB_REG_DIFFUSE_TINT;
 	rootDescCBV2.RegisterSpace = 0;
+	D3D12_ROOT_DESCRIPTOR rootDescCBV3 = {};
+	rootDescCBV3.ShaderRegister = CB_REG_CAMERA;
+	rootDescCBV3.RegisterSpace = 0;
 
 	// Create root parameters
-	D3D12_ROOT_PARAMETER rootParam[4];
+	D3D12_ROOT_PARAMETER rootParam[GlobalRootParam::SIZE];
 
 	rootParam[GlobalRootParam::CBV_TRANSFORM].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParam[GlobalRootParam::CBV_TRANSFORM].Descriptor = rootDescCBV;
@@ -429,6 +432,10 @@ void DX12Renderer::createGlobalRootSignature() {
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].Descriptor = rootDescCBV2;
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	rootParam[GlobalRootParam::CBV_CAMERA].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParam[GlobalRootParam::CBV_CAMERA].Descriptor = rootDescCBV3;
+	rootParam[GlobalRootParam::CBV_CAMERA].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
 	rootParam[GlobalRootParam::DT_SRVS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[GlobalRootParam::DT_SRVS].DescriptorTable = dtSrv;
@@ -566,6 +573,8 @@ void DX12Renderer::workerThread(unsigned int id) {
 
 				// Bind translation constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
+				// Bind camera data constant buffer
+				static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 				// Draw
 				list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
 			}
@@ -678,29 +687,29 @@ void DX12Renderer::frame() {
 
 	// ImGui
 	{
-		m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
-		m_postCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
+		//m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+		//m_postCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 
-		// Start the Dear ImGui frame
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-			
-		RECT rect;
-		GetClientRect(*m_window->getHwnd(), &rect);
+		//// Start the Dear ImGui frame
+		//ImGui_ImplDX12_NewFrame();
+		//ImGui_ImplWin32_NewFrame();
+		//ImGui::NewFrame();
+		//	
+		//RECT rect;
+		//GetClientRect(*m_window->getHwnd(), &rect);
 
-		bool show_demo_window = true;
-		bool show_another_window = true;
-		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
+		//bool show_demo_window = true;
+		//bool show_another_window = true;
+		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		//// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		//if (show_demo_window)
+		//	ImGui::ShowDemoWindow(&show_demo_window);
 
-		// Set the descriptor heaps
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
-		m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
-		ImGui::Render();
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
+		//// Set the descriptor heaps
+		//ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		//m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		//ImGui::Render();
+		//ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
 	}
 
 	if(!m_supportsDXR) {

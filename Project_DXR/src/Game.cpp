@@ -1,12 +1,19 @@
 #include "pch.h"
 #include "Game.h"
 #include "DX12/DX12Renderer.h"
+#include "DX12/DX12Mesh.h"
 #include "Utils/Input.h"
 
 Game::Game() 
 	: Application(1280, 720, "DX12 DXR Raytracer thing with soon to come skinned animated models")
 {
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
+
+	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
+	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, -2.f, 0.f));
+	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
+	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get());
+
 }
 
 Game::~Game() {
@@ -15,14 +22,12 @@ Game::~Game() {
 void Game::init() {
 	// triangle geometry
 
-	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
+	/*m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel * dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/DinoThing.fbx");
-	
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/DinoThing.fbx");*/
 
-
-	if(dino)
-		delete dino;
+	//if(dino)
+	//	delete dino;
 
 	const Vertex vertices[] = {
 		{XMFLOAT3(0,		1,	  0), XMFLOAT3(0, 0, -1), XMFLOAT2(0.5f, 0.0f)},	// Vertex, normal and UV
@@ -41,7 +46,6 @@ void Game::init() {
 		1.0, 1.0, 1.0, 1.0
 	};
 
-	// set material name from text file?
 	m_material = std::unique_ptr<Material>(getRenderer().makeMaterial("material_0"));
 	m_material->setShader(shaderPath + "VertexShader" + shaderExtension, Material::ShaderType::VS);
 	m_material->setShader(shaderPath + "FragmentShader" + shaderExtension, Material::ShaderType::PS);
@@ -49,11 +53,10 @@ void Game::init() {
 	m_material->compileMaterial(err);
 
 	// add a constant buffer to the material, to tint every triangle using this material
-	m_material->addConstantBuffer(DIFFUSE_TINT_NAME, DIFFUSE_TINT);
+	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT);
 	// no need to update anymore
 	// when material is bound, this buffer should be also bound for access.
-
-	m_material->updateConstantBuffer(diffuse, 4 * sizeof(float), DIFFUSE_TINT);
+	m_material->updateConstantBuffer(diffuse, 4 * sizeof(float), CB_REG_DIFFUSE_TINT);
 
 	// basic technique
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
@@ -77,17 +80,21 @@ void Game::init() {
 	// we can create a constant buffer outside the material, for example as part of the Mesh.
 
 	m_mesh->technique = m_technique.get();
-	m_mesh->addTexture(m_texture.get(), DIFFUSE_SLOT);
+	m_mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
 
 
 	if (m_dxRenderer->isDXREnabled()) {
 		// Update raytracing acceleration structures
 		m_dxRenderer->getDXR().updateBLASnextFrame((DX12VertexBuffer*)m_vertexBuffer.get(), true);
+		m_dxRenderer->getDXR().useCamera(m_persCamera.get());
 	}
 
 }
 
 void Game::update(double dt) {
+
+	/* Camera movement, Move this to main */
+	m_persCameraController->update(dt);
 
 	if (Input::IsKeyPressed(' ')) {
 		auto& r = static_cast<DX12Renderer&>(getRenderer());
@@ -119,6 +126,7 @@ void Game::update(double dt) {
 	t.setTranslation(translation);
 	//std::cout << t.getTranslation().x << std::endl;
 	m_mesh->setTransform(t); // Updates transform matrix for rasterisation
+	m_mesh->updateCamera(*m_persCamera); // Update camera constant buffer for rasterisation
 
 
 	if (m_dxRenderer->isDXREnabled()) {

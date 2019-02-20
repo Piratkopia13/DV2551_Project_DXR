@@ -28,3 +28,5 @@
 #include "DX12/d3dx12.h"
 
 #include <fbxsdk.h>
+
+#include "../../assets/shaders/CommonRT.hlsl"

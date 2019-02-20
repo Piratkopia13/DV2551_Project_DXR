@@ -14,6 +14,7 @@ DXR::DXR(DX12Renderer* renderer)
 	: m_renderer(renderer)
 	, m_updateTLAS(false)
 	, m_updateBLAS(false)
+	, m_camera(nullptr)
 {
 }
 
@@ -60,12 +61,11 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
 	}*/
 
-
-	/* Camera movement, Move this to main */
-	m_persCameraController->update(0.016f);
-	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
-	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
+	if (m_camera) {
+		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
+		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
+		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
+	}
 	/**/
 
 	//Set constant buffer descriptor heap
@@ -134,6 +134,10 @@ void DXR::updateTLASnextFrame(std::function<XMFLOAT3X4(int)> instanceTransform, 
 	m_newInstanceCount = instanceCount;
 }
 
+void DXR::useCamera(Camera* camera) {
+	m_camera = camera;
+}
+
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 	createBLAS(cmdList);
 	createTLAS(cmdList);
@@ -183,13 +187,9 @@ void DXR::createShaderResources() {
 
 
 	// Scene CB
-	m_persCamera = new Camera((float)m_renderer->getWindow()->getWindowWidth() / (float)m_renderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
-	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, -2.f, 0.f));
-	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
-	m_persCameraController = new CameraController(m_persCamera);
 	m_sceneCBData = new SceneConstantBuffer();
-	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
+	/*m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
+	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();*/
 	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
 	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
 }

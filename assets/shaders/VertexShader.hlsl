@@ -13,21 +13,20 @@ struct VSOut {
 	float2 texCoord : TEXCOORD0;
 };
 
-cbuffer TRANSFORM_NAME : register(MERGE(b, TRANSFORM)) {
+cbuffer CB_Transform : register(MERGE(b, CB_REG_TRANSFORM)) {
 	matrix transform;
+}
+
+cbuffer CB_Camera : register(MERGE(b, CB_REG_CAMERA)) {
+	CameraData camera;
 }
 
 VSOut VSMain(VSIn input) {
 	VSOut output = (VSOut)0;
 	output.position = mul(transform, float4(input.position, 1.0));
-
-	#ifdef NORMAL
-	 	output.normal = input.normal;
-	#endif
-
-	#ifdef TEXTCOORD
-	 	output.texCoord = input.texCoord;
-	 #endif
+	output.position = mul(camera.VP, output.position);
+ 	output.normal = input.normal;
+ 	output.texCoord = input.texCoord;
 
 	return output;
 }
