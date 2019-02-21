@@ -54,7 +54,7 @@ public:
 	virtual std::string getShaderPath() override;
 	virtual std::string getShaderExtension() override;
 	ID3D12Device5* getDevice() const;
-	ID3D12CommandQueue* getCmdQueue() const;
+	ID3D12CommandQueue* getCmdQueue(D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 	ID3D12GraphicsCommandList4* getCmdList() const;
 	ID3D12RootSignature* getRootSignature() const;
 	ID3D12CommandAllocator* getCmdAllocator() const;
@@ -125,7 +125,9 @@ private:
 	std::unique_ptr<DXR> m_dxr;
 
 	wComPtr<ID3D12Device5> m_device;
-	wComPtr<ID3D12CommandQueue> m_commandQueue;
+	wComPtr<ID3D12CommandQueue> m_directCommandQueue;
+	wComPtr<ID3D12CommandQueue> m_computeCommandQueue;
+	wComPtr<ID3D12CommandQueue> m_copyCommandQueue;
 	Command m_preCommand;
 	Command m_postCommand;
 	wComPtr<ID3D12Fence1> m_fence;

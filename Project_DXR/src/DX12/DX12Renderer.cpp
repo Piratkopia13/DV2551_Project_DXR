@@ -105,8 +105,18 @@ ID3D12Device5* DX12Renderer::getDevice() const {
 	return m_device.Get();
 }
 
-ID3D12CommandQueue* DX12Renderer::getCmdQueue() const {
-	return m_commandQueue.Get();
+ID3D12CommandQueue* DX12Renderer::getCmdQueue(D3D12_COMMAND_LIST_TYPE type) const {
+	switch (type) {
+	case D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT:
+		return m_directCommandQueue.Get();
+	case D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COMPUTE:
+		return m_computeCommandQueue.Get();
+	case D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY:
+		return m_copyCommandQueue.Get();
+	default:
+		throw(std::exception(("Type: " + std::to_string(type) + " was not a valid type.").c_str()));
+		return nullptr;
+	}
 }
 
 ID3D12GraphicsCommandList4* DX12Renderer::getCmdList() const {
@@ -322,10 +332,19 @@ void DX12Renderer::createDevice() {
 void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	// 3. Create command queue/allocator/list
 
+	// Create direct command queue
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_directCommandQueue)));
+
+	// Create compute command queue
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_computeCommandQueue)));
+
+	// Create copy command queue
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_copyCommandQueue)));
 
 	// Create allocators
 	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_preCommand.allocator)));
@@ -356,7 +375,7 @@ void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
 	IDXGISwapChain1* swapChain1 = nullptr;
-	if (SUCCEEDED(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), *m_window->getHwnd(), &scDesc, nullptr, nullptr, &swapChain1))) {
+	if (SUCCEEDED(m_factory->CreateSwapChainForHwnd(m_directCommandQueue.Get(), *m_window->getHwnd(), &scDesc, nullptr, nullptr, &swapChain1))) {
 		if (SUCCEEDED(swapChain1->QueryInterface(IID_PPV_ARGS(&m_swapChain)))) {
 			m_swapChain->Release();
 		}
@@ -645,7 +664,7 @@ void DX12Renderer::frame() {
 		//Execute the initialization command list
 		ThrowIfFailed(m_preCommand.list->Close());
 		ID3D12CommandList* listsToExecute[] = { m_preCommand.list.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 		waitForGPU(); //Wait for GPU to finish.
 		m_firstFrame = false;
@@ -689,7 +708,7 @@ void DX12Renderer::frame() {
 		//Execute the pre command list
 		m_preCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_preCommand.list.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	}
 
 	if (!m_DXREnabled) {
@@ -707,7 +726,7 @@ void DX12Renderer::frame() {
 			for (int i = 0; i < NUM_WORKER_THREADS; i++) {
 				listsToExecute[i] = m_workerCommands[i].list.Get();
 			}
-			m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+			m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 		}
 	}
 	// Clear submitted draw list
@@ -757,7 +776,6 @@ void DX12Renderer::frame() {
 		}
 
 		ImGui::End();
-		
 
 		// Set the descriptor heaps
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
@@ -775,7 +793,7 @@ void DX12Renderer::frame() {
 		// Close the list to prepare it for execution.
 		m_postCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_postCommand.list.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	}
 
 };
@@ -888,7 +906,7 @@ void DX12Renderer::waitForGPU() {
 
 	//Signal and increment the fence value.
 	const UINT64 fence = m_fenceValue;
-	m_commandQueue->Signal(m_fence.Get(), fence);
+	m_directCommandQueue->Signal(m_fence.Get(), fence);
 	m_fenceValue++;
 
 	//Wait until command queue is done.
