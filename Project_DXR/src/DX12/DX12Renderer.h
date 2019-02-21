@@ -59,7 +59,7 @@ public:
 	ID3D12RootSignature* getRootSignature() const;
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
-	UINT getFrameIndex() const;
+	inline UINT getFrameIndex() const;
 	Win32Window* getWindow() const;
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
 	
@@ -93,6 +93,7 @@ private:
 	void createGlobalRootSignature();
 	void createShaderResources();
 	void createDepthStencilResources();
+	void nextFrame();
 
 	// DXR
 	bool checkRayTracingSupport();
@@ -103,7 +104,7 @@ private:
 	// Multithreading
 	void workerThread(unsigned int id);
 	struct Command {
-		wComPtr<ID3D12CommandAllocator> allocator; // Allocator only grows, use multple (one for each thing)
+		std::vector<wComPtr<ID3D12CommandAllocator>> allocators; // Allocator only grows, use multple (one for each thing)
 		wComPtr<ID3D12GraphicsCommandList4> list;
 	};
 private:
@@ -114,6 +115,7 @@ private:
 	bool m_globalWireframeMode;
 	float m_clearColor[4];
 	bool m_firstFrame;
+	UINT m_backBufferIndex;
 	
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;
@@ -148,7 +150,7 @@ private:
 	UINT m_samplerDescriptorHandleIncrementSize;
 	
 	UINT m_renderTargetDescriptorSize;
-	UINT64 m_fenceValue;
+	std::vector<UINT64> m_fenceValues;
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
 	HANDLE m_eventHandle;
