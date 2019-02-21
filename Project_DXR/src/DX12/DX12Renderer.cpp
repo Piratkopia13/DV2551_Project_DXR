@@ -141,7 +141,12 @@ ID3D12DescriptorHeap* DX12Renderer::getSamplerDescriptorHeap() const {
 }
 
 void DX12Renderer::enableDXR(bool enable) {
-	m_DXREnabled = enable;
+	if (m_supportsDXR) {
+		m_DXREnabled = enable;
+	}
+	else {
+		m_DXREnabled = false;
+	}
 }
 
 bool DX12Renderer::isDXREnabled() const {
@@ -743,7 +748,9 @@ void DX12Renderer::frame() {
 		// Only display options if the window isn't collapsed
 		if (ImGui::Begin("Options")) {
 			if (ImGui::TreeNode("Backend Flags")) {
-				ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
+				bool dxrEnabled;
+				ImGui::Checkbox("DXR Enabled", &dxrEnabled);
+				enableDXR(dxrEnabled);
 				ImGui::TreePop();
 				ImGui::Separator();
 			}
