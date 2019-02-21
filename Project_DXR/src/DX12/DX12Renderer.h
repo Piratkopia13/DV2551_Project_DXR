@@ -119,6 +119,7 @@ private:
 	static const UINT MAX_NUM_SAMPLERS;
 
 	bool m_supportsDXR;
+	bool m_DXREnabled;
 
 	// DX12 stuff
 	std::unique_ptr<DXR> m_dxr;

@@ -34,6 +34,7 @@ DX12Renderer::DX12Renderer()
 	, m_numSamplerDescriptors(0U)
 	, m_samplerDescriptorHandleIncrementSize(0U)
 	, m_supportsDXR(false)
+	, m_DXREnabled(false)
 {
 	m_renderTargets.resize(NUM_SWAP_BUFFERS);
 }
@@ -140,11 +141,11 @@ ID3D12DescriptorHeap* DX12Renderer::getSamplerDescriptorHeap() const {
 }
 
 void DX12Renderer::enableDXR(bool enable) {
-	m_supportsDXR = enable;
+	m_DXREnabled = enable;
 }
 
 bool DX12Renderer::isDXREnabled() const {
-	return m_supportsDXR;
+	return m_DXREnabled;
 }
 
 DXR& DX12Renderer::getDXR() {
@@ -208,6 +209,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	if (m_supportsDXR) {
 		m_dxr = std::make_unique<DXR>(this);
 		m_dxr->init(m_preCommand.list.Get());
+		m_DXREnabled = true;
 	}
 
 	// 7. Viewport and scissor rect
@@ -649,7 +651,7 @@ void DX12Renderer::frame() {
 	m_cdh = m_renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	m_cdh.ptr += m_renderTargetDescriptorSize * frameIndex;
 
-	if (!m_supportsDXR) {
+	if (!m_DXREnabled) {
 		{
 			// Notify workers to begin creating command lists
 			std::lock_guard<std::mutex> guard(m_mainMutex);
@@ -685,7 +687,7 @@ void DX12Renderer::frame() {
 		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	}
 
-	if (!m_supportsDXR) {
+	if (!m_DXREnabled) {
 		// Wait for worker threads to finish
 		{
 			std::unique_lock<std::mutex> mlock(m_workerMutex);
@@ -712,7 +714,7 @@ void DX12Renderer::frame() {
 
 
 	// DXR
-	if (m_supportsDXR) {
+	if (m_DXREnabled) {
 		m_dxr->updateAS(m_postCommand.list.Get());
 		m_dxr->doTheRays(m_postCommand.list.Get());
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
@@ -731,12 +733,24 @@ void DX12Renderer::frame() {
 		RECT rect;
 		GetClientRect(*m_window->getHwnd(), &rect);
 
-		bool show_demo_window = true;
-		bool show_another_window = true;
-		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		//bool show_demo_window = true;
+		//bool show_another_window = true;
+		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
+		//if (show_demo_window)
+			//ImGui::ShowDemoWindow(&show_demo_window);
+
+		// Only display options if the window isn't collapsed
+		if (ImGui::Begin("Options")) {
+			if (ImGui::TreeNode("Backend Flags")) {
+				ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
+				ImGui::TreePop();
+				ImGui::Separator();
+			}
+		}
+
+		ImGui::End();
+		
 
 		// Set the descriptor heaps
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
