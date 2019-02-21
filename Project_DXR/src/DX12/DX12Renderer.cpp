@@ -748,9 +748,9 @@ void DX12Renderer::frame() {
 		// Only display options if the window isn't collapsed
 		if (ImGui::Begin("Options")) {
 			if (ImGui::TreeNode("Backend Flags")) {
-				bool dxrEnabled;
-				ImGui::Checkbox("DXR Enabled", &dxrEnabled);
-				enableDXR(dxrEnabled);
+				if (m_supportsDXR) {
+					ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
+				}
 				ImGui::TreePop();
 				ImGui::Separator();
 			}
