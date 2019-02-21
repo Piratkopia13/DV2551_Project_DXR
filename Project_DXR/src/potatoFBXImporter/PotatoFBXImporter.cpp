@@ -104,54 +104,39 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	
 	FbxNode * root = scene->GetRootNode();
 
-	
+	traverse(root);
 
-	for (int i = 0; i < root->GetChildCount(); i++) {
-		FbxNode * child = root->GetChild(i);
-		FbxMesh * mesh = child->GetMesh();
-		FbxVector4* points = mesh->GetControlPoints();
-
-		//#if _DEBUG
-		//	cout << "\tC:" + to_string(i) << " ";
-		//	if (child) {
-		//		cout << "Children: " << to_string(child->GetChildCount());
-		//		if (mesh) {
-		//			cout << " Points: " << to_string(mesh->GetControlPointsCount()) << " ";
-		//		
-		//		}
-		//		else {
-		//			cout << "mesh not found" << endl;
-		//		}
-		//	}
-		//	else {
-		//		cout << " not found " << endl;
-		//	}
-		//	cout << endl;
-		//#endif
-
-
-		for (int v = 0; v < mesh->GetControlPointsCount(); v++) {
-			//mesh->getNormal
-			model->addVertex({ DirectX::XMFLOAT3(points[v].mData[0],points[v].mData[1],points[v].mData[2]),DirectX::XMFLOAT3(0.0f,0.0f,0.0f),DirectX::XMFLOAT2(0,0) });
-		}
-
+	//for (int i = 0; i < root->GetChildCount(); i++) {
+	//	FbxNode * child = root->GetChild(i);
+	//	FbxMesh * mesh = child->GetMesh();
+	//	FbxVector4* points = mesh->GetControlPoints();
+	//	//#if _DEBUG
+	//	//	cout << "\tC:" + to_string(i) << " ";
+	//	//	if (child) {
+	//	//		cout << "Children: " << to_string(child->GetChildCount());
+	//	//		if (mesh) {
+	//	//			cout << " Points: " << to_string(mesh->GetControlPointsCount()) << " ";
+	//	//		
+	//	//		}
+	//	//		else {
+	//	//			cout << "mesh not found" << endl;
+	//	//		}
+	//	//	}
+	//	//	else {
+	//	//		cout << " not found " << endl;
+	//	//	}
+	//	//	cout << endl;
+	//	//#endif
+	//	for (int v = 0; v < mesh->GetControlPointsCount(); v++) {
+	//		//mesh->getNormal
+	//		model->addVertex({ DirectX::XMFLOAT3(points[v].mData[0],points[v].mData[1],points[v].mData[2]),DirectX::XMFLOAT3(0.0f,0.0f,0.0f),DirectX::XMFLOAT2(0,0) });
+	//	}
 	/*	for (int m = 0; m < child->GetMaterialCount(); m++) {
-			FbxSurfaceMaterial * mat = child->GetMaterial(m);
-			mat->get
+		FbxSurfaceMaterial * mat = child->GetMaterial(m);
+		mat->get
 
-		}*/
-		
-
-
-
-	}
-
-
-
-
-
-
-
+	}*/
+	//}
 
 
 	QueryPerformanceCounter(&end);
@@ -415,19 +400,22 @@ void PotatoFBXImporter::traverse(FbxNode*node) {
 
 
 	int numAttributes = node->GetNodeAttributeCount();
-	FbxMesh * mesh = node->GetMesh();
 	for (int j = 0; j < numAttributes; j++) {
 		FbxNodeAttribute *nodeAttributeFbx = node->GetNodeAttributeByIndex(j);
 		FbxNodeAttribute::EType attributeType = nodeAttributeFbx->GetAttributeType();
 
-		FbxMesh* mesh;
 		switch (attributeType) {
 
 		case FbxNodeAttribute::eMesh:
-			break;
-		case FbxNodeAttribute::eSkeleton:
+			fetchGeometry(node, "potato");
+
 
 			break;
+		case FbxNodeAttribute::eSkeleton:
+			
+
+			break;
+
 		default:
 
 
@@ -444,3 +432,264 @@ void PotatoFBXImporter::traverse(FbxNode*node) {
 
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void PotatoFBXImporter::fetchGeometry(FbxNode* node, const std::string& filename) {
+
+	// Number of polygon vertices 
+
+	FbxMesh* mesh = node->GetMesh();
+	int amount = mesh->GetPolygonVertexCount();
+	int* indices = mesh->GetPolygonVertices();
+	if (int(amount / 3) != mesh->GetPolygonCount()) {
+		cout << "The mesh in '" << filename << "' has to be triangulated.";
+		return;
+	}
+
+
+	int vertexIndex = 0;
+	FbxVector4* cp = mesh->GetControlPoints();
+	if (cp == nullptr) {
+		cout << "Couldn't find any vertices in the mesh in the file " << filename;
+		return;
+	}
+	//for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
+	//	int numVertices = mesh->GetPolygonSize(polyIndex);
+
+	//	for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
+
+	//		/*
+	//		--	Positions
+	//		*/
+	//		m_buildData.positions[vertexIndex].x = -(float)cp[indices[vertexIndex]][0];
+	//		m_buildData.positions[vertexIndex].y = (float)cp[indices[vertexIndex]][1];
+	//		m_buildData.positions[vertexIndex].z = (float)cp[indices[vertexIndex]][2];
+
+	//		m_buildData.positions[vertexIndex + 1].x = -(float)cp[indices[vertexIndex + 2]][0];
+	//		m_buildData.positions[vertexIndex + 1].y = (float)cp[indices[vertexIndex + 2]][1];
+	//		m_buildData.positions[vertexIndex + 1].z = (float)cp[indices[vertexIndex + 2]][2];
+
+	//		m_buildData.positions[vertexIndex + 2].x = -(float)cp[indices[vertexIndex + 1]][0];
+	//		m_buildData.positions[vertexIndex + 2].y = (float)cp[indices[vertexIndex + 1]][1];
+	//		m_buildData.positions[vertexIndex + 2].z = (float)cp[indices[vertexIndex + 1]][2];
+
+
+
+
+
+
+
+
+
+
+
+
+	{
+	// Number of polygon vertices 
+	//m_buildData.numVertices = mesh->GetPolygonVertexCount();
+	//int* indices = mesh->GetPolygonVertices();
+
+	//if (int(m_buildData.numVertices / 3) != mesh->GetPolygonCount()) {
+	//	Logger::Error("The mesh in '" + filename + "' has to be triangulated.");
+	//	return;
+	//}
+
+	//m_buildData.positions = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+	//m_buildData.normals = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+	//m_buildData.texCoords = new DirectX::SimpleMath::Vector2[m_buildData.numVertices];
+	//m_buildData.tangents = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+	//m_buildData.bitangents = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+
+	//bool norms = true, uvs = true, tangs = true, bitangs = true;
+
+	//int vertexIndex = 0;
+	//FbxVector4* cp = mesh->GetControlPoints();
+	//if (cp == nullptr) {
+	//	Logger::Error("Couldn't find any vertices in the mesh in the file " + filename);
+	//	return;
+	//}
+	//for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
+	//	int numVertices = mesh->GetPolygonSize(polyIndex);
+
+	//	for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
+
+	//		/*
+	//		--	Positions
+	//		*/
+	//		m_buildData.positions[vertexIndex].x = -(float)cp[indices[vertexIndex]][0];
+	//		m_buildData.positions[vertexIndex].y = (float)cp[indices[vertexIndex]][1];
+	//		m_buildData.positions[vertexIndex].z = (float)cp[indices[vertexIndex]][2];
+
+	//		m_buildData.positions[vertexIndex + 1].x = -(float)cp[indices[vertexIndex + 2]][0];
+	//		m_buildData.positions[vertexIndex + 1].y = (float)cp[indices[vertexIndex + 2]][1];
+	//		m_buildData.positions[vertexIndex + 1].z = (float)cp[indices[vertexIndex + 2]][2];
+
+	//		m_buildData.positions[vertexIndex + 2].x = -(float)cp[indices[vertexIndex + 1]][0];
+	//		m_buildData.positions[vertexIndex + 2].y = (float)cp[indices[vertexIndex + 1]][1];
+	//		m_buildData.positions[vertexIndex + 2].z = (float)cp[indices[vertexIndex + 1]][2];
+
+
+	//		/*
+	//		--	Normals
+	//		*/
+	//		FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
+	//		if (leNormal == nullptr && norms) {
+	//			Logger::Warning("Couldn't find any normals in the mesh in the file " + filename);
+	//			norms = false;
+	//		}
+	//		else if (norms) {
+	//			if (leNormal->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+	//				int normIndex = 0;
+
+	//				if (leNormal->GetReferenceMode() == FbxLayerElement::eDirect)
+	//					normIndex = vertexIndex;
+
+
+	//				if (leNormal->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+	//					normIndex = leNormal->GetIndexArray().GetAt(vertexIndex);
+
+
+	//				FbxVector4 norm = leNormal->GetDirectArray().GetAt(normIndex);
+	//				m_buildData.normals[vertexIndex].x = -(float)norm[0];
+	//				m_buildData.normals[vertexIndex].y = (float)norm[1];
+	//				m_buildData.normals[vertexIndex].z = (float)norm[2];
+
+	//				norm = leNormal->GetDirectArray().GetAt(normIndex + 2);
+	//				m_buildData.normals[vertexIndex + 1].x = -(float)norm[0];
+	//				m_buildData.normals[vertexIndex + 1].y = (float)norm[1];
+	//				m_buildData.normals[vertexIndex + 1].z = (float)norm[2];
+
+	//				norm = leNormal->GetDirectArray().GetAt(normIndex + 1);
+	//				m_buildData.normals[vertexIndex + 2].x = -(float)norm[0];
+	//				m_buildData.normals[vertexIndex + 2].y = (float)norm[1];
+	//				m_buildData.normals[vertexIndex + 2].z = (float)norm[2];
+	//			}
+	//		}
+
+	//		/*
+	//		--	Tangents
+	//		*/
+	//		FbxGeometryElementTangent *geTang = mesh->GetElementTangent(0);
+	//		if (geTang == nullptr && tangs) {
+	//			Logger::Warning("Couldn't find any tangents in the mesh in the file " + filename);
+	//			tangs = false;
+	//		}
+	//		else if (tangs) {
+	//			if (geTang->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+	//				int tangIndex = 0;
+
+	//				if (geTang->GetReferenceMode() == FbxLayerElement::eDirect)
+	//					tangIndex = vertexIndex;
+
+
+	//				if (geTang->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+	//					tangIndex = geTang->GetIndexArray().GetAt(vertexIndex);
+
+	//				FbxVector4 tangent = geTang->GetDirectArray().GetAt(tangIndex);
+	//				m_buildData.tangents[vertexIndex].x = (float)tangent[0];
+	//				m_buildData.tangents[vertexIndex].y = (float)tangent[1];
+	//				m_buildData.tangents[vertexIndex].z = (float)tangent[2];
+
+	//				tangent = geTang->GetDirectArray().GetAt(tangIndex + 2);
+	//				m_buildData.tangents[vertexIndex + 1].x = (float)tangent[0];
+	//				m_buildData.tangents[vertexIndex + 1].y = (float)tangent[1];
+	//				m_buildData.tangents[vertexIndex + 1].z = (float)tangent[2];
+
+	//				tangent = geTang->GetDirectArray().GetAt(tangIndex + 1);
+	//				m_buildData.tangents[vertexIndex + 2].x = (float)tangent[0];
+	//				m_buildData.tangents[vertexIndex + 2].y = (float)tangent[1];
+	//				m_buildData.tangents[vertexIndex + 2].z = (float)tangent[2];
+	//			}
+	//		}
+
+	//		/*
+	//		--	Binormals
+	//		*/
+	//		FbxGeometryElementBinormal *geBN = mesh->GetElementBinormal(0);
+	//		if (geBN == nullptr && bitangs) {
+	//			Logger::Warning("Couldn't find any binormals in the mesh in the file " + filename);
+	//			bitangs = false;
+	//		}
+	//		else if (bitangs) {
+	//			if (geBN->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+	//				int biNormIndex = 0;
+
+	//				if (geBN->GetReferenceMode() == FbxLayerElement::eDirect)
+	//					biNormIndex = vertexIndex;
+
+
+	//				if (geBN->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+	//					biNormIndex = geBN->GetIndexArray().GetAt(vertexIndex);
+
+	//				FbxVector4 biNorm = geBN->GetDirectArray().GetAt(biNormIndex);
+	//				m_buildData.bitangents[vertexIndex].x = (float)biNorm[0];
+	//				m_buildData.bitangents[vertexIndex].y = (float)biNorm[1];
+	//				m_buildData.bitangents[vertexIndex].z = (float)biNorm[2];
+
+	//				biNorm = geBN->GetDirectArray().GetAt(biNormIndex + 2);
+	//				m_buildData.bitangents[vertexIndex + 1].x = (float)biNorm[0];
+	//				m_buildData.bitangents[vertexIndex + 1].y = (float)biNorm[1];
+	//				m_buildData.bitangents[vertexIndex + 1].z = (float)biNorm[2];
+
+	//				biNorm = geBN->GetDirectArray().GetAt(biNormIndex + 1);
+	//				m_buildData.bitangents[vertexIndex + 2].x = (float)biNorm[0];
+	//				m_buildData.bitangents[vertexIndex + 2].y = (float)biNorm[1];
+	//				m_buildData.bitangents[vertexIndex + 2].z = (float)biNorm[2];
+	//			}
+	//		}
+
+	//		/*
+	//		--	UV Coords
+	//		*/
+	//		FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
+	//		if (geUV == nullptr && uvs) {
+	//			Logger::Warning("Couldn't find any texture coordinates in the mesh in the file " + filename);
+	//			uvs = false;
+	//		}
+	//		else if (uvs) {
+	//			FbxVector2 texCoord;
+	//			int cpIndex;
+
+	//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex);
+	//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex);
+	//			m_buildData.texCoords[vertexIndex].x = static_cast<float>(texCoord[0]);
+	//			m_buildData.texCoords[vertexIndex].y = -static_cast<float>(texCoord[1]);
+
+	//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 2);
+	//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 2);
+	//			m_buildData.texCoords[vertexIndex + 1].x = static_cast<float>(texCoord[0]);
+	//			m_buildData.texCoords[vertexIndex + 1].y = -static_cast<float>(texCoord[1]);
+
+	//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 1);
+	//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 1);
+	//			m_buildData.texCoords[vertexIndex + 2].x = static_cast<float>(texCoord[0]);
+	//			m_buildData.texCoords[vertexIndex + 2].y = -static_cast<float>(texCoord[1]);
+	//		}
+
+	//		vertexIndex += 3;
+	//	}
+
+	//}
+}
+}

@@ -94,5 +94,10 @@ private:
 
 		return typeName + " " + attrName;
 	}
+
+
+
+	void fetchGeometry(FbxNode* mesh, const std::string& filename);
+
 };
 

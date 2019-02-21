@@ -17,7 +17,7 @@ void Game::init() {
 
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel * dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/DinoThing.fbx");
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
 	
 
 
