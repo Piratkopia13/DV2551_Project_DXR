@@ -104,7 +104,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	
 	FbxNode * root = scene->GetRootNode();
 
-	traverse(root);
+	traverse(root, model);
 
 	//for (int i = 0; i < root->GetChildCount(); i++) {
 	//	FbxNode * child = root->GetChild(i);
@@ -395,36 +395,30 @@ std::string PotatoFBXImporter::getObjName(std::string fileName) {
 		return fileName.substr(0, fileName.size() - 4);
 }
 
-void PotatoFBXImporter::traverse(FbxNode*node) {
-
-
-
+void PotatoFBXImporter::traverse(FbxNode*node, PotatoModel* model) {
 	int numAttributes = node->GetNodeAttributeCount();
 	for (int j = 0; j < numAttributes; j++) {
-		FbxNodeAttribute *nodeAttributeFbx = node->GetNodeAttributeByIndex(j);
-		FbxNodeAttribute::EType attributeType = nodeAttributeFbx->GetAttributeType();
+		
+
+		FbxNodeAttribute *nodeAttribute = node->GetNodeAttributeByIndex(j);
+		FbxNodeAttribute::EType attributeType = nodeAttribute->GetAttributeType();
 
 		switch (attributeType) {
-
 		case FbxNodeAttribute::eMesh:
-			fetchGeometry(node, "potato");
-
+			fetchGeometry(node, model, "potato");
 
 			break;
 		case FbxNodeAttribute::eSkeleton:
-			
-
+			//fetchSkeleton(node, "potato");
 			break;
 
 		default:
-
-
 			break;
 		}
 	}
 
 	for (int i = 0; i < node->GetChildCount(); i++) {
-		traverse(node->GetChild(i));
+		traverse(node->GetChild(i), model);
 	}
 
 
@@ -433,29 +427,45 @@ void PotatoFBXImporter::traverse(FbxNode*node) {
 }
 
 
+FbxVector2 PotatoFBXImporter::getTexCoord(int cpIndex, FbxGeometryElementUV* geUV, FbxMesh* mesh, int polyIndex, int vertIndex) const {
+	FbxVector2 texCoord;
+
+	switch (geUV->GetMappingMode()) {
+
+		// UV per vertex
+	case FbxGeometryElement::eByControlPoint:
+		switch (geUV->GetReferenceMode()) {
+			// Mapped directly per vertex
+		case FbxGeometryElement::eDirect:
+			texCoord = geUV->GetDirectArray().GetAt(cpIndex);
+			break;
+			// Mapped by indexed vertex
+		case FbxGeometryElement::eIndexToDirect:
+			texCoord = geUV->GetDirectArray().GetAt(geUV->GetIndexArray().GetAt(cpIndex));
+			break;
+		default:
+			break;
+		}
+		break;
+
+		// UV per indexed Vertex
+	case FbxGeometryElement::eByPolygonVertex:
+		switch (geUV->GetReferenceMode()) {
+			// Mapped by indexed vertex
+		case FbxGeometryElement::eIndexToDirect:
+			texCoord = geUV->GetDirectArray().GetAt(mesh->GetTextureUVIndex(polyIndex, vertIndex));
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+
+	return texCoord;
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void PotatoFBXImporter::fetchGeometry(FbxNode* node, const std::string& filename) {
+void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const std::string& filename) {
 
 	// Number of polygon vertices 
 
@@ -471,37 +481,70 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, const std::string& filename
 	int vertexIndex = 0;
 	FbxVector4* cp = mesh->GetControlPoints();
 	if (cp == nullptr) {
-		cout << "Couldn't find any vertices in the mesh in the file " << filename;
+		cout << "Couldn't find any vertices in the mesh in the file " << filename << endl;
 		return;
 	}
-	//for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
-	//	int numVertices = mesh->GetPolygonSize(polyIndex);
+	for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
+		int numVertices = mesh->GetPolygonSize(polyIndex);
 
-	//	for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
+		for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
 
-	//		/*
-	//		--	Positions
+
+			FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
+			FbxVector4 norm[3] = { {0, 0, 0},{0, 0, 0},{0, 0, 0} };
+			FbxVector2 texCoord[3] = {{0,0}, {0,0}};
+			if (leNormal == nullptr) {
+				cout << "Couldn't find any normals in the mesh in the file " << filename << endl;
+			}
+			else if (leNormal) {
+				if (leNormal->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+					int normIndex = 0;
+					if (leNormal->GetReferenceMode() == FbxLayerElement::eDirect)
+						normIndex = vertexIndex;
+					if (leNormal->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+						normIndex = leNormal->GetIndexArray().GetAt(vertexIndex);
+					norm[0] = leNormal->GetDirectArray().GetAt(normIndex);
+					norm[1] = leNormal->GetDirectArray().GetAt(normIndex+1);
+					norm[2] = leNormal->GetDirectArray().GetAt(normIndex+2);
+				}
+			}
+
+				//		/*
+	//		--	UV Coords
 	//		*/
-	//		m_buildData.positions[vertexIndex].x = -(float)cp[indices[vertexIndex]][0];
-	//		m_buildData.positions[vertexIndex].y = (float)cp[indices[vertexIndex]][1];
-	//		m_buildData.positions[vertexIndex].z = (float)cp[indices[vertexIndex]][2];
+			FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
+			if (geUV == nullptr) {
+				cout << "Couldn't find any texture coordinates in the mesh in the file " << filename << endl;
+			}
+			else if (geUV) {
+				int cpIndex;
+				cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex);
+	 			texCoord[0] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex);
+				cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 2);
+				texCoord[1] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 2);
+				cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 1);
+				texCoord[2] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 1);
+			}
 
-	//		m_buildData.positions[vertexIndex + 1].x = -(float)cp[indices[vertexIndex + 2]][0];
-	//		m_buildData.positions[vertexIndex + 1].y = (float)cp[indices[vertexIndex + 2]][1];
-	//		m_buildData.positions[vertexIndex + 1].z = (float)cp[indices[vertexIndex + 2]][2];
-
-	//		m_buildData.positions[vertexIndex + 2].x = -(float)cp[indices[vertexIndex + 1]][0];
-	//		m_buildData.positions[vertexIndex + 2].y = (float)cp[indices[vertexIndex + 1]][1];
-	//		m_buildData.positions[vertexIndex + 2].z = (float)cp[indices[vertexIndex + 1]][2];
-
-
-
-
-
-
-
-
-
+			model->addVertex({
+				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex]][0], (float)cp[indices[vertexIndex]][1],(float)cp[indices[vertexIndex]][2]),
+				DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
+				DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
+			});
+			model->addVertex({
+				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 2]][0], (float)cp[indices[vertexIndex + 2]][1],(float)cp[indices[vertexIndex + 2]][2]),
+				DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
+				DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
+			});
+			model->addVertex({
+				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 1]][0], (float)cp[indices[vertexIndex + 1]][1],(float)cp[indices[vertexIndex + 1]][2]),
+				DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
+				DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
+			});
+		
+			vertexIndex += 3;
+		}
+	}
 
 
 
@@ -693,3 +736,10 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, const std::string& filename
 	//}
 }
 }
+
+void PotatoFBXImporter::fetchSkeleton(FbxNode * mesh, PotatoModel* model, const std::string & filename) {
+
+
+}
+
+

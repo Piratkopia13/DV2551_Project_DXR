@@ -58,8 +58,27 @@ private:
 	bool validFile(std::string fileName);
 	FbxScene* makeScene(std::string fileName, std::string sceneName);
 	std::string getObjName(std::string fileName);
+	
 
-	void traverse(FbxNode*node);
+	void traverse(FbxNode* node, PotatoModel* model);
+	FbxVector2 getTexCoord(int cpIndex, FbxGeometryElementUV* geUV, FbxMesh* mesh, int polyIndex, int vertIndex) const;
+	void fetchGeometry(FbxNode* mesh, PotatoModel* model, const std::string& filename);
+	void fetchSkeleton(FbxNode* mesh, PotatoModel* model, const std::string& filename);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	std::string GetAttributeTypeName(FbxNodeAttribute::EType type) {
 		switch (type) {
@@ -97,7 +116,6 @@ private:
 
 
 
-	void fetchGeometry(FbxNode* mesh, const std::string& filename);
 
 };
 
