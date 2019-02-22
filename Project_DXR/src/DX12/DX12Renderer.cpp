@@ -34,6 +34,7 @@ DX12Renderer::DX12Renderer()
 	, m_numSamplerDescriptors(0U)
 	, m_samplerDescriptorHandleIncrementSize(0U)
 	, m_supportsDXR(false)
+	, m_DXREnabled(false)
 {
 	m_renderTargets.resize(NUM_SWAP_BUFFERS);
 }
@@ -104,8 +105,18 @@ ID3D12Device5* DX12Renderer::getDevice() const {
 	return m_device.Get();
 }
 
-ID3D12CommandQueue* DX12Renderer::getCmdQueue() const {
-	return m_commandQueue.Get();
+ID3D12CommandQueue* DX12Renderer::getCmdQueue(D3D12_COMMAND_LIST_TYPE type) const {
+	switch (type) {
+	case D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT:
+		return m_directCommandQueue.Get();
+	case D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COMPUTE:
+		return m_computeCommandQueue.Get();
+	case D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY:
+		return m_copyCommandQueue.Get();
+	default:
+		throw(std::exception(("Type: " + std::to_string(type) + " was not a valid type.").c_str()));
+		return nullptr;
+	}
 }
 
 ID3D12GraphicsCommandList4* DX12Renderer::getCmdList() const {
@@ -140,11 +151,16 @@ ID3D12DescriptorHeap* DX12Renderer::getSamplerDescriptorHeap() const {
 }
 
 void DX12Renderer::enableDXR(bool enable) {
-	m_supportsDXR = enable;
+	if (m_supportsDXR) {
+		m_DXREnabled = enable;
+	}
+	else {
+		m_DXREnabled = false;
+	}
 }
 
 bool DX12Renderer::isDXREnabled() const {
-	return m_supportsDXR;
+	return m_DXREnabled;
 }
 
 DXR& DX12Renderer::getDXR() {
@@ -197,6 +213,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	createRenderTargets();
 	createShaderResources();
 	createGlobalRootSignature();
+	createDepthStencilResources();
 
 	// Reset pre allocator and command list to prep for initialization commands
 	ThrowIfFailed(m_preCommand.allocator->Reset());
@@ -207,6 +224,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	if (m_supportsDXR) {
 		m_dxr = std::make_unique<DXR>(this);
 		m_dxr->init(m_preCommand.list.Get());
+		m_DXREnabled = true;
 	}
 
 	// 7. Viewport and scissor rect
@@ -314,10 +332,19 @@ void DX12Renderer::createDevice() {
 void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	// 3. Create command queue/allocator/list
 
+	// Create direct command queue
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_directCommandQueue)));
+
+	// Create compute command queue
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_computeCommandQueue)));
+
+	// Create copy command queue
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_copyCommandQueue)));
 
 	// Create allocators
 	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_preCommand.allocator)));
@@ -348,7 +375,7 @@ void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	scDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
 	IDXGISwapChain1* swapChain1 = nullptr;
-	if (SUCCEEDED(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), *m_window->getHwnd(), &scDesc, nullptr, nullptr, &swapChain1))) {
+	if (SUCCEEDED(m_factory->CreateSwapChainForHwnd(m_directCommandQueue.Get(), *m_window->getHwnd(), &scDesc, nullptr, nullptr, &swapChain1))) {
 		if (SUCCEEDED(swapChain1->QueryInterface(IID_PPV_ARGS(&m_swapChain)))) {
 			m_swapChain->Release();
 		}
@@ -413,14 +440,17 @@ void DX12Renderer::createGlobalRootSignature() {
 
 	// Create root descriptors
 	D3D12_ROOT_DESCRIPTOR rootDescCBV = {};
-	rootDescCBV.ShaderRegister = TRANSFORM;
+	rootDescCBV.ShaderRegister = CB_REG_TRANSFORM;
 	rootDescCBV.RegisterSpace = 0;
 	D3D12_ROOT_DESCRIPTOR rootDescCBV2 = {};
-	rootDescCBV2.ShaderRegister = DIFFUSE_TINT;
+	rootDescCBV2.ShaderRegister = CB_REG_DIFFUSE_TINT;
 	rootDescCBV2.RegisterSpace = 0;
+	D3D12_ROOT_DESCRIPTOR rootDescCBV3 = {};
+	rootDescCBV3.ShaderRegister = CB_REG_CAMERA;
+	rootDescCBV3.RegisterSpace = 0;
 
 	// Create root parameters
-	D3D12_ROOT_PARAMETER rootParam[4];
+	D3D12_ROOT_PARAMETER rootParam[GlobalRootParam::SIZE];
 
 	rootParam[GlobalRootParam::CBV_TRANSFORM].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParam[GlobalRootParam::CBV_TRANSFORM].Descriptor = rootDescCBV;
@@ -429,6 +459,10 @@ void DX12Renderer::createGlobalRootSignature() {
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].Descriptor = rootDescCBV2;
 	rootParam[GlobalRootParam::CBV_DIFFUSE_TINT].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	rootParam[GlobalRootParam::CBV_CAMERA].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParam[GlobalRootParam::CBV_CAMERA].Descriptor = rootDescCBV3;
+	rootParam[GlobalRootParam::CBV_CAMERA].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
 	rootParam[GlobalRootParam::DT_SRVS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[GlobalRootParam::DT_SRVS].DescriptorTable = dtSrv;
@@ -508,6 +542,39 @@ void DX12Renderer::createShaderResources() {
 	m_samplerDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 }
 
+void DX12Renderer::createDepthStencilResources() {
+	// create a depth stencil descriptor heap so we can get a pointer to the depth stencil buffer
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsDescriptorHeap)));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+	depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+	depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+	depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
+	depthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+	m_device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_window->getWindowWidth(), m_window->getWindowHeight(), 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthOptimizedClearValue,
+		IID_PPV_ARGS(&m_depthStencilBuffer)
+	);
+	m_dsDescriptorHeap->SetName(L"Depth/Stencil Resource Heap");
+	m_depthStencilBuffer->SetName(L"Depth/Stencil Resource Buffer");
+	m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &depthStencilDesc, m_dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	m_dsvDescHandle = m_dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
 void DX12Renderer::workerThread(unsigned int id) {
 
 	while (true) {
@@ -527,7 +594,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 		allocator->Reset();
 		list->Reset(allocator.Get(), nullptr);
 		
-		list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+		list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 		list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 
 		// Iterate part of the drawlist and draw
@@ -566,6 +633,8 @@ void DX12Renderer::workerThread(unsigned int id) {
 
 				// Bind translation constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
+				// Bind camera data constant buffer
+				static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 				// Draw
 				list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
 			}
@@ -595,7 +664,7 @@ void DX12Renderer::frame() {
 		//Execute the initialization command list
 		ThrowIfFailed(m_preCommand.list->Close());
 		ID3D12CommandList* listsToExecute[] = { m_preCommand.list.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 
 		waitForGPU(); //Wait for GPU to finish.
 		m_firstFrame = false;
@@ -606,7 +675,7 @@ void DX12Renderer::frame() {
 	m_cdh = m_renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	m_cdh.ptr += m_renderTargetDescriptorSize * frameIndex;
 
-	if (!m_supportsDXR) {
+	if (!m_DXREnabled) {
 		{
 			// Notify workers to begin creating command lists
 			std::lock_guard<std::mutex> guard(m_mainMutex);
@@ -631,17 +700,18 @@ void DX12Renderer::frame() {
 	barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	m_preCommand.list->ResourceBarrier(1, &barrierDesc);
 
-	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 	m_preCommand.list->ClearRenderTargetView(m_cdh, m_clearColor, 0, nullptr);
+	m_preCommand.list->ClearDepthStencilView(m_dsvDescHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	{
 		//Execute the pre command list
 		m_preCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_preCommand.list.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	}
 
-	if (!m_supportsDXR) {
+	if (!m_DXREnabled) {
 		// Wait for worker threads to finish
 		{
 			std::unique_lock<std::mutex> mlock(m_workerMutex);
@@ -656,7 +726,7 @@ void DX12Renderer::frame() {
 			for (int i = 0; i < NUM_WORKER_THREADS; i++) {
 				listsToExecute[i] = m_workerCommands[i].list.Get();
 			}
-			m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+			m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 		}
 	}
 	// Clear submitted draw list
@@ -668,13 +738,11 @@ void DX12Renderer::frame() {
 
 
 	// DXR
-	if (m_supportsDXR) {
+	if (m_DXREnabled) {
 		m_dxr->updateAS(m_postCommand.list.Get());
 		m_dxr->doTheRays(m_postCommand.list.Get());
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
-		
 	}
-
 
 	// ImGui
 	{
@@ -689,12 +757,25 @@ void DX12Renderer::frame() {
 		RECT rect;
 		GetClientRect(*m_window->getHwnd(), &rect);
 
-		bool show_demo_window = true;
-		bool show_another_window = true;
-		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		//bool show_demo_window = true;
+		//bool show_another_window = true;
+		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
+		//if (show_demo_window)
+			//ImGui::ShowDemoWindow(&show_demo_window);
+
+		// Only display options if the window isn't collapsed
+		if (ImGui::Begin("Options")) {
+			if (ImGui::TreeNode("Backend Flags")) {
+				if (m_supportsDXR) {
+					ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
+				}
+				ImGui::TreePop();
+				ImGui::Separator();
+			}
+		}
+
+		ImGui::End();
 
 		// Set the descriptor heaps
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
@@ -703,10 +784,8 @@ void DX12Renderer::frame() {
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
 	}
 
-	if(!m_supportsDXR) {
-		// Indicate that the back buffer will now be used to present
-		D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	}
+	// Indicate that the back buffer will now be used to present
+	D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
 
 
@@ -714,7 +793,7 @@ void DX12Renderer::frame() {
 		// Close the list to prepare it for execution.
 		m_postCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_postCommand.list.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 	}
 
 };
@@ -827,7 +906,7 @@ void DX12Renderer::waitForGPU() {
 
 	//Signal and increment the fence value.
 	const UINT64 fence = m_fenceValue;
-	m_commandQueue->Signal(m_fence.Get(), fence);
+	m_directCommandQueue->Signal(m_fence.Get(), fence);
 	m_fenceValue++;
 
 	//Wait until command queue is done.

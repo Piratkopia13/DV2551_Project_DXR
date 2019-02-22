@@ -4,11 +4,11 @@
 #include <d3d12.h>
 #include "D3DUtils.h"
 #include <DirectXMath.h>
-#include "../../assets/shaders/CommonRT.hlsl"
 
 class DX12Renderer;
 class DX12VertexBuffer;
 class DX12ConstantBuffer;
+class DX12Mesh;
 class Camera;
 class CameraController;
 struct SceneConstantBuffer;
@@ -31,6 +31,7 @@ namespace DXRRayGenRootParam {
 namespace DXRHitGroupRootParam {
 	enum Slot {
 		FLOAT3_SHADER_TABLE_COLOR = 0,
+		DT_TEXTURES,
 		SIZE
 	};
 }
@@ -49,14 +50,17 @@ public:
 	void doTheRays(ID3D12GraphicsCommandList4* cmdList);
 	void copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target);
 
-	void updateBLASnextFrame(DX12VertexBuffer* vb, bool inPlace = true);
+	void setMesh(DX12Mesh* mesh);
+	void updateBLASnextFrame(bool inPlace = true);
 	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {}, UINT instanceCount = 3);
+
+	void useCamera(Camera* camera);
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
 	void createShaderResources();
 	void createShaderTables();
-	void createBLAS(ID3D12GraphicsCommandList4* cmdList, DX12VertexBuffer* vb = nullptr, bool onlyUpdate = false);
+	void createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate = false);
 	void createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = [](int) {DirectX::XMFLOAT3X4 m; DirectX::XMStoreFloat3x4(&m, DirectX::XMMatrixIdentity()); return m;}, UINT instanceCount = 3);
 	void createRaytracingPSO();
 	void createDxrGlobalRootSignature();
@@ -66,7 +70,6 @@ private:
 
 private:
 	bool m_updateBLAS;
-	DX12VertexBuffer* m_newVb;
 	bool m_newInPlace;
 
 	bool m_updateTLAS;
@@ -76,11 +79,11 @@ private:
 private:
 	DX12Renderer* m_renderer;
 
-	DX12VertexBuffer* m_vb; // Not owned by DXR. TODO: support multiple vertex buffers
-
+	DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
-	Camera* m_persCamera;
-	CameraController* m_persCameraController;
+
+	Camera* m_camera;
+	
 	union AlignedSceneConstantBuffer { 	// TODO: Use this instead of SceneConstantBuffer
 		SceneConstantBuffer* constants;
 		uint8_t alignmentPadding[D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT];
@@ -111,6 +114,7 @@ private:
 	wComPtr<ID3D12DescriptorHeap> m_rtDescriptorHeap = {};
 
 	ResourceWithDescriptor m_rtOutputUAV;
+	D3D12_GPU_DESCRIPTOR_HANDLE m_rtMeshTextureHandle;
 
 	//D3D12_GPU_VIRTUAL_ADDRESS m_vb_GPU = {};
 

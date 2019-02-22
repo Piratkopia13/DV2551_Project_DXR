@@ -2,8 +2,7 @@
 #include "CommonRT.hlsl"
 
 // Retrieve hit world position.
-float3 HitWorldPosition()
-{
+float3 HitWorldPosition() {
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
 }
 
@@ -12,21 +11,21 @@ RWTexture2D<float4> lOutput : register(u0);
 
 StructuredBuffer<Vertex> Vertices : register(t1, space0);
 
-cbuffer CB_Global : register(b0, space0)
-{
+Texture2D<float4> diffuseTexture : register(t2, space0);
+SamplerState ss : register(s0);
+
+cbuffer CB_Global : register(b0, space0) {
 	float RedChannel;
 }
 
-cbuffer CB_ShaderTableLocal : register(b0, space1)
-{
+cbuffer CB_ShaderTableLocal : register(b0, space1) {
 	float3 ShaderTableColor;
 }
 
 ConstantBuffer<SceneConstantBuffer> CB_SceneData : register(b0, space2);
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
-inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
-{
+inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction) {
 	float2 xy = index + 0.5f; // center in the middle of the pixel.
 	float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
 
@@ -42,8 +41,7 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 }
 
 [shader("raygeneration")]
-void rayGen()
-{
+void rayGen() {
 	float3 rayDir;
 	float3 origin;
 
@@ -68,26 +66,12 @@ void rayGen()
 }
 
 [shader("miss")]
-void miss(inout RayPayload payload)
-{
+void miss(inout RayPayload payload) {
 	payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
-
-
-	// RayDesc ray;
-	// ray.Origin = float3(0, 0, -2);
-	// ray.Direction = float3(-1,0,0);
-
-	// ray.TMin = 0;
-	// ray.TMax = 100000;
-
-	// payload.recursionDepth = 0;
-	// TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-
 }
 
 [shader("closesthit")]
-void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
+void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attribs) {
 	payload.recursionDepth++;
 
 	//for info
@@ -96,7 +80,11 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	uint primitiveID = PrimitiveIndex();
 
 	uint verticesPerPrimitive = 3;
-	float3 normalInLocalSpace = Vertices[primitiveID * verticesPerPrimitive].normal;
+	Vertex vertex1 = Vertices[primitiveID * verticesPerPrimitive];
+	Vertex vertex2 = Vertices[primitiveID * verticesPerPrimitive + 1];
+	Vertex vertex3 = Vertices[primitiveID * verticesPerPrimitive + 2];
+
+	float3 normalInLocalSpace = vertex1.normal;
 	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 
@@ -110,10 +98,13 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	} else {
 
-		payload.color.rgb = normalInWorldSpace / 2.0 + 0.5;
+		// payload.color.rgb = normalInWorldSpace / 2.0 + 0.5;
 		// payload.color = float4(1.0f, 0.0f, 0.0f, 1.0f);
-		payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
-		payload.color.a = 1.0f;
+
+		// payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
+		// payload.color.a = 1.0f;
+		float2 texCoords = barycentrics.x * vertex1.texCoord + barycentrics.y * vertex2.texCoord + barycentrics.z * vertex3.texCoord;
+		payload.color = diffuseTexture.SampleLevel(ss, texCoords, 0);
 	}
 
 

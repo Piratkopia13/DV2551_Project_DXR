@@ -29,6 +29,7 @@ namespace GlobalRootParam {
 	enum Slot {
 		CBV_TRANSFORM = 0,
 		CBV_DIFFUSE_TINT,
+		CBV_CAMERA,
 		DT_SRVS,
 		DT_SAMPLERS,
 		SIZE
@@ -53,7 +54,7 @@ public:
 	virtual std::string getShaderPath() override;
 	virtual std::string getShaderExtension() override;
 	ID3D12Device5* getDevice() const;
-	ID3D12CommandQueue* getCmdQueue() const;
+	ID3D12CommandQueue* getCmdQueue(D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 	ID3D12GraphicsCommandList4* getCmdList() const;
 	ID3D12RootSignature* getRootSignature() const;
 	ID3D12CommandAllocator* getCmdAllocator() const;
@@ -91,6 +92,7 @@ private:
 	void createRenderTargets();
 	void createGlobalRootSignature();
 	void createShaderResources();
+	void createDepthStencilResources();
 
 	// DXR
 	bool checkRayTracingSupport();
@@ -117,12 +119,15 @@ private:
 	static const UINT MAX_NUM_SAMPLERS;
 
 	bool m_supportsDXR;
+	bool m_DXREnabled;
 
 	// DX12 stuff
 	std::unique_ptr<DXR> m_dxr;
 
 	wComPtr<ID3D12Device5> m_device;
-	wComPtr<ID3D12CommandQueue> m_commandQueue;
+	wComPtr<ID3D12CommandQueue> m_directCommandQueue;
+	wComPtr<ID3D12CommandQueue> m_computeCommandQueue;
+	wComPtr<ID3D12CommandQueue> m_copyCommandQueue;
 	Command m_preCommand;
 	Command m_postCommand;
 	wComPtr<ID3D12Fence1> m_fence;
@@ -130,6 +135,10 @@ private:
 	wComPtr<IDXGISwapChain4> m_swapChain;
 	std::vector<wComPtr<ID3D12Resource1>> m_renderTargets;
 	wComPtr<ID3D12RootSignature> m_globalRootSignature;
+	// Depth/Stencil
+	wComPtr<ID3D12Resource> m_depthStencilBuffer;
+	wComPtr<ID3D12DescriptorHeap> m_dsDescriptorHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvDescHandle;
 
 	// ImGui
 	wComPtr<ID3D12DescriptorHeap> m_ImGuiSrvDescHeap;

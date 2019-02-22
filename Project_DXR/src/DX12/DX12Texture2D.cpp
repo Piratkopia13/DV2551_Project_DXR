@@ -25,26 +25,26 @@ int DX12Texture2D::loadFromFile(std::string filename) {
 		return -1;
 	}
 
-	D3D12_RESOURCE_DESC textureDesc = {};
+	m_textureDesc = {};
 
-	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//textureDesc.Format = DXGI_FORMAT_R32G32B32A32_UINT;
-	textureDesc.DepthOrArraySize = 1;
-	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	textureDesc.Width = w;
-	textureDesc.Height = h;
-	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	textureDesc.MipLevels = 1;
-	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	m_textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//m_textureDesc.Format = DXGI_FORMAT_R32G32B32A32_UINT;
+	m_textureDesc.DepthOrArraySize = 1;
+	m_textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	m_textureDesc.Width = w;
+	m_textureDesc.Height = h;
+	m_textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	m_textureDesc.MipLevels = 1;
+	m_textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.SampleDesc.Quality = 0;
+	m_textureDesc.SampleDesc.Count = 1;
+	m_textureDesc.SampleDesc.Quality = 0;
 
 	// create a default heap where the upload heap will copy its contents into (contents being the texture)
 	HRESULT hr = m_renderer->getDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), // a default heap
 		D3D12_HEAP_FLAG_NONE, // no flags
-		&textureDesc, // the description of our texture
+		&m_textureDesc, // the description of our texture
 		D3D12_RESOURCE_STATE_COPY_DEST, // We will copy the texture from the upload heap to here, so we start it out in a copy dest state
 		nullptr, // used for render targets and depth/stencil buffers
 		IID_PPV_ARGS(&m_textureBuffer));
@@ -56,8 +56,8 @@ int DX12Texture2D::loadFromFile(std::string filename) {
 	// this function gets the size an upload buffer needs to be to upload a texture to the gpu.
 	// each row must be 256 byte aligned except for the last row, which can just be the size in bytes of the row
 	// eg. textureUploadBufferSize = ((((width * numBytesPerPixel) + 255) & ~255) * (height - 1)) + (width * numBytesPerPixel);
-	//textureUploadBufferSize = (((imageBytesPerRow + 255) & ~255) * (textureDesc.Height - 1)) + imageBytesPerRow;
-	m_renderer->getDevice()->GetCopyableFootprints(&textureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
+	//textureUploadBufferSize = (((imageBytesPerRow + 255) & ~255) * (m_textureDesc.Height - 1)) + imageBytesPerRow;
+	m_renderer->getDevice()->GetCopyableFootprints(&m_textureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
 
 	// now we create an upload heap to upload our texture to the GPU
 	hr = m_renderer->getDevice()->CreateCommittedResource(
@@ -98,7 +98,7 @@ int DX12Texture2D::loadFromFile(std::string filename) {
 	// now we create a shader resource view (descriptor that points to the texture and describes it)
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = textureDesc.Format;
+	srvDesc.Format = m_textureDesc.Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 	m_renderer->getDevice()->CreateShaderResourceView(m_textureBuffer.Get(), &srvDesc, m_mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
@@ -125,4 +125,16 @@ void DX12Texture2D::bind(unsigned int slot, ID3D12GraphicsCommandList3* cmdList)
 
 	cmdList->SetGraphicsRootDescriptorTable(GlobalRootParam::DT_SAMPLERS, reinterpret_cast<DX12Sampler2D*>(sampler)->getGPUHandle());
 	cmdList->SetGraphicsRootDescriptorTable(GlobalRootParam::DT_SRVS, m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+DXGI_FORMAT DX12Texture2D::getFormat() {
+	return m_textureDesc.Format;
+}
+
+UINT DX12Texture2D::getMips() {
+	return m_textureDesc.MipLevels;
+}
+
+ID3D12Resource* DX12Texture2D::getResource() {
+	return m_textureBuffer.Get();
 }

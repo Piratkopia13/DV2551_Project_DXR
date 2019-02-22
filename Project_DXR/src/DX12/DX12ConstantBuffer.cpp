@@ -55,7 +55,12 @@ void DX12ConstantBuffer::bind(Material* m) {
 
 void DX12ConstantBuffer::bind(Material* material, ID3D12GraphicsCommandList3* cmdList) {
 
-	UINT rootIndex = (m_location == 5) ? GlobalRootParam::CBV_TRANSFORM : GlobalRootParam::CBV_DIFFUSE_TINT;
+	UINT rootIndex;
+	if (m_location == CB_REG_TRANSFORM) rootIndex = GlobalRootParam::CBV_TRANSFORM;
+	else if (m_location == CB_REG_DIFFUSE_TINT) rootIndex = GlobalRootParam::CBV_DIFFUSE_TINT;
+	else if (m_location == CB_REG_CAMERA) rootIndex = GlobalRootParam::CBV_CAMERA;
+	else assert(false); // TODO: Map these values in a better way
+
 	cmdList->SetGraphicsRootConstantBufferView(rootIndex, m_constantBufferUploadHeap[m_renderer->getFrameIndex()]->GetGPUVirtualAddress());
 
 }

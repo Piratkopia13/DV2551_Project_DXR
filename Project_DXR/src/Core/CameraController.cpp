@@ -15,7 +15,7 @@ CameraController::CameraController(Camera * cam)
 void CameraController::update(float dt) {
 
 	float lookSensitivity = 0.1f;
-	float movementSpeed = 5.0f * dt;
+	float movementSpeed = 0.01f * dt;
 
 	XMVECTOR worldUp = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 	XMVECTOR right = XMVector3Cross(getCameraDirection(), worldUp);

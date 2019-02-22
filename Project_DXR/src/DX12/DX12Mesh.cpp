@@ -4,9 +4,11 @@
 #include "DX12Renderer.h"
 
 DX12Mesh::DX12Mesh(DX12Renderer* renderer) {
-	transformCB = renderer->makeConstantBuffer(TRANSFORM_NAME, TRANSFORM);
+	transformCB = renderer->makeConstantBuffer("Transform", CB_REG_TRANSFORM);
+	cameraCB = renderer->makeConstantBuffer("Camera", CB_REG_CAMERA);
 }
-DX12Mesh::~DX12Mesh() {}
+DX12Mesh::~DX12Mesh() {
+}
 
 void DX12Mesh::setIAVertexBufferBinding( VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) {
 	Mesh::setIAVertexBufferBinding(buffer, offset, numElements, sizeElement);

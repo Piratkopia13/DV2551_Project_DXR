@@ -194,7 +194,6 @@
     <ClInclude Include="src\DX12\DXILShaderCompiler.h" />
     <ClInclude Include="src\DX12\DXR.h" />
     <ClInclude Include="src\DX12\Win32Window.h" />
-    <ClInclude Include="src\Core\IA.h" />
     <ClInclude Include="src\Core\Material.h" />
     <ClInclude Include="src\Core\Mesh.h" />
     <ClInclude Include="src\pch.h" />

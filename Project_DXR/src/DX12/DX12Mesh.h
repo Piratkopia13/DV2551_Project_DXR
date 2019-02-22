@@ -12,5 +12,6 @@ public:
 	virtual void setIAVertexBufferBinding(VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) override;
 	virtual void bindIAVertexBuffer(unsigned int location) override;
 	void bindIAVertexBuffer(ID3D12GraphicsCommandList3* cmdList);
+
 };
 

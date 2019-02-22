@@ -4,6 +4,8 @@
 #include "DX12VertexBuffer.h"
 #include "DXILShaderCompiler.h"
 #include "DX12ConstantBuffer.h"
+#include "DX12Texture2D.h"
+#include "DX12Mesh.h"
 #include "../Core/Camera.h"
 #include "../Core/CameraController.h"
 #include "../Utils/Input.h"
@@ -14,6 +16,8 @@ DXR::DXR(DX12Renderer* renderer)
 	: m_renderer(renderer)
 	, m_updateTLAS(false)
 	, m_updateBLAS(false)
+	, m_camera(nullptr)
+	, m_mesh(nullptr)
 {
 }
 
@@ -25,48 +29,32 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 	createAccelerationStructures(cmdList);
 	createDxrGlobalRootSignature();
 	createRaytracingPSO();
-	createShaderResources();
-	createShaderTables();
+	/*createShaderResources();
+	createShaderTables();*/
 }
 
 void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
+	if (m_updateBLAS) {
+		createShaderResources();
+		createShaderTables();
+		createBLAS(cmdList, m_newInPlace);
+		m_updateBLAS = false;
+	}
 	if (m_updateTLAS) {
 		createTLAS(cmdList, m_newInstanceTransform, m_newInstanceCount);
 		m_updateTLAS = false;
-	}
-	if (m_updateBLAS) {
-		createBLAS(cmdList, m_newVb, m_newInPlace);
-		m_updateBLAS = false;
 	}
 }
 
 void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
+	assert(m_mesh != nullptr); // Mesh not set
 
-	/*if (Input::IsKeyDown('S')) {
-		m_persCamera->move(XMVectorSet(0.f, 0.f, -0.1f, 0.f));
-		m_sceneCBData->cameraPosition = m_persCamera->getPosition();
-		m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
-
-		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
+	if (m_camera) {
+		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
+		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
+		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
 	}
-	if (Input::IsKeyDown('W')) {
-		m_persCamera->move(XMVectorSet(0.f, 0.f, 0.1f, 0.f));
-		m_sceneCBData->cameraPosition = m_persCamera->getPosition();
-		m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), nullptr, 0);
-
-		std::cout << "Moving camera  Z: " << m_sceneCBData->cameraPosition.z << std::endl;
-	}*/
-
-
-	/* Camera movement, Move this to main */
-	m_persCameraController->update(0.016f);
-	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
-	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
-	/**/
 
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_rtDescriptorHeap.Get() };
@@ -101,8 +89,8 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	// Set acceleration structure
 	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
 	// Set vertex buffer
-	if (m_vb)
-		cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_VERTEX_BUFFER, m_vb->getBuffer()->GetGPUVirtualAddress());
+	if (m_mesh)
+		cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_VERTEX_BUFFER, static_cast<DX12VertexBuffer*>(m_mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress());
 	// Set constant buffer
 	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SCENE_BUFFER, m_sceneCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
 
@@ -118,13 +106,16 @@ void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* targ
 	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	cmdList->CopyResource(target, m_rtOutputUAV.resource.Get());
-	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
-
+	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
-void DXR::updateBLASnextFrame(DX12VertexBuffer* vb, bool inPlace) {
+void DXR::setMesh(DX12Mesh* mesh) {
+	m_mesh = mesh;
 	m_updateBLAS = true;
-	m_newVb = vb;
+}
+
+void DXR::updateBLASnextFrame(bool inPlace) {
+	m_updateBLAS = true;
 	m_newInPlace = inPlace;
 }
 
@@ -132,6 +123,10 @@ void DXR::updateTLASnextFrame(std::function<XMFLOAT3X4(int)> instanceTransform, 
 	m_updateTLAS = true;
 	m_newInstanceTransform = instanceTransform;
 	m_newInstanceCount = instanceCount;
+}
+
+void DXR::useCamera(Camera* camera) {
+	m_camera = camera;
 }
 
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
@@ -165,31 +160,31 @@ void DXR::createShaderResources() {
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE outputUAV_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	m_renderer->getDevice()->CreateUnorderedAccessView(m_rtOutputUAV.resource.Get(), nullptr, &uavDesc, outputUAV_CPU);
-	m_rtOutputUAV.gpuHandle = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-	// Create the TLAS SRV right after the UAV. Note that we are using a different SRV desc here
-	/*D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+	// Create a view for the output UAV
+	m_renderer->getDevice()->CreateUnorderedAccessView(m_rtOutputUAV.resource.Get(), nullptr, &uavDesc, cpuHandle);
+	m_rtOutputUAV.gpuHandle = gpuHandle;
+
+
+	// Create a view for mesh texture
+	DX12Texture2D* texture = static_cast<DX12Texture2D*>(m_mesh->textures.begin()->second);
+
+	auto incr = m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	cpuHandle.ptr += incr;
+	gpuHandle.ptr += incr;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.RaytracingAccelerationStructure.Location = m_DXR_TopBuffers.result->GetGPUVirtualAddress();*/
-
-	//D3D12_CPU_DESCRIPTOR_HANDLE rtAcceleration_CPU = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	//rtAcceleration_CPU.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	//m_device->CreateShaderResourceView(nullptr, &srvDesc, rtAcceleration_CPU);
-	/*m_rtAcceleration_GPU = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-	m_rtAcceleration_GPU.ptr += m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);*/
-
+	srvDesc.Format = texture->getFormat();
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = texture->getMips();
+	m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
+	m_rtMeshTextureHandle = gpuHandle;
 
 	// Scene CB
-	m_persCamera = new Camera((float)m_renderer->getWindow()->getWindowWidth() / (float)m_renderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
-	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, -2.f, 0.f));
-	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
-	m_persCameraController = new CameraController(m_persCamera);
 	m_sceneCBData = new SceneConstantBuffer();
-	m_sceneCBData->projectionToWorld = m_persCamera->getInvProjMatrix() * m_persCamera->getInvViewMatrix();
-	m_sceneCBData->cameraPosition = m_persCamera->getPositionF3();
 	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
 	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
 }
@@ -201,6 +196,7 @@ void DXR::createShaderTables() {
 
 	// Ray gen
 	{
+		m_rayGenShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_rayGenName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_rtOutputUAV.gpuHandle.ptr);
 		m_rayGenShaderTable = tableBuilder.build(m_renderer->getDevice());
@@ -208,32 +204,35 @@ void DXR::createShaderTables() {
 
 	// Miss
 	{
+		m_missShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
 		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
 
 	// Hit group
 	{
+		m_hitGroupShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), 3);
-		float shaderTableColor1[] = { 1.0f, 0.0f, 0.0f };
-		float shaderTableColor2[] = { 0.0f, 1.0f, 0.0f };
-		float shaderTableColor3[] = { 0.0f, 0.0f, 1.0f };
-		tableBuilder.addConstants(3, shaderTableColor1, 0);
-		tableBuilder.addConstants(3, shaderTableColor2, 1);
-		tableBuilder.addConstants(3, shaderTableColor3, 2);
+		float shaderTableColor1[] = { 1.0f, 0.0f, 0.0f, 0.0f };
+		/*float shaderTableColor2[] = { 0.0f, 1.0f, 0.0f, 0.0f };
+		float shaderTableColor3[] = { 0.0f, 0.0f, 1.0f, 0.0f };*/
+		tableBuilder.addConstants(4, shaderTableColor1, 0);
+		/*tableBuilder.addConstants(4, shaderTableColor2, 1);
+		tableBuilder.addConstants(4, shaderTableColor3, 2);*/
+		tableBuilder.addDescriptor(m_rtMeshTextureHandle.ptr, 0); // only supports one texture/mesh atm
 		m_hitGroupShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
 
 }
 
-void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, DX12VertexBuffer* vb, bool onlyUpdate) {
+void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 
 	// TODO: Allow multiple vertex buffers
 	// TODO: Allow for BLAS updates (multiple calls) in place?
-	m_vb = vb;
 
 	D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
-	if (vb != nullptr) {
+	if (m_mesh != nullptr) {
+		DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>(m_mesh->geometryBuffer.buffer);
 		geomDesc[0].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 		geomDesc[0].Triangles.VertexBuffer.StartAddress = vb->getBuffer()->GetGPUVirtualAddress();
 		geomDesc[0].Triangles.VertexBuffer.StrideInBytes = vb->getVertexStride();
@@ -251,7 +250,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, DX12VertexBuffer* vb, 
 	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
 
 	// No geometry specified
-	if (vb == nullptr) {
+	if (m_mesh == nullptr) {
 		inputs.NumDescs = 0;
 		inputs.pGeometryDescs = nullptr;
 	}
@@ -439,18 +438,46 @@ ID3D12RootSignature* DXR::createRayGenLocalRootSignature() {
 }
 
 ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
-	D3D12_ROOT_PARAMETER rootParams[1]{};
+	D3D12_DESCRIPTOR_RANGE range[1]{};
+	D3D12_ROOT_PARAMETER rootParams[DXRHitGroupRootParam::SIZE]{};
+
+	// diffuseTexture
+	range[0].BaseShaderRegister = 2;
+	range[0].NumDescriptors = 1;
+	range[0].RegisterSpace = 0;
+	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	//float3 ShaderTableColor;
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.RegisterSpace = 1;
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.ShaderRegister = 0;
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.Num32BitValues = 3;
+	
+	rootParams[DXRHitGroupRootParam::DT_TEXTURES].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.NumDescriptorRanges = _countof(range);
+	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.pDescriptorRanges = range;
+
+	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
+	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.MipLODBias = 0.f;
+	staticSamplerDesc.MaxAnisotropy = 1;
+	staticSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	staticSamplerDesc.MinLOD = 0.f;
+	staticSamplerDesc.MaxLOD = FLT_MAX;
+	staticSamplerDesc.RegisterSpace = 0;
+	staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.NumParameters = _countof(rootParams);
 	desc.pParameters = rootParams;
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+	desc.NumStaticSamplers = 1;
+	desc.pStaticSamplers = &staticSamplerDesc;
 
 
 	ID3DBlob* sigBlob;

@@ -38,7 +38,7 @@ public:
 
 private:
 	static std::map<unsigned int, bool> m_keysDown;
-	static std::vector<unsigned int> m_keysPressed;
+	static std::vector<unsigned int> m_keysPressedPreviousFrame;
 	// TODO: Add system keys
 
 	static bool m_mouseButtonsDown[2];
