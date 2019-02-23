@@ -31,7 +31,7 @@ Transform& Mesh::getTransform() {
 
 void Mesh::setTransform(Transform& transform) {
 	this->transform = transform;
-	transformCB->setData(&transform.getTransformMatrix(), sizeof(transform.getTransformMatrix()), CB_REG_TRANSFORM);
+	transformCB->setData(&transform.getTransformMatrix(), CB_REG_TRANSFORM);
 }
 
 ConstantBuffer* Mesh::getTransformCB() {
@@ -47,7 +47,7 @@ Mesh::~Mesh() {
 void Mesh::updateCamera(Camera& cam) {
 	CameraData data;
 	data.VP = cam.getVPMatrix();
-	cameraCB->setData(&data, sizeof(data), CB_REG_CAMERA);
+	cameraCB->setData(&data, CB_REG_CAMERA);
 }
 
 ConstantBuffer* Mesh::getCameraCB() {

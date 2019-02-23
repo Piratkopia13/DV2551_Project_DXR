@@ -4,8 +4,8 @@
 #include "DX12Renderer.h"
 
 DX12Mesh::DX12Mesh(DX12Renderer* renderer) {
-	transformCB = renderer->makeConstantBuffer("Transform", CB_REG_TRANSFORM);
-	cameraCB = renderer->makeConstantBuffer("Camera", CB_REG_CAMERA);
+	transformCB = renderer->makeConstantBuffer("Transform", sizeof(XMMATRIX));
+	cameraCB = renderer->makeConstantBuffer("Camera", sizeof(CameraData));
 }
 DX12Mesh::~DX12Mesh() {
 }

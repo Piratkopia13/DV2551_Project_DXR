@@ -22,12 +22,11 @@ using namespace DirectX;
 
 #define MULTITHREADED
 const UINT DX12Renderer::NUM_WORKER_THREADS = 1;
-const UINT DX12Renderer::NUM_SWAP_BUFFERS = 2;
+const UINT DX12Renderer::NUM_SWAP_BUFFERS = 3;
 const UINT DX12Renderer::MAX_NUM_SAMPLERS = 1;
 
 DX12Renderer::DX12Renderer()
 	: m_renderTargetDescriptorSize(0U)
-	, m_fenceValue(0U)
 	, m_eventHandle(nullptr)
 	, m_globalWireframeMode(false) 
 	, m_firstFrame(true)
@@ -35,8 +34,10 @@ DX12Renderer::DX12Renderer()
 	, m_samplerDescriptorHandleIncrementSize(0U)
 	, m_supportsDXR(false)
 	, m_DXREnabled(false)
+	, m_backBufferIndex(0)
 {
 	m_renderTargets.resize(NUM_SWAP_BUFFERS);
+	m_fenceValues.resize(NUM_SWAP_BUFFERS, 0);
 }
 
 DX12Renderer::~DX12Renderer() {
@@ -89,8 +90,8 @@ Sampler2D* DX12Renderer::makeSampler2D() {
 	return new DX12Sampler2D(m_device.Get(), cpuHandle, gpuHandle);
 }
 
-ConstantBuffer* DX12Renderer::makeConstantBuffer(std::string NAME, unsigned int location) {
-	return new DX12ConstantBuffer(NAME, location, this);
+ConstantBuffer* DX12Renderer::makeConstantBuffer(std::string NAME, size_t size) {
+	return new DX12ConstantBuffer(NAME, size, this);
 }
 
 std::string DX12Renderer::getShaderPath() {
@@ -131,7 +132,7 @@ ID3D12RootSignature* DX12Renderer::getRootSignature() const {
 
 ID3D12CommandAllocator* DX12Renderer::getCmdAllocator() const {
 	// Returns the pre command allocator
-	return m_preCommand.allocator.Get();
+	return m_preCommand.allocators[getFrameIndex()].Get();
 }
 
 UINT DX12Renderer::getNumSwapBuffers() const {
@@ -139,7 +140,7 @@ UINT DX12Renderer::getNumSwapBuffers() const {
 }
 
 UINT DX12Renderer::getFrameIndex() const {
-	return m_swapChain->GetCurrentBackBufferIndex();
+	return m_backBufferIndex;
 }
 
 Win32Window* DX12Renderer::getWindow() const {
@@ -216,8 +217,8 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	createDepthStencilResources();
 
 	// Reset pre allocator and command list to prep for initialization commands
-	ThrowIfFailed(m_preCommand.allocator->Reset());
-	ThrowIfFailed(m_preCommand.list->Reset(m_preCommand.allocator.Get(), nullptr));
+	ThrowIfFailed(m_preCommand.allocators[getFrameIndex()]->Reset());
+	ThrowIfFailed(m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr));
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
@@ -251,8 +252,10 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	for (int i = 0; i < NUM_WORKER_THREADS; i++) {
 		// Create command allocator and list
 		m_workerCommands.push_back(Command());
-		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_workerCommands.back().allocator)));
-		ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_workerCommands.back().allocator.Get(), nullptr, IID_PPV_ARGS(&m_workerCommands.back().list)));
+		m_workerCommands.back().allocators.resize(NUM_SWAP_BUFFERS);
+		for (UINT i = 0; i < NUM_SWAP_BUFFERS; i++)
+			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_workerCommands.back().allocators[i])));
+		ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_workerCommands.back().allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_workerCommands.back().list)));
 		m_workerCommands.back().list->Close();
 		m_runWorkers[i] = false;
 		// Create thread
@@ -347,11 +350,15 @@ void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_copyCommandQueue)));
 
 	// Create allocators
-	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_preCommand.allocator)));
-	ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_postCommand.allocator)));
+	m_preCommand.allocators.resize(NUM_SWAP_BUFFERS);
+	m_postCommand.allocators.resize(NUM_SWAP_BUFFERS);
+	for (UINT i = 0; i < NUM_SWAP_BUFFERS; i++) {
+		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_preCommand.allocators[i])));
+		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_postCommand.allocators[i])));
+	}
 	// Create command lists
-	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_preCommand.allocator.Get(), nullptr, IID_PPV_ARGS(&m_preCommand.list)));
-	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_postCommand.allocator.Get(), nullptr, IID_PPV_ARGS(&m_postCommand.list)));
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_preCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_preCommand.list)));
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_postCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_postCommand.list)));
 
 	// Command lists are created in the recording state. Since there is nothing to
 	// record right now and the main loop expects it to be closed, we close them
@@ -388,7 +395,8 @@ void DX12Renderer::createCmdInterfacesAndSwapChain() {
 void DX12Renderer::createFenceAndEventHandle() {
 	// 4. Create fence
 	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-	m_fenceValue = 1;
+	for (UINT i = 0; i < NUM_SWAP_BUFFERS; i++)
+		m_fenceValues[i] = 1;
 	// Create an event handle to use for GPU synchronization
 	m_eventHandle = CreateEvent(0, false, false, 0);
 }
@@ -587,7 +595,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 		// Stop thread if asked
 		if (!m_running) break;
 
-		auto& allocator = m_workerCommands[id].allocator;
+		auto& allocator = m_workerCommands[id].allocators[getFrameIndex()];
 		auto& list = m_workerCommands[id].list;
 
 		// Reset
@@ -660,7 +668,7 @@ void DX12Renderer::frame() {
 	// TODO: check if drawList differs from last frame, if so rebuild DXR acceleration structures
 
 
-	if(m_firstFrame) {
+	if (m_firstFrame) {
 		//Execute the initialization command list
 		ThrowIfFailed(m_preCommand.list->Close());
 		ID3D12CommandList* listsToExecute[] = { m_preCommand.list.Get() };
@@ -688,17 +696,12 @@ void DX12Renderer::frame() {
 
 	// Command list allocators can only be reset when the associated command lists have
 	// finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_preCommand.allocator->Reset();
-	m_preCommand.list->Reset(m_preCommand.allocator.Get(), nullptr);
+	m_preCommand.allocators[getFrameIndex()]->Reset();
+	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
 	
 	// Indicate that the back buffer will be used as render target.
-	D3D12_RESOURCE_BARRIER barrierDesc = {};
-	barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrierDesc.Transition.pResource = m_renderTargets[frameIndex].Get();
-	barrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	barrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	m_preCommand.list->ResourceBarrier(1, &barrierDesc);
+	D3DUtils::setResourceTransitionBarrier(m_preCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 
 	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 	m_preCommand.list->ClearRenderTargetView(m_cdh, m_clearColor, 0, nullptr);
@@ -733,8 +736,8 @@ void DX12Renderer::frame() {
 	drawList.clear();
 
 	// Reset post command
-	m_postCommand.allocator->Reset();
-	m_postCommand.list->Reset(m_postCommand.allocator.Get(), nullptr);
+	m_postCommand.allocators[getFrameIndex()]->Reset();
+	m_postCommand.list->Reset(m_postCommand.allocators[getFrameIndex()].Get(), nullptr);
 
 
 	// DXR
@@ -812,9 +815,9 @@ void DX12Renderer::frame() {
 
 	// Command list allocators can only be reset when the associated command lists have
 	// finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_preCommand.allocator->Reset();
+	m_preCommand.allocators[getFrameIndex()]->Reset();
 	
-	m_preCommand.list->Reset(m_preCommand.allocator.Get(), nullptr);
+	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
 	
 	// Indicate that the back buffer will be used as render target.
 	D3D12_RESOURCE_BARRIER barrierDesc = {};
@@ -851,24 +854,73 @@ void DX12Renderer::frame() {
 		m_preCommand.list->RSSetViewports(1, &m_viewport);
 		m_preCommand.list->RSSetScissorRects(1, &m_scissorRect);
 
+
 		for (auto mesh : work.second) {
-			size_t numberElements = mesh->geometryBuffers[0].numElements;
+			size_t numberElements = mesh->geometryBuffer.numElements;
 			for (auto t : mesh->textures) {
 				static_cast<DX12Texture2D*>(t.second)->bind(t.first, m_preCommand.list.Get());
 			}
 
 			// Bind vertices, normals and UVs
-			for (auto element : mesh->geometryBuffers) {
-				mesh->bindIAVertexBuffer(element.first, m_preCommand.list.Get());
-			}
+			mesh->bindIAVertexBuffer(m_preCommand.list.Get());
+
 			// Bind translation constant buffer
-			static_cast<DX12ConstantBuffer*>(mesh->txBuffer)->bind(work.first->getMaterial(), m_preCommand.list.Get());
+			static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work.first->getMaterial(), m_preCommand.list.Get());
+			// Bind camera data constant buffer
+			static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work.first->getMaterial(), m_preCommand.list.Get());
 			// Draw
 			m_preCommand.list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
 		}
 
 	}
 	drawList.clear();
+
+
+	// DXR
+	if (m_DXREnabled) {
+		m_dxr->updateAS(m_preCommand.list.Get());
+		m_dxr->doTheRays(m_preCommand.list.Get());
+		m_dxr->copyOutputTo(m_preCommand.list.Get(), m_renderTargets[getFrameIndex()].Get());
+	}
+
+	// ImGui
+	{
+		// Start the Dear ImGui frame
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		RECT rect;
+		GetClientRect(*m_window->getHwnd(), &rect);
+
+		//bool show_demo_window = true;
+		//bool show_another_window = true;
+		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		//if (show_demo_window)
+			//ImGui::ShowDemoWindow(&show_demo_window);
+
+		// Only display options if the window isn't collapsed
+		if (ImGui::Begin("Options")) {
+			if (ImGui::TreeNode("Backend Flags")) {
+				if (m_supportsDXR) {
+					ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
+				}
+				ImGui::TreePop();
+				ImGui::Separator();
+			}
+		}
+
+		ImGui::End();
+
+
+		// Set the descriptor heaps
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		m_preCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_preCommand.list.Get());
+	}
+
 
 	// Indicate that the back buffer will now be used to present
 	barrierDesc = {};
@@ -889,13 +941,31 @@ void DX12Renderer::frame() {
 };
 #endif
 void DX12Renderer::present() {
-	waitForGPU(); //Wait for GPU to finish.
-				  //NOT BEST PRACTICE, only used as such for simplicity.
 
 	//Present the frame.
-	DXGI_PRESENT_PARAMETERS pp = {};
+	DXGI_PRESENT_PARAMETERS pp = { };
 	m_swapChain->Present1(0, 0, &pp);
 
+	//waitForGPU(); //Wait for GPU to finish.
+				  //NOT BEST PRACTICE, only used as such for simplicity.
+	nextFrame();
+}
+
+void DX12Renderer::nextFrame() {
+
+	UINT64 currentFenceValue = m_fenceValues[m_backBufferIndex];
+	m_commandQueue->Signal(m_fence.Get(), currentFenceValue);
+	m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+	if (m_fence->GetCompletedValue() < m_fenceValues[m_backBufferIndex]) {
+		//OutputDebugStringA("Waiting\n");
+		m_fence->SetEventOnCompletion(m_fenceValues[m_backBufferIndex], m_eventHandle);
+		WaitForSingleObject(m_eventHandle, INFINITE);
+	}
+	/*std::string str = std::to_string(m_backBufferIndex) + " : " + std::to_string(m_fenceValues[m_backBufferIndex]) + "\n";
+	OutputDebugStringA(str.c_str());*/
+
+	m_fenceValues[m_backBufferIndex] = currentFenceValue + 1;
 
 }
 
@@ -905,15 +975,16 @@ void DX12Renderer::waitForGPU() {
 	//for other tasks to prepare the next frame while the current one is being rendered.
 
 	//Signal and increment the fence value.
-	const UINT64 fence = m_fenceValue;
-	m_directCommandQueue->Signal(m_fence.Get(), fence);
-	m_fenceValue++;
+	const UINT64 fence = m_fenceValues[m_backBufferIndex];
+	m_commandQueue->Signal(m_fence.Get(), fence);
 
 	//Wait until command queue is done.
-	if (m_fence->GetCompletedValue() < fence) {
+	//if (m_fence->GetCompletedValue() < fence) {
 		m_fence->SetEventOnCompletion(fence, m_eventHandle);
 		WaitForSingleObject(m_eventHandle, INFINITE);
-	}
+		m_fenceValues[m_backBufferIndex]++;
+	//}
+	m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void DX12Renderer::reportLiveObjects() {
