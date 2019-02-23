@@ -954,7 +954,7 @@ void DX12Renderer::present() {
 void DX12Renderer::nextFrame() {
 
 	UINT64 currentFenceValue = m_fenceValues[m_backBufferIndex];
-	m_commandQueue->Signal(m_fence.Get(), currentFenceValue);
+	m_directCommandQueue->Signal(m_fence.Get(), currentFenceValue);
 	m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 	if (m_fence->GetCompletedValue() < m_fenceValues[m_backBufferIndex]) {
@@ -976,7 +976,7 @@ void DX12Renderer::waitForGPU() {
 
 	//Signal and increment the fence value.
 	const UINT64 fence = m_fenceValues[m_backBufferIndex];
-	m_commandQueue->Signal(m_fence.Get(), fence);
+	m_directCommandQueue->Signal(m_fence.Get(), fence);
 
 	//Wait until command queue is done.
 	//if (m_fence->GetCompletedValue() < fence) {
