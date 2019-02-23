@@ -136,6 +136,7 @@ void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 
 void DXR::createShaderResources() {
 
+	m_rtDescriptorHeap.Reset();
 	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
 	heapDescriptorDesc.NumDescriptors = 10;
 	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;

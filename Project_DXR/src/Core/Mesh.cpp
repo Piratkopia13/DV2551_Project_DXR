@@ -9,8 +9,7 @@ Mesh::Mesh() { };
 	size: how many elements (how many points, normals, UVs) should be read from this buffer
 */
 void Mesh::setIAVertexBufferBinding(VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) {
-	// inputStream is unique (has to be!) for this Mesh
-	buffer->incRef();
+	//buffer->incRef();
 	geometryBuffer = { sizeElement, numElements, offset, buffer };
 };
 

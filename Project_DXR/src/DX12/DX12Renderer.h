@@ -64,7 +64,8 @@ public:
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
 	
 	void enableDXR(bool enable);
-	bool isDXREnabled() const;
+	bool& isDXREnabled();
+	bool& isDXRSupported();
 	DXR& getDXR();
 
 	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
@@ -76,11 +77,10 @@ public:
 	//	void setRenderTarget(RenderTarget* rt); // complete parameters
 	virtual void setRenderState(RenderState* ps) override;
 	virtual void submit(Mesh* mesh) override;
-	virtual void frame() override;
+	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
 	
-	//void addCbvSrvUavDescriptor();
-	//void addSamplerDescriptor();
+	void executeNextOpenPreCommand(std::function<void()> func);
 
 	void waitForGPU();
 	void reportLiveObjects();
@@ -108,6 +108,8 @@ private:
 		wComPtr<ID3D12GraphicsCommandList4> list;
 	};
 private:
+	std::vector<std::function<void()>> m_preCommandFuncsToExecute; // Stored functions to execute on next open pre-command list
+
 	// Only used for initialization
 	IDXGIFactory6* m_factory;
 

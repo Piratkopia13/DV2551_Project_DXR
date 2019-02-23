@@ -16,6 +16,29 @@ Game::Game()
 
 	getRenderer().setClearColor(0.2f, 0.4f, 0.2f, 1.0f);
 
+	{
+		std::string path = "../assets/fbx/";
+		for (const auto& entry : std::filesystem::directory_iterator(path)) {
+			if (!entry.is_regular_file()) continue;
+			char buffer[50];
+			wcstombs_s(nullptr, buffer, 50, entry.path().filename().c_str(), 50);
+			m_availableModels += buffer;
+			m_availableModels += '\0';
+			m_availableModelsList.emplace_back(buffer);
+		}
+	}
+	{
+		std::string path = "../assets/textures/";
+		for (const auto& entry : std::filesystem::directory_iterator(path)) {
+			if (!entry.is_regular_file()) continue;
+			char buffer[50];
+			wcstombs_s(nullptr, buffer, 50, entry.path().filename().c_str(), 50);
+			m_availableTextures += buffer;
+			m_availableTextures += '\0';
+			m_availableTexturesList.emplace_back(buffer);
+		}
+	}
+
 }
 
 Game::~Game() {
@@ -25,7 +48,7 @@ void Game::init() {
 	// triangle geometry
 
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
-	PotatoModel * dino;
+	PotatoModel* dino;
 	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 	
 	/*if(dino)
@@ -86,6 +109,7 @@ void Game::init() {
 	m_mesh->technique = m_technique.get();
 	m_mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
 
+	delete dino;
 
 	if (m_dxRenderer->isDXREnabled()) {
 		// Update raytracing acceleration structures
@@ -158,6 +182,110 @@ void Game::render(double dt) {
 
 	getRenderer().submit(m_mesh.get());
 
-	getRenderer().frame();
+	std::function<void()> imgui = std::bind(&Game::imguiFunc, this);
+	m_dxRenderer->frame(imgui);
+
 	getRenderer().present();
+}
+
+void Game::imguiFunc() {
+	// Only display options if the window isn't collapsed
+	if (ImGui::Begin("Options")) {
+		std::string build = "Release";
+#ifdef _DEBUG
+		build = "Debug";
+#endif
+#ifdef _WIN64
+		build += " x64";
+#else
+		build += " x86";
+#endif
+		ImGui::LabelText(build.c_str(), "Build");
+		
+		if (ImGui::TreeNode("Camera")) {
+
+			ImGui::InputFloat3("Position", (float*)&m_persCamera->getPositionVec(), 2);
+			ImGui::InputFloat3("Direction", (float*)&m_persCamera->getDirectionVec(), 2);
+			ImGui::SliderFloat("Speed", &m_persCameraController->getMovementSpeed(), 1.f, 500.f);
+
+			ImGui::TreePop();
+			ImGui::Separator();
+		}
+		if (ImGui::TreeNode("Renderer")) {
+			if (!m_availableModels.empty()) {
+				static int currentModelIndex = -1; // If the selection isn't within 0..count, Combo won't display a preview
+				if (ImGui::Combo("Model", &currentModelIndex, m_availableModels.c_str())) {
+					std::cout << "selected: " << m_availableModelsList[currentModelIndex] << std::endl;
+
+					auto updateVB = [&]() {
+						try {
+							PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/" + m_availableModelsList[currentModelIndex]);
+							m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+							m_vertexBuffer->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), 0);
+							m_mesh->setIAVertexBufferBinding(m_vertexBuffer.get(), 0, model->getModelData().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
+
+							if (m_dxRenderer->isDXRSupported())
+								m_dxRenderer->getDXR().updateBLASnextFrame(false);
+
+							delete model;
+						} catch (...) {
+							std::cout << "Error importing model" << std::endl;
+						}
+					};
+					m_dxRenderer->executeNextOpenPreCommand(updateVB);
+					
+				}
+				static int currentTextureIndex = -1; // If the selection isn't within 0..count, Combo won't display a preview
+				if (ImGui::Combo("Texture", &currentTextureIndex, m_availableTextures.c_str())) {
+					std::cout << "selected: " << m_availableTexturesList[currentTextureIndex] << std::endl;
+
+					auto updateTexture = [&]() {
+						try {
+							m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+							m_texture->loadFromFile("../assets/textures/" + m_availableTexturesList[currentTextureIndex]);
+							m_texture->sampler = m_sampler.get();
+							m_mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+							if (m_dxRenderer->isDXRSupported())
+								m_dxRenderer->getDXR().updateBLASnextFrame(true);
+						} catch (...) {
+							std::cout << "Error loading texture" << std::endl;
+						}
+					};
+					m_dxRenderer->executeNextOpenPreCommand(updateTexture);
+
+				}
+			}
+
+			if (m_dxRenderer->isDXRSupported()) {
+				ImGui::Checkbox("DXR Enabled", &m_dxRenderer->isDXREnabled());
+			}
+			ImGui::TreePop();
+			ImGui::Separator();
+		}
+		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_FirstUseEver);
+		if (ImGui::TreeNode("Statistics")) {
+
+			static bool paused = false;
+			static float pausedCopy[FRAME_HISTORY_COUNT];
+			static float pausedAvg;
+			static float pausedLast;
+			char buffer[100];
+			sprintf_s(buffer, 100, "Frame Times\n\nLast:    %.2f ms\nAverage: %.2f ms", (paused) ? pausedLast : frameTimeHistory[FRAME_HISTORY_COUNT-1], (paused) ? pausedAvg : frameTimeAvg);
+			ImGui::PlotLines(buffer, (paused) ? pausedCopy : frameTimeHistory, FRAME_HISTORY_COUNT, 0, "", 0.f, 10.f, ImVec2(0, 100));
+			if (ImGui::Button((paused) ? "Resume" : "Pause")) {
+				paused = !paused;
+				if (paused) {
+					memcpy(pausedCopy, frameTimeHistory, FRAME_HISTORY_COUNT * sizeof(float));
+					pausedAvg = frameTimeAvg;
+					pausedLast = frameTimeHistory[FRAME_HISTORY_COUNT - 1];
+				}
+			}
+
+			ImGui::TreePop();
+			ImGui::Separator();
+		}
+		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_FirstUseEver);
+	}
+
+	ImGui::ShowDemoWindow();
 }

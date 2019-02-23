@@ -111,22 +111,22 @@ const DirectX::XMFLOAT3 Camera::getUpF3()
 	return toReturn;
 }
 
-const DirectX::XMVECTOR Camera::getPositionVec()
+const DirectX::XMVECTOR& Camera::getPositionVec()
 {
 	return m_pos;
 }
 
-const DirectX::XMVECTOR Camera::getDirectionVec()
+const DirectX::XMVECTOR& Camera::getDirectionVec()
 {
 	return m_dir;
 }
 
-const DirectX::XMVECTOR Camera::getUpVec()
+const DirectX::XMVECTOR& Camera::getUpVec()
 {
 	return m_up;
 }
 
-const DirectX::XMMATRIX Camera::getViewMatrix()
+const DirectX::XMMATRIX& Camera::getViewMatrix()
 {
 	if (m_viewMatNeedsUpdate) {
 		m_viewMatrix = XMMatrixLookToLH(m_pos, m_dir, m_up);
@@ -137,14 +137,14 @@ const DirectX::XMMATRIX Camera::getViewMatrix()
 	return m_viewMatrix;
 }
 
-const DirectX::XMMATRIX Camera::getInvViewMatrix()
+const DirectX::XMMATRIX& Camera::getInvViewMatrix()
 {
 	// Update inverse view matrix if required
 	getViewMatrix();
 	return m_invViewMatrix;
 }
 
-const DirectX::XMMATRIX Camera::getProjMatrix()
+const DirectX::XMMATRIX& Camera::getProjMatrix()
 {
 	if (m_projMatNeedsUpdate) {
 		m_projMatrix = XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ);
@@ -155,14 +155,14 @@ const DirectX::XMMATRIX Camera::getProjMatrix()
 	return m_projMatrix;
 }
 
-const DirectX::XMMATRIX Camera::getInvProjMatrix()
+const DirectX::XMMATRIX& Camera::getInvProjMatrix()
 {
 	// Update inverse projection matrix if required
 	getProjMatrix();
 	return m_invProjMatrix;
 }
 
-const DirectX::XMMATRIX Camera::getVPMatrix() {
+const DirectX::XMMATRIX& Camera::getVPMatrix() {
 
 	if (m_VPMatNeedsUpdate) {
 		m_VPMatrix = getViewMatrix() * getProjMatrix();

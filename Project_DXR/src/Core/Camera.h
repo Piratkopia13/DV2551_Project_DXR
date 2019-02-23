@@ -30,21 +30,21 @@ public:
 	const DirectX::XMFLOAT3 getDirectionF3();
 	const DirectX::XMFLOAT3 getUpF3();
 
-	const DirectX::XMVECTOR getPositionVec();
-	const DirectX::XMVECTOR getDirectionVec();
-	const DirectX::XMVECTOR getUpVec();
+	const DirectX::XMVECTOR& getPositionVec();
+	const DirectX::XMVECTOR& getDirectionVec();
+	const DirectX::XMVECTOR& getUpVec();
 	//const DirectX::XMFLOAT3 getLookAt();
 
 	// View matrix
-	const DirectX::XMMATRIX getViewMatrix();
+	const DirectX::XMMATRIX& getViewMatrix();
 	// Inverse view matrix
-	const DirectX::XMMATRIX getInvViewMatrix();
+	const DirectX::XMMATRIX& getInvViewMatrix();
 	// Projection matrix
-	const DirectX::XMMATRIX getProjMatrix();
+	const DirectX::XMMATRIX& getProjMatrix();
 	// Inverse projection matrix
-	const DirectX::XMMATRIX getInvProjMatrix();
+	const DirectX::XMMATRIX& getInvProjMatrix();
 	// View-projection matrix
-	const DirectX::XMMATRIX getVPMatrix();
+	const DirectX::XMMATRIX& getVPMatrix();
 
 
 private:

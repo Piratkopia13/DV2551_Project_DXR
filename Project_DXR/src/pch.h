@@ -17,6 +17,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <filesystem>
+#include <array>
 
 #include <windows.h>
 #include <math.h>
@@ -29,4 +31,5 @@
 
 #include <fbxsdk.h>
 
+#include "ImGui/imgui.h"
 #include "../../assets/shaders/CommonRT.hlsl"

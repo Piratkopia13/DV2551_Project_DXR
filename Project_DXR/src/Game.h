@@ -1,5 +1,7 @@
 #pragma once
 
+//#include <array>
+
 #include "Application.h"
 
 #include "Core/Texture2D.h"
@@ -18,6 +20,9 @@ public:
 	virtual void init() override;
 	virtual void update(double dt) override;
 	virtual void render(double dt) override;
+
+private:
+	void imguiFunc();
 	
 private:
 	DX12Renderer* m_dxRenderer;
@@ -34,4 +39,10 @@ private:
 
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 
+	// ImGui
+	std::string m_availableModels;
+	std::vector<std::string> m_availableModelsList;
+
+	std::string m_availableTextures;
+	std::vector<std::string> m_availableTexturesList;
 };

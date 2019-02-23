@@ -11,7 +11,6 @@
 #include "DX12VertexBuffer.h"
 #include "D3DUtils.h"
 
-#include "../ImGui/imgui.h"
 #include "../ImGui/imgui_impl_win32.h"
 #include "../ImGui/imgui_impl_dx12.h"
 
@@ -160,8 +159,12 @@ void DX12Renderer::enableDXR(bool enable) {
 	}
 }
 
-bool DX12Renderer::isDXREnabled() const {
+bool& DX12Renderer::isDXREnabled() {
 	return m_DXREnabled;
+}
+
+bool& DX12Renderer::isDXRSupported() {
+	return m_supportsDXR;
 }
 
 DXR& DX12Renderer::getDXR() {
@@ -663,7 +666,7 @@ void DX12Renderer::workerThread(unsigned int id) {
  TODO.
 //*/
 #ifdef MULTITHREADED
-void DX12Renderer::frame() {
+void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// TODO: check if drawList differs from last frame, if so rebuild DXR acceleration structures
 
@@ -683,6 +686,17 @@ void DX12Renderer::frame() {
 	m_cdh = m_renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	m_cdh.ptr += m_renderTargetDescriptorSize * frameIndex;
 
+	// Reset preCommand
+	m_preCommand.allocators[getFrameIndex()]->Reset();
+	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
+
+	// Execute stored functions that needs an open preCommand list
+	for (auto& func : m_preCommandFuncsToExecute) {
+		waitForGPU();
+		func();
+	}
+	m_preCommandFuncsToExecute.clear();
+
 	if (!m_DXREnabled) {
 		{
 			// Notify workers to begin creating command lists
@@ -694,10 +708,6 @@ void DX12Renderer::frame() {
 		m_mainCondVar.notify_all();
 	}
 
-	// Command list allocators can only be reset when the associated command lists have
-	// finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_preCommand.allocators[getFrameIndex()]->Reset();
-	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
 	
 	// Indicate that the back buffer will be used as render target.
 	D3DUtils::setResourceTransitionBarrier(m_preCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -767,16 +777,7 @@ void DX12Renderer::frame() {
 		//if (show_demo_window)
 			//ImGui::ShowDemoWindow(&show_demo_window);
 
-		// Only display options if the window isn't collapsed
-		if (ImGui::Begin("Options")) {
-			if (ImGui::TreeNode("Backend Flags")) {
-				if (m_supportsDXR) {
-					ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
-				}
-				ImGui::TreePop();
-				ImGui::Separator();
-			}
-		}
+		imguiFunc();
 
 		ImGui::End();
 
@@ -801,7 +802,7 @@ void DX12Renderer::frame() {
 
 };
 #else
-void DX12Renderer::frame() {
+void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	if (m_firstFrame) {
 		//Execute the initialization command list
@@ -893,23 +894,7 @@ void DX12Renderer::frame() {
 		RECT rect;
 		GetClientRect(*m_window->getHwnd(), &rect);
 
-		//bool show_demo_window = true;
-		//bool show_another_window = true;
-		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		//if (show_demo_window)
-			//ImGui::ShowDemoWindow(&show_demo_window);
-
-		// Only display options if the window isn't collapsed
-		if (ImGui::Begin("Options")) {
-			if (ImGui::TreeNode("Backend Flags")) {
-				if (m_supportsDXR) {
-					ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
-				}
-				ImGui::TreePop();
-				ImGui::Separator();
-			}
-		}
+		imguiFunc();
 
 		ImGui::End();
 
@@ -949,6 +934,10 @@ void DX12Renderer::present() {
 	//waitForGPU(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
 	nextFrame();
+}
+
+void DX12Renderer::executeNextOpenPreCommand(std::function<void()> func) {
+	m_preCommandFuncsToExecute.push_back(func);
 }
 
 void DX12Renderer::nextFrame() {

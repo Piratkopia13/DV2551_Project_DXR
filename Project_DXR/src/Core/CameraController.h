@@ -10,6 +10,7 @@ public:
 	CameraController(Camera* cam);
 
 	void update(float dt);
+	float& getMovementSpeed();
 
 protected:
 	void setCameraLookAt(const DirectX::XMVECTOR& pos) {
@@ -37,5 +38,6 @@ protected:
 private:
 	Camera* m_cam;
 	float m_pitch, m_yaw, m_roll;
+	float m_speed;
 
 };

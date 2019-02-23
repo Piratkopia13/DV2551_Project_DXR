@@ -54,7 +54,7 @@ public:
 	virtual void setRenderState(RenderState* ps) = 0;
 	// submit work (to render) to the renderer.
 	virtual void submit(Mesh* mesh) = 0;
-	virtual void frame() = 0;
+	//virtual void frame() = 0;
 	
 	BACKEND IMPL;
 };
