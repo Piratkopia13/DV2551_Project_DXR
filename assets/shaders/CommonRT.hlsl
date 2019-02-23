@@ -12,6 +12,9 @@ typedef float4x4 XMMATRIX;
 typedef uint UINT;
 #define MERGE(a, b) a##b
 
+// Shader only globals
+static float3 g_lightDirection = float3(-0.513861f, -0.596225f, -0.616817f);
+
 #else
 
 #pragma once

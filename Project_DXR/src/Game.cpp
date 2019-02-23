@@ -14,6 +14,8 @@ Game::Game()
 	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
 	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get());
 
+	getRenderer().setClearColor(0.2f, 0.4f, 0.2f, 1.0f);
+
 }
 
 Game::~Game() {
@@ -24,12 +26,10 @@ void Game::init() {
 
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel * dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 	
-
-
-	if(dino)
-		delete dino;
+	/*if(dino)
+		delete dino;*/
 
 	const Vertex vertices[] = {
 		{XMFLOAT3(0,		1,	  0), XMFLOAT3(0, 0, -1), XMFLOAT2(0.5f, 0.0f)},	// Vertex, normal and UV
@@ -65,19 +65,21 @@ void Game::init() {
 
 	// create texture
 	m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
-	m_texture->loadFromFile("../assets/textures/fatboy.png");
+	m_texture->loadFromFile("../assets/textures/Dragon_ground_color.png");
 	m_sampler = std::unique_ptr<Sampler2D>(getRenderer().makeSampler2D()); // Sampler does not work in RT mode
 	m_sampler->setWrap(WRAPPING::REPEAT, WRAPPING::REPEAT);
 	m_texture->sampler = m_sampler.get();
 
-	m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC));
+	m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+	//m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC));
 
 	m_mesh = std::unique_ptr<Mesh>(getRenderer().makeMesh());
 
 	constexpr auto numberOfPosElements = std::extent<decltype(vertices)>::value;
 	size_t offset = 0;
-	m_vertexBuffer->setData(vertices, sizeof(vertices), offset);
-	m_mesh->setIAVertexBufferBinding(m_vertexBuffer.get(), offset, numberOfPosElements, sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
+	m_vertexBuffer->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
+	//m_vertexBuffer->setData(vertices, sizeof(vertices), offset);
+	m_mesh->setIAVertexBufferBinding(m_vertexBuffer.get(), offset, dino->getModelData().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
 	
 	// we can create a constant buffer outside the material, for example as part of the Mesh.
 

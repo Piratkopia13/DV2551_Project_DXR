@@ -97,14 +97,17 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 		TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	} else {
-
-		// payload.color.rgb = normalInWorldSpace / 2.0 + 0.5;
-		// payload.color = float4(1.0f, 0.0f, 0.0f, 1.0f);
-
-		// payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
-		// payload.color.a = 1.0f;
 		float2 texCoords = barycentrics.x * vertex1.texCoord + barycentrics.y * vertex2.texCoord + barycentrics.z * vertex3.texCoord;
-		payload.color = diffuseTexture.SampleLevel(ss, texCoords, 0);
+
+		float diffuseFactor = max(dot(-g_lightDirection, normalInWorldSpace), 0.4f); // 0.4 ambient
+		float3 r = reflect(g_lightDirection, normalInWorldSpace);
+		r = normalize(r);
+		float shininess = 5.0f;
+		float spec = 1.0f;
+		float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
+
+		float3 clr = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
+		payload.color = float4(clr * diffuseFactor + clr * specularFactor, 1.0f);
 	}
 
 
