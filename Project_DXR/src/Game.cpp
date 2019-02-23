@@ -287,5 +287,5 @@ void Game::imguiFunc() {
 		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_FirstUseEver);
 	}
 
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 }
