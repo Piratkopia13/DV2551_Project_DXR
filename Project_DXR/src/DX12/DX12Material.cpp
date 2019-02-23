@@ -48,8 +48,8 @@ void DX12Material::setShader(const std::string& shaderFileName, ShaderType type)
 };
 
 // this constant buffer will be bound every time we bind the material
-void DX12Material::addConstantBuffer(std::string name, unsigned int location) {
-	m_constantBuffers[location] = new DX12ConstantBuffer(name, location, m_renderer);
+void DX12Material::addConstantBuffer(std::string name, unsigned int location, size_t size) {
+	m_constantBuffers[location] = new DX12ConstantBuffer(name, size, m_renderer);
 }
 
 std::vector<DX12ConstantBuffer*> DX12Material::getConstantBuffers() const {
@@ -62,8 +62,8 @@ std::vector<DX12ConstantBuffer*> DX12Material::getConstantBuffers() const {
 }
 
 // location identifies the constant buffer in a unique way
-void DX12Material::updateConstantBuffer(const void* data, size_t size, unsigned int location) {
-	m_constantBuffers[location]->setData(data, size, location);
+void DX12Material::updateConstantBuffer(const void* data, unsigned int location) {
+	m_constantBuffers[location]->setData(data, location);
 }
 
 void DX12Material::removeShader(ShaderType type) {

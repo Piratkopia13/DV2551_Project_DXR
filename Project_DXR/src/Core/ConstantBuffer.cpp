@@ -3,6 +3,11 @@
 
 
 
+ConstantBuffer::ConstantBuffer(std::string NAME, size_t size) 
+	: bufferSize(size)
+{
+}
+
 ConstantBuffer::~ConstantBuffer()
 {
 }

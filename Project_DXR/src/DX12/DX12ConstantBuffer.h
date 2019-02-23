@@ -7,16 +7,22 @@ class DX12Renderer;
 // TODO: Make useable by both DXR and rasterization
 class DX12ConstantBuffer : public ConstantBuffer {
 public:
-	DX12ConstantBuffer(std::string name, unsigned int location, DX12Renderer* renderer);
+	DX12ConstantBuffer(std::string name, size_t size, DX12Renderer* renderer);
 	~DX12ConstantBuffer();
-	virtual void setData(const void* data, size_t size, unsigned int location) override;
+	virtual void setData(const void* data, unsigned int location) override;
 	virtual void bind(Material*) override;
 	void bind(Material* material, ID3D12GraphicsCommandList3* cmdList);
 
 	ID3D12Resource1* getBuffer(unsigned int frameIndex) const;
 
 private:
+	void updateBuffer(UINT frameIndex) const;
+
+private:
 	DX12Renderer* m_renderer;
+
+	void* m_newData;
+	bool* m_needsUpdate;
 
 	unsigned int m_location;
 	wComPtr<ID3D12Resource1>* m_constantBufferUploadHeap;

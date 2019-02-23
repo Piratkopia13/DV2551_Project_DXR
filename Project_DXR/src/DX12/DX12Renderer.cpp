@@ -90,8 +90,8 @@ Sampler2D* DX12Renderer::makeSampler2D() {
 	return new DX12Sampler2D(m_device.Get(), cpuHandle, gpuHandle);
 }
 
-ConstantBuffer* DX12Renderer::makeConstantBuffer(std::string NAME, unsigned int location) {
-	return new DX12ConstantBuffer(NAME, location, this);
+ConstantBuffer* DX12Renderer::makeConstantBuffer(std::string NAME, size_t size) {
+	return new DX12ConstantBuffer(NAME, size, this);
 }
 
 std::string DX12Renderer::getShaderPath() {
@@ -797,9 +797,9 @@ void DX12Renderer::frame() {
 
 	// Command list allocators can only be reset when the associated command lists have
 	// finished execution on the GPU; fences are used to ensure this (See WaitForGpu method)
-	m_preCommand.allocator->Reset();
+	m_preCommand.allocators[getFrameIndex()]->Reset();
 	
-	m_preCommand.list->Reset(m_preCommand.allocator.Get(), nullptr);
+	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
 	
 	// Indicate that the back buffer will be used as render target.
 	D3D12_RESOURCE_BARRIER barrierDesc = {};
@@ -836,24 +836,73 @@ void DX12Renderer::frame() {
 		m_preCommand.list->RSSetViewports(1, &m_viewport);
 		m_preCommand.list->RSSetScissorRects(1, &m_scissorRect);
 
+
 		for (auto mesh : work.second) {
-			size_t numberElements = mesh->geometryBuffers[0].numElements;
+			size_t numberElements = mesh->geometryBuffer.numElements;
 			for (auto t : mesh->textures) {
 				static_cast<DX12Texture2D*>(t.second)->bind(t.first, m_preCommand.list.Get());
 			}
 
 			// Bind vertices, normals and UVs
-			for (auto element : mesh->geometryBuffers) {
-				mesh->bindIAVertexBuffer(element.first, m_preCommand.list.Get());
-			}
+			mesh->bindIAVertexBuffer(m_preCommand.list.Get());
+
 			// Bind translation constant buffer
-			static_cast<DX12ConstantBuffer*>(mesh->txBuffer)->bind(work.first->getMaterial(), m_preCommand.list.Get());
+			static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work.first->getMaterial(), m_preCommand.list.Get());
+			// Bind camera data constant buffer
+			static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work.first->getMaterial(), m_preCommand.list.Get());
 			// Draw
 			m_preCommand.list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
 		}
 
 	}
 	drawList.clear();
+
+
+	// DXR
+	if (m_DXREnabled) {
+		m_dxr->updateAS(m_preCommand.list.Get());
+		m_dxr->doTheRays(m_preCommand.list.Get());
+		m_dxr->copyOutputTo(m_preCommand.list.Get(), m_renderTargets[getFrameIndex()].Get());
+	}
+
+	// ImGui
+	{
+		// Start the Dear ImGui frame
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		RECT rect;
+		GetClientRect(*m_window->getHwnd(), &rect);
+
+		//bool show_demo_window = true;
+		//bool show_another_window = true;
+		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		//if (show_demo_window)
+			//ImGui::ShowDemoWindow(&show_demo_window);
+
+		// Only display options if the window isn't collapsed
+		if (ImGui::Begin("Options")) {
+			if (ImGui::TreeNode("Backend Flags")) {
+				if (m_supportsDXR) {
+					ImGui::Checkbox("DXR Enabled", &m_DXREnabled);
+				}
+				ImGui::TreePop();
+				ImGui::Separator();
+			}
+		}
+
+		ImGui::End();
+
+
+		// Set the descriptor heaps
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		m_preCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_preCommand.list.Get());
+	}
+
 
 	// Indicate that the back buffer will now be used to present
 	barrierDesc = {};

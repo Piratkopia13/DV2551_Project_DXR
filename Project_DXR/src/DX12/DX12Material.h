@@ -20,12 +20,12 @@ public:
 	virtual int enable() override;
 	int enable(ID3D12GraphicsCommandList3* cmdList);
 	void disable();
-	void setDiffuse(Color c);
+	virtual void setDiffuse(Color c) override;
 
 	// location identifies the constant buffer in a unique way
-	void updateConstantBuffer(const void* data, size_t size, unsigned int location);
+	virtual void updateConstantBuffer(const void* data, unsigned int location) override;
 	// slower version using a string
-	void addConstantBuffer(std::string name, unsigned int location);
+	virtual void addConstantBuffer(std::string name, unsigned int location, size_t size) override;
 
 	std::vector<DX12ConstantBuffer*> getConstantBuffers() const;
 

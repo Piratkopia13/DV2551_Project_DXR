@@ -3,14 +3,17 @@
 #include "DX12Renderer.h"
 #include "DX12Material.h"
 
-DX12ConstantBuffer::DX12ConstantBuffer(std::string name, unsigned int location, DX12Renderer* renderer) 
-	: m_name(name)
+DX12ConstantBuffer::DX12ConstantBuffer(std::string name, size_t size, DX12Renderer* renderer)
+	: ConstantBuffer(name, size)
+	, m_name(name)
 	, m_renderer(renderer)
-	, m_location(location)
 {
 
 	m_constantBufferUploadHeap = new wComPtr<ID3D12Resource1>[renderer->getNumSwapBuffers()];
 	m_cbGPUAddress = new UINT8*[renderer->getNumSwapBuffers()];
+	m_needsUpdate = new bool[renderer->getNumSwapBuffers()];
+	for (UINT i = 0; i < m_renderer->getNumSwapBuffers(); i++)
+		m_needsUpdate[i] = false;
 	
 	// Create an upload heap to hold the constant buffer
 	// create a resource heap, descriptor heap, and pointer to cbv for each frame
@@ -24,8 +27,16 @@ DX12ConstantBuffer::DX12ConstantBuffer(std::string name, unsigned int location, 
 			IID_PPV_ARGS(&m_constantBufferUploadHeap[i])));
 		m_constantBufferUploadHeap[i]->SetName(L"Constant Buffer Upload Resource Heap");
 
+		// Map the constant buffer and keep it mapped for the duration of its lifetime
+		CD3DX12_RANGE readRange(0, 0);    // We do not intend to read from this resource on the CPU. (End is less than or equal to begin)
+		ThrowIfFailed(m_constantBufferUploadHeap[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_cbGPUAddress[i])));
+
 		// TODO: copy upload heap to a default heap when the data is not often changed
 	}
+
+	// Allocate cpu memory for the buffer
+	m_newData = malloc(size);
+
 }
 
 DX12ConstantBuffer::~DX12ConstantBuffer() {
@@ -35,16 +46,11 @@ DX12ConstantBuffer::~DX12ConstantBuffer() {
 
 }
 
-void DX12ConstantBuffer::setData(const void* data, size_t size, unsigned int location) {
+void DX12ConstantBuffer::setData(const void* data, unsigned int location) {
 	m_location = location;
-	
-	for (UINT i = 0; i < m_renderer->getNumSwapBuffers(); ++i) {
-		// Map the constant buffer
-		CD3DX12_RANGE readRange(0, 0);    // We do not intend to read from this resource on the CPU. (End is less than or equal to begin)
-		ThrowIfFailed(m_constantBufferUploadHeap[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_cbGPUAddress[i])));
-		memcpy(m_cbGPUAddress[i], data, size);
-	}
-
+	memcpy(m_newData, data, bufferSize);
+	for (UINT i = 0; i < m_renderer->getNumSwapBuffers(); i++)
+		m_needsUpdate[i] = true;
 }
 
 void DX12ConstantBuffer::bind(Material* m) {
@@ -61,11 +67,26 @@ void DX12ConstantBuffer::bind(Material* material, ID3D12GraphicsCommandList3* cm
 	else if (m_location == CB_REG_CAMERA) rootIndex = GlobalRootParam::CBV_CAMERA;
 	else assert(false); // TODO: Map these values in a better way
 
-	cmdList->SetGraphicsRootConstantBufferView(rootIndex, m_constantBufferUploadHeap[m_renderer->getFrameIndex()]->GetGPUVirtualAddress());
+	UINT frameIndex = m_renderer->getFrameIndex();
+	if (m_needsUpdate[frameIndex]) {
+		updateBuffer(frameIndex);
+		m_needsUpdate[frameIndex] = false;
+	}
+
+	cmdList->SetGraphicsRootConstantBufferView(rootIndex, m_constantBufferUploadHeap[frameIndex]->GetGPUVirtualAddress());
 
 }
 
-ID3D12Resource1 * DX12ConstantBuffer::getBuffer(unsigned int frameIndex) const
-{
+ID3D12Resource1* DX12ConstantBuffer::getBuffer(unsigned int frameIndex) const {
+	if (m_needsUpdate[frameIndex]) {
+		updateBuffer(frameIndex);
+		m_needsUpdate[frameIndex] = false;
+	}
 	return m_constantBufferUploadHeap[frameIndex].Get();
+}
+
+void DX12ConstantBuffer::updateBuffer(UINT frameIndex) const {
+
+	memcpy(m_cbGPUAddress[frameIndex], m_newData, bufferSize);
+
 }

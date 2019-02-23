@@ -53,7 +53,7 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	if (m_camera) {
 		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
 		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
-		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
+		m_sceneCB->setData(m_sceneCBData, 0);
 	}
 
 	//Set constant buffer descriptor heap
@@ -185,8 +185,8 @@ void DXR::createShaderResources() {
 
 	// Scene CB
 	m_sceneCBData = new SceneConstantBuffer();
-	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
-	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
+	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", sizeof(SceneConstantBuffer), m_renderer);
+	m_sceneCB->setData(m_sceneCBData, 0/*Not used*/);
 }
 
 void DXR::createShaderTables() {

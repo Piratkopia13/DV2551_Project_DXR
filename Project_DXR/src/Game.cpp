@@ -55,10 +55,10 @@ void Game::init() {
 	m_material->compileMaterial(err);
 
 	// add a constant buffer to the material, to tint every triangle using this material
-	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT);
+	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT, 4 * sizeof(float));
 	// no need to update anymore
 	// when material is bound, this buffer should be also bound for access.
-	m_material->updateConstantBuffer(diffuse, 4 * sizeof(float), CB_REG_DIFFUSE_TINT);
+	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
 
 	// basic technique
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));

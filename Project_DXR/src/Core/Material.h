@@ -50,10 +50,10 @@ public:
 	virtual int compileMaterial(std::string& errString) = 0;
 
 	// this constant buffer will be bound every time we bind the material
-	virtual void addConstantBuffer(std::string name, unsigned int location) = 0;
+	virtual void addConstantBuffer(std::string name, unsigned int location, size_t size) = 0;
 
 	// location identifies the constant buffer in a unique way
-	virtual void updateConstantBuffer(const void* data, size_t size, unsigned int location) = 0;
+	virtual void updateConstantBuffer(const void* data, unsigned int location) = 0;
 
 	// activate the material for use.
 	virtual int enable() = 0;
