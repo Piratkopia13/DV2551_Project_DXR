@@ -339,6 +339,19 @@ void Game::imguiFunc() {
 
 			if (m_dxRenderer->isDXRSupported()) {
 				ImGui::Checkbox("DXR Enabled", &m_dxRenderer->isDXREnabled());
+				ImGui::SameLine();
+				ImGui::PushID(0);
+				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(1 / 7.0f, 0.6f, 0.6f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(1 / 7.0f, 0.7f, 0.7f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(1 / 7.0f, 0.8f, 0.8f));
+				if (ImGui::Button("Reload DXR shaders")) {
+					std::cout << "Reloading DXR shaders.." << std::endl;
+					m_dxRenderer->waitForGPU();
+					m_dxRenderer->getDXR().reloadShaders();
+				}
+				ImGui::PopStyleColor(3);
+				ImGui::PopID();
+
 			}
 			ImGui::TreePop();
 			ImGui::Separator();

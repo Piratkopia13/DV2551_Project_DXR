@@ -129,6 +129,15 @@ void DXR::useCamera(Camera* camera) {
 	m_camera = camera;
 }
 
+void DXR::reloadShaders() {
+	m_localSignatureRayGen.Reset();
+	m_localSignatureMiss.Reset();
+	m_localSignatureHitGroup.Reset();
+	m_rtPipelineState.Reset();
+	createRaytracingPSO();
+	createShaderTables();
+}
+
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 	createBLAS(cmdList);
 	createTLAS(cmdList);

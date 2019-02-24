@@ -50,12 +50,11 @@ public:
 	void doTheRays(ID3D12GraphicsCommandList4* cmdList);
 	void copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target);
 
-	//void setMesh(DX12Mesh* mesh);
 	void setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes);
 	void updateBLASnextFrame(bool inPlace = true);
 	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {});
-
 	void useCamera(Camera* camera);
+	void reloadShaders();
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
