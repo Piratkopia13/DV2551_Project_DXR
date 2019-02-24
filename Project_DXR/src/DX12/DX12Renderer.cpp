@@ -277,7 +277,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 */
 
 void DX12Renderer::submit(Mesh* mesh) {
-	assert(drawList.empty()); // Restricted to only one mesh atm (DXR needs to update otherwise)
+	//assert(drawList.empty()); // Restricted to only one mesh atm (DXR needs to update otherwise)
 	drawList[(DX12Technique*)mesh->technique].push_back((DX12Mesh*)mesh);
 };
 

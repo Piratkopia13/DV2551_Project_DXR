@@ -5,13 +5,18 @@
 #include "stb_image.h"
 #include "DX12Sampler2D.h"
 
-DX12Texture2D::DX12Texture2D(DX12Renderer* renderer) {
-	m_renderer = renderer;
+DX12Texture2D::DX12Texture2D(DX12Renderer* renderer)
+	: m_renderer(renderer)
+	, m_rgba(nullptr)
+{
 }
 
 
 DX12Texture2D::~DX12Texture2D() {
-
+	if (m_rgba) {
+		delete m_rgba;
+		m_rgba = nullptr;
+	}
 }
 
 

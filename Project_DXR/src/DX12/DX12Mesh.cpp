@@ -5,6 +5,7 @@
 
 DX12Mesh::DX12Mesh(DX12Renderer* renderer) {
 	transformCB = renderer->makeConstantBuffer("Transform", sizeof(XMMATRIX));
+	transformCB->setData(&transform.getTransformMatrix(), CB_REG_TRANSFORM);
 	cameraCB = renderer->makeConstantBuffer("Camera", sizeof(CameraData));
 }
 DX12Mesh::~DX12Mesh() {

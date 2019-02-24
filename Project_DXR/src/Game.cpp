@@ -45,23 +45,20 @@ Game::~Game() {
 }
 
 void Game::init() {
-	// triangle geometry
-
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* dino;
 	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 	
-	/*if(dino)
-		delete dino;*/
 
-	const Vertex vertices[] = {
-		{XMFLOAT3(0,		1,	  0), XMFLOAT3(0, 0, -1), XMFLOAT2(0.5f, 0.0f)},	// Vertex, normal and UV
-		{XMFLOAT3(0.866f,  -0.5f, 0), XMFLOAT3(0, 0, -1), XMFLOAT2(1.0f, 1.0f)},
-		{XMFLOAT3(-0.866f, -0.5f, 0), XMFLOAT3(0, 0, -1), XMFLOAT2(0.0f, 1.0f)},
+	float floorHalfWidth = 50.0f;
+	const Vertex floorVertices[] = {
+		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
+		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
 
-		{XMFLOAT3(0,       -0.5f, 1), XMFLOAT3(0, 0, -1), XMFLOAT2(0.5f, 0.0f)},
-		{XMFLOAT3(0.866f,  -1.5f, 1), XMFLOAT3(0, 0, -1), XMFLOAT2(1.0f, 1.0f)},
-		{XMFLOAT3(-0.866f, -1.5f, 1), XMFLOAT3(0, 0, -1), XMFLOAT2(0.0f, 1.0f)}
+		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 1.0f)},
+		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(1.0f, 1.0f)},
+		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(1.0f, 0.0f)},
 	};
 
 	// load Materials.
@@ -93,27 +90,34 @@ void Game::init() {
 	m_sampler->setWrap(WRAPPING::REPEAT, WRAPPING::REPEAT);
 	m_texture->sampler = m_sampler.get();
 
-	m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-	//m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(vertices), VertexBuffer::DATA_USAGE::STATIC));
-
-	m_mesh = std::unique_ptr<Mesh>(getRenderer().makeMesh());
-
-	constexpr auto numberOfPosElements = std::extent<decltype(vertices)>::value;
 	size_t offset = 0;
-	m_vertexBuffer->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
-	//m_vertexBuffer->setData(vertices, sizeof(vertices), offset);
-	m_mesh->setIAVertexBufferBinding(m_vertexBuffer.get(), offset, dino->getModelData().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
-	
-	// we can create a constant buffer outside the material, for example as part of the Mesh.
 
-	m_mesh->technique = m_technique.get();
-	m_mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+	// Set up mesh from FBX file
+	// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
+	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+	m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
+	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
+	m_meshes.back()->technique = m_technique.get();
+	m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
 
 	delete dino;
 
+
+	// Set up floor mesh
+	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+	constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
+	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
+	m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
+	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+	m_meshes.back()->technique = m_technique.get();
+	m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+
+
 	if (m_dxRenderer->isDXREnabled()) {
 		// Update raytracing acceleration structures
-		m_dxRenderer->getDXR().setMesh(static_cast<DX12Mesh*>(m_mesh.get()));
+		//m_dxRenderer->getDXR().setMeshes(static_cast<DX12Mesh*>(m_mesh.get()));
+		m_dxRenderer->getDXR().setMeshes(m_meshes);
 		m_dxRenderer->getDXR().useCamera(m_persCamera.get());
 	}
 
@@ -121,7 +125,7 @@ void Game::init() {
 
 void Game::update(double dt) {
 
-	/* Camera movement, Move this to main */
+	// Camera movement
 	m_persCameraController->update(dt);
 
 	if (Input::IsKeyPressed(VK_RETURN)) {
@@ -144,34 +148,32 @@ void Game::update(double dt) {
 
 	static float shift = 0.0f;
 	if (dt < 10.0) {
-		shift += dt * 0.001f;
+		shift += dt * 1.f;
 	}
 	if (shift >= XM_PI * 2.0f) shift -= XM_PI * 2.0f;
 
 
 	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
-	Transform& t = m_mesh->getTransform();
+	Transform& t = m_meshes[0]->getTransform();
 	t.setTranslation(translation);
 	//std::cout << t.getTranslation().x << std::endl;
-	m_mesh->setTransform(t); // Updates transform matrix for rasterisation
-	m_mesh->updateCamera(*m_persCamera); // Update camera constant buffer for rasterisation
+	m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
+	// Update camera constant buffer for rasterisation
+	for (auto& mesh : m_meshes)
+		mesh->updateCamera(*m_persCamera);
 
 
 	if (m_dxRenderer->isDXREnabled()) {
 		auto instanceTransform = [&t](int instanceID) {
 			XMFLOAT3X4 m;
-			XMStoreFloat3x4(&m, t.getTransformMatrix());
-			return m;
-			/*XMFLOAT3X4 m;
-			XMStoreFloat3x4(&m, XMMatrixIdentity());
-			if (instanceID == 1) {
-				XMStoreFloat3x4(&m, XMMatrixRotationY(instanceID * 0.25f) * XMMatrixTranslation(-1.0f + instanceID, 0, 0));
+			if (instanceID == 0) {
+				XMStoreFloat3x4(&m, t.getTransformMatrix());
 			} else {
-				XMStoreFloat3x4(&m, XMMatrixRotationY(instanceID * 0.25f) * XMMatrixTranslation(-1.0f + instanceID, 0, 0));
+				XMStoreFloat3x4(&m, XMMatrixIdentity());
 			}
-			return m;*/
+			return m;
 		};
-		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform, 1); // Updates transform matrix for raytracing
+		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform); // Updates transform matrix for raytracing
 	}
 
 
@@ -180,7 +182,8 @@ void Game::update(double dt) {
 void Game::render(double dt) {
 	//getRenderer().clearBuffer(CLEAR_BUFFER_FLAGS::COLOR | CLEAR_BUFFER_FLAGS::DEPTH); // Doesnt do anything
 
-	getRenderer().submit(m_mesh.get());
+	for (auto& mesh : m_meshes)
+		getRenderer().submit(mesh.get());
 
 	std::function<void()> imgui = std::bind(&Game::imguiFunc, this);
 	m_dxRenderer->frame(imgui);
@@ -220,12 +223,13 @@ void Game::imguiFunc() {
 					auto updateVB = [&]() {
 						try {
 							PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/" + m_availableModelsList[currentModelIndex]);
-							m_vertexBuffer = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-							m_vertexBuffer->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), 0);
-							m_mesh->setIAVertexBufferBinding(m_vertexBuffer.get(), 0, model->getModelData().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
+							m_vertexBuffers[0] = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+							m_vertexBuffers[0]->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), 0);
+							m_meshes[0]->setIAVertexBufferBinding(m_vertexBuffers[0].get(), 0, model->getModelData().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
 
-							if (m_dxRenderer->isDXRSupported())
-								m_dxRenderer->getDXR().updateBLASnextFrame(false);
+							if (m_dxRenderer->isDXRSupported()) {
+								m_dxRenderer->getDXR().setMeshes(m_meshes);
+							}
 
 							delete model;
 						} catch (...) {
@@ -244,7 +248,10 @@ void Game::imguiFunc() {
 							m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 							m_texture->loadFromFile("../assets/textures/" + m_availableTexturesList[currentTextureIndex]);
 							m_texture->sampler = m_sampler.get();
-							m_mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+							// Set all meshes to this texture
+							// Not possible to only set one since we dont know which ones are referencing the old, now deleted texture
+							for (auto& mesh : m_meshes)
+								mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
 							if (m_dxRenderer->isDXRSupported())
 								m_dxRenderer->getDXR().updateBLASnextFrame(true);
 						} catch (...) {
