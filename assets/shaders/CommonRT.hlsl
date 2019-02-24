@@ -34,6 +34,7 @@ struct Vertex {
 struct RayPayload {
 	XMFLOAT4 color;
 	UINT recursionDepth;
+	int inShadow;
 };
 
 struct SceneConstantBuffer {
