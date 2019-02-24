@@ -51,14 +51,15 @@ void Game::init() {
 	
 
 	float floorHalfWidth = 50.0f;
+	float floorTiling = 5.0f;
 	const Vertex floorVertices[] = {
-		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
-		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
+		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 		{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
 
-		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 1.0f)},
-		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(1.0f, 1.0f)},
-		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},
+		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
+		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 	};
 
 	// load Materials.
@@ -83,12 +84,16 @@ void Game::init() {
 	// basic technique
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
 
-	// create texture
+	// create textures
 	m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 	m_texture->loadFromFile("../assets/textures/Dragon_ground_color.png");
 	m_sampler = std::unique_ptr<Sampler2D>(getRenderer().makeSampler2D()); // Sampler does not work in RT mode
 	m_sampler->setWrap(WRAPPING::REPEAT, WRAPPING::REPEAT);
 	m_texture->sampler = m_sampler.get();
+
+	m_floorTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
+	m_floorTexture->sampler = m_sampler.get();
 
 	size_t offset = 0;
 
@@ -111,7 +116,7 @@ void Game::init() {
 	m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
 	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 	m_meshes.back()->technique = m_technique.get();
-	m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+	m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
 
 
 	if (m_dxRenderer->isDXREnabled()) {
