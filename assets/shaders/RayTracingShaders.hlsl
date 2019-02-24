@@ -88,10 +88,10 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 
-	if (false && instanceID == 1 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH) {
+	if ( (instanceID == 1 || instanceID == 2)  && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH) {
 		RayDesc ray;
 		ray.Origin = HitWorldPosition();
-		ray.Direction = normalInWorldSpace;
+		ray.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
 		ray.TMin = 0.01;
 		ray.TMax = 100000;
 

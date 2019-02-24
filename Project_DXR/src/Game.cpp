@@ -61,6 +61,17 @@ void Game::init() {
 		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
 		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 	};
+	float mirrorHalfWidth = 5.0f;
+	float mirrorHalfHeight = 8.0f;
+	const Vertex mirrorVertices[] = {
+		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
+		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
+
+		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},
+		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
+		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
+	};
 
 	// load Materials.
 	std::string shaderPath = getRenderer().getShaderPath();
@@ -97,26 +108,49 @@ void Game::init() {
 
 	size_t offset = 0;
 
-	// Set up mesh from FBX file
-	// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
-	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-	m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
-	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
-	m_meshes.back()->technique = m_technique.get();
-	m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+	{
+		// Set up mesh from FBX file
+		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		delete dino;
+	}
 
-	delete dino;
+	{
+		// Set up mirrror 1 mesh
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	}
+	{
+		// Set up mirrror 2 mesh
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	}
 
-
-	// Set up floor mesh
-	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-	constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
-	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
-	m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
-	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
-	m_meshes.back()->technique = m_technique.get();
-	m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	{
+		// Set up floor mesh
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	}
 
 
 	if (m_dxRenderer->isDXREnabled()) {
@@ -142,6 +176,47 @@ void Game::update(double dt) {
 		Input::showCursor(Input::IsCursorHidden());
 	}
 
+	if (Input::IsKeyDown('F')) {
+		Transform& mirrorTransform = m_meshes[1]->getTransform();
+
+		XMVECTOR camPos = m_persCamera->getPositionVec();
+		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
+
+		XMVECTOR d = XMVector3Normalize(pos - camPos);
+		float dx = XMVectorGetX(d);
+		float dy = XMVectorGetY(d);
+		float dz = XMVectorGetZ(d);
+
+		float pitch = asin(-dy);
+		float yaw = atan2(dx, dz);
+
+		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
+		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
+
+		mirrorTransform.setTransformMatrix(mat);
+		m_meshes[1]->setTransform(mirrorTransform);
+	}
+	if (Input::IsKeyDown('G')) {
+		Transform& mirrorTransform = m_meshes[2]->getTransform();
+
+		XMVECTOR camPos = m_persCamera->getPositionVec();
+		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
+
+		XMVECTOR d = XMVector3Normalize(pos - camPos);
+		float dx = XMVectorGetX(d);
+		float dy = XMVectorGetY(d);
+		float dz = XMVectorGetZ(d);
+
+		float pitch = asin(-dy);
+		float yaw = atan2(dx, dz);
+
+		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
+		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
+
+		mirrorTransform.setTransformMatrix(mat);
+		m_meshes[2]->setTransform(mirrorTransform);
+	}
+
 	// Lock mouse
 	if (Input::IsCursorHidden()) {
 		POINT p;
@@ -157,25 +232,19 @@ void Game::update(double dt) {
 	}
 	if (shift >= XM_PI * 2.0f) shift -= XM_PI * 2.0f;
 
-
 	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
 	Transform& t = m_meshes[0]->getTransform();
 	t.setTranslation(translation);
-	//std::cout << t.getTranslation().x << std::endl;
+
 	m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
 		mesh->updateCamera(*m_persCamera);
 
-
 	if (m_dxRenderer->isDXREnabled()) {
-		auto instanceTransform = [&t](int instanceID) {
+		auto instanceTransform = [&](int instanceID) {
 			XMFLOAT3X4 m;
-			if (instanceID == 0) {
-				XMStoreFloat3x4(&m, t.getTransformMatrix());
-			} else {
-				XMStoreFloat3x4(&m, XMMatrixIdentity());
-			}
+			XMStoreFloat3x4(&m, m_meshes[instanceID]->getTransform().getTransformMatrix());
 			return m;
 		};
 		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform); // Updates transform matrix for raytracing
@@ -297,6 +366,7 @@ void Game::imguiFunc() {
 			ImGui::Separator();
 		}
 		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_FirstUseEver);
+		ImGui::Text("Controls\nEnter to toggle DXR on/off\nRight click to lock/unlock mouse\nWASD Space and C to move camera\nHold F to move mirror 1\nHold G to move mirror 2");
 	}
 
 	//ImGui::ShowDemoWindow();

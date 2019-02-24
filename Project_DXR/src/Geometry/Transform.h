@@ -18,6 +18,7 @@ public:
 	void rotateAroundX(const float radians);
 	void rotateAroundY(const float radians);
 	void rotateAroundZ(const float radians);
+	void setRotation(float x, float y, float z);
 	void setTransformMatrix(DirectX::XMMATRIX matrix);
 
 	const DirectX::XMFLOAT3 getTranslation() const;

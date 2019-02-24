@@ -23,7 +23,7 @@ using namespace DirectX;
 #endif
 
 
-#define MAX_RAY_RECURSION_DEPTH 2
+#define MAX_RAY_RECURSION_DEPTH 30
 
 struct Vertex {
     XMFLOAT3 position;
