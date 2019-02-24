@@ -6,6 +6,13 @@ float3 HitWorldPosition() {
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
 }
 
+float2 barrypolation(float3 barry, float2 in1, float2 in2, float2 in3) {
+	return barry.x * in1 + barry.y * in2 + barry.z * in3;
+}
+float3 barrypolation(float3 barry, float3 in1, float3 in2, float3 in3) {
+	return barry.x * in1 + barry.y * in2 + barry.z * in3;
+}
+
 RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
 
@@ -84,7 +91,7 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	Vertex vertex2 = Vertices[primitiveID * verticesPerPrimitive + 1];
 	Vertex vertex3 = Vertices[primitiveID * verticesPerPrimitive + 2];
 
-	float3 normalInLocalSpace = vertex1.normal;
+	float3 normalInLocalSpace = barrypolation(barycentrics, vertex1.normal, vertex2.normal, vertex3.normal);
 	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 
@@ -97,7 +104,7 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 		TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	} else {
-		float2 texCoords = barycentrics.x * vertex1.texCoord + barycentrics.y * vertex2.texCoord + barycentrics.z * vertex3.texCoord;
+		float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
 
 		float diffuseFactor = max(dot(-g_lightDirection, normalInWorldSpace), 0.4f); // 0.4 ambient
 		float3 r = reflect(g_lightDirection, normalInWorldSpace);
@@ -108,6 +115,8 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 		float3 clr = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
 		payload.color = float4(clr * diffuseFactor + clr * specularFactor, 1.0f);
+
+		// payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
 	}
 
 
