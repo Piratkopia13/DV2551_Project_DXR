@@ -29,7 +29,7 @@ public:
 	void setTransform(Transform& transform);
 	ConstantBuffer* getTransformCB();
 
-	void updateCamera(Camera& cam);
+	void updateCameraCB(ConstantBuffer* cb);
 	ConstantBuffer* getCameraCB();
 
 	// array of buffers with locations (binding points in shaders)

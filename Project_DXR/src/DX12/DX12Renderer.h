@@ -24,6 +24,8 @@
 
 class DX12Mesh;
 class DX12Technique;
+class DX12Skybox;
+class Camera;
 
 namespace GlobalRootParam {
 	enum Slot {
@@ -79,6 +81,8 @@ public:
 	virtual void submit(Mesh* mesh) override;
 	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
+
+	void useCamera(Camera* camera);
 	
 	void executeNextOpenPreCommand(std::function<void()> func);
 
@@ -171,6 +175,9 @@ private:
 	std::condition_variable m_mainCondVar;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_cdh;
 	std::atomic_bool m_running;
+
+	DX12Skybox* m_skybox;
+	Camera* m_cam;
 
 	// Upload buffer stuff
 	// Currently only one large

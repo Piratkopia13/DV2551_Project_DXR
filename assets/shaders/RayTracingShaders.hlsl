@@ -69,6 +69,8 @@ StructuredBuffer<Vertex> Vertices : register(t1, space0);
 Texture2D<float4> diffuseTexture : register(t2, space0);
 SamplerState ss : register(s0);
 
+Texture2D<float4> skyboxTexture : register(t3, space0);
+
 cbuffer CB_Global : register(b0, space0) {
 	float RedChannel;
 }
@@ -124,7 +126,11 @@ void rayGen() {
 
 [shader("miss")]
 void miss(inout RayPayload payload) {
-	payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
+	//payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
+	float2 dims;
+	skyboxTexture.GetDimensions(dims.x, dims.y);
+	float2 uv = wsVectorToLatLong(WorldRayDirection());
+	payload.color = skyboxTexture[uint2(uv * dims)];
 
 	if (payload.inShadow == -1) {
 		payload.inShadow = 0;

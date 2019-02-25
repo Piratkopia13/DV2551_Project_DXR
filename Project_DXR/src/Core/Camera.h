@@ -2,12 +2,17 @@
 
 #include <DirectXMath.h>
 
+class DX12ConstantBuffer;
+class DX12Renderer;
+
 class Camera
 {
 public:
 	// Aspect ratio, vertical field of view, near clipping plane, far clipping plane
 	Camera(const float aspectRatio, const float fov, const float nearZ, const float farZ);
 	~Camera();
+
+	void init(DX12Renderer* renderer);
 
 	void lookAt(const DirectX::XMVECTOR& position);
 
@@ -46,6 +51,9 @@ public:
 	// View-projection matrix
 	const DirectX::XMMATRIX& getVPMatrix();
 
+	void updateConstantBuffer();
+	DX12ConstantBuffer* getConstantBuffer() const;
+
 
 private:
 	DirectX::XMMATRIX m_viewMatrix;
@@ -57,6 +65,7 @@ private:
 	bool m_projMatNeedsUpdate;
 	bool m_viewMatNeedsUpdate;
 	bool m_VPMatNeedsUpdate;
+	bool m_cbNeedsUpdate;
 
 	DirectX::XMVECTOR m_pos;
 	DirectX::XMVECTOR m_dir;
@@ -66,5 +75,7 @@ private:
 	float m_farZ;
 	float m_aspectRatio;
 	float m_fov;
+
+	DX12ConstantBuffer* m_constantBuffer;
 };
 

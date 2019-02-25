@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "Camera.h"
 
+#include "../DX12/DX12ConstantBuffer.h"
+#include "../DX12/DX12Renderer.h"
 
 using namespace DirectX;
 
@@ -21,10 +23,14 @@ Camera::Camera(const float aspectRatio, const float fov, const float nearZ, cons
 	m_viewMatNeedsUpdate = true;
 	m_projMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
-
 Camera::~Camera() {
+}
+
+void Camera::init(DX12Renderer * renderer) {
+	m_constantBuffer = static_cast<DX12ConstantBuffer*>(renderer->makeConstantBuffer("Camera CB", sizeof(CameraData)));
 }
 
 void Camera::lookAt(const DirectX::XMVECTOR& position) {
@@ -32,48 +38,56 @@ void Camera::lookAt(const DirectX::XMVECTOR& position) {
 	m_dir = XMVector3Normalize(m_dir);
 	m_viewMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::setPosition(const DirectX::XMVECTOR& position) {
 	m_pos = position;
 	m_viewMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::move(const DirectX::XMVECTOR& toMove) {
 	m_pos += toMove;
 	m_viewMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::setDirection(const DirectX::XMVECTOR& direction) {
 	m_dir = direction;
 	m_viewMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::setFOV(const float fov) {
 	m_fov = XMConvertToRadians(fov);
 	m_projMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::setAspectRatio(const float aspectRatio) {
 	m_aspectRatio = aspectRatio;
 	m_projMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::setNearZ(const float nearZ) {
 	m_nearZ = nearZ;
 	m_projMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 void Camera::setFarZ(const float farZ) {
 	m_farZ = farZ;
 	m_projMatNeedsUpdate = true;
 	m_VPMatNeedsUpdate = true;
+	m_cbNeedsUpdate = true;
 }
 
 const float Camera::getAspectRatio() const {
@@ -167,7 +181,21 @@ const DirectX::XMMATRIX& Camera::getVPMatrix() {
 	if (m_VPMatNeedsUpdate) {
 		m_VPMatrix = getViewMatrix() * getProjMatrix();
 		m_VPMatNeedsUpdate = false;
+		m_cbNeedsUpdate = true;
 	}
 
 	return m_VPMatrix;
+}
+
+void Camera::updateConstantBuffer() {
+	if (m_cbNeedsUpdate) {
+		CameraData data;
+		data.VP = getVPMatrix();
+		data.cameraPosition = getPositionF3();
+		m_constantBuffer->setData(&data, CB_REG_CAMERA);
+	}
+}
+
+DX12ConstantBuffer* Camera::getConstantBuffer() const {
+	return m_constantBuffer;
 }

@@ -18,6 +18,7 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_updateBLAS(false)
 	, m_camera(nullptr)
 	, m_meshes(nullptr)
+	, m_skyboxTexture(nullptr)
 {
 }
 
@@ -121,6 +122,11 @@ void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
 	m_newInPlace = false;
 }
 
+void DXR::setSkyboxTexture(DX12Texture2D* texture) {
+	m_skyboxTexture = texture;
+	m_skyboxGPUDescHandle = m_skyboxTexture->getGpuDescHandle();
+}
+
 void DXR::updateBLASnextFrame(bool inPlace) {
 	m_updateBLAS = true;
 	m_newInPlace = inPlace;
@@ -217,6 +223,19 @@ void DXR::createShaderResources() {
 		m_rtMeshHandles.emplace_back(handles);
 	}
 
+	// Create Shader Resource Handle here for skybox
+	cpuHandle.ptr += incr;
+	m_skyboxGPUDescHandle.ptr = gpuHandle.ptr + incr;
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = m_skyboxTexture->getFormat();
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = m_skyboxTexture->getMips();
+	m_renderer->getDevice()->CreateShaderResourceView(m_skyboxTexture->getResource(), &srvDesc, cpuHandle); 
+	/*TODO:
+		The ViewDimension in the View Desc is incompatible with the type of the Resource
+	*/
+
 	// Ray gen settings CB
 	m_rayGenCBData.flags = 0;
 	m_rayGenCBData.numAORays = 5;
@@ -249,6 +268,7 @@ void DXR::createShaderTables() {
 	{
 		m_missShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
+		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr); // TODO: Check if correct
 		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
 
@@ -564,10 +584,42 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 }
 
 ID3D12RootSignature* DXR::createMissLocalRootSignature() {
-	D3D12_ROOT_SIGNATURE_DESC desc{};
-	desc.NumParameters = 0;
-	desc.pParameters = nullptr;
+	D3D12_ROOT_PARAMETER rootParams[DXRMissRootParam::SIZE]{};
+
+	D3D12_DESCRIPTOR_RANGE range[1]{};
+	range[0].BaseShaderRegister = 3;
+	range[0].NumDescriptors = 1;
+	range[0].RegisterSpace = 0;
+	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParams[DXRMissRootParam::SRV_SKYBOX].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[DXRMissRootParam::SRV_SKYBOX].DescriptorTable.NumDescriptorRanges = _countof(range);
+	rootParams[DXRMissRootParam::SRV_SKYBOX].DescriptorTable.pDescriptorRanges = range;
+	/*rootParams[DXRMissRootParam::SRV_SKYBOX].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRMissRootParam::SRV_SKYBOX].Descriptor.ShaderRegister = 3;
+	rootParams[DXRMissRootParam::SRV_SKYBOX].Descriptor.RegisterSpace = 0;*/
+
+	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
+	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.MipLODBias = 0.f;
+	staticSamplerDesc.MaxAnisotropy = 1;
+	staticSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	staticSamplerDesc.MinLOD = 0.f;
+	staticSamplerDesc.MaxLOD = FLT_MAX;
+	staticSamplerDesc.RegisterSpace = 0;
+	staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_ROOT_SIGNATURE_DESC desc = {};
+	desc.NumParameters = _countof(rootParams);
+	desc.pParameters = rootParams;
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+	desc.NumStaticSamplers = 1;
+	desc.pStaticSamplers = &staticSamplerDesc;
 
 	ID3DBlob* sigBlob;
 	ID3DBlob* errorBlob;

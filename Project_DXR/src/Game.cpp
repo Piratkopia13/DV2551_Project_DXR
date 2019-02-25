@@ -160,6 +160,8 @@ void Game::init() {
 		m_dxRenderer->getDXR().useCamera(m_persCamera.get());
 	}
 
+	static_cast<DX12Renderer*>(&getRenderer())->useCamera(m_persCamera.get());
+
 }
 
 void Game::update(double dt) {
@@ -235,11 +237,14 @@ void Game::update(double dt) {
 	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
 	Transform& t = m_meshes[0]->getTransform();
 	t.setTranslation(translation);
+	//std::cout << t.getTranslation().x << std::endl;
+	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
+	m_persCamera->updateConstantBuffer();
 
 	m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
-		mesh->updateCamera(*m_persCamera);
+		mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
 
 	if (m_dxRenderer->isDXREnabled()) {
 		auto instanceTransform = [&](int instanceID) {

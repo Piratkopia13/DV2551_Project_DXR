@@ -18,6 +18,8 @@ public:
 	DXGI_FORMAT getFormat();
 	UINT getMips();
 	ID3D12Resource* getResource();
+	D3D12_CPU_DESCRIPTOR_HANDLE getCpuDescHandle();
+	D3D12_GPU_DESCRIPTOR_HANDLE getGpuDescHandle();
 
 private:
 	DX12Renderer* m_renderer;

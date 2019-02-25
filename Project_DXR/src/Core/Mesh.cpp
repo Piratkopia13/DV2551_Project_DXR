@@ -40,13 +40,10 @@ ConstantBuffer* Mesh::getTransformCB() {
 Mesh::~Mesh() {
 	geometryBuffer.buffer->decRef();
 	delete transformCB;
-	delete cameraCB;
 }
 
-void Mesh::updateCamera(Camera& cam) {
-	CameraData data;
-	data.VP = cam.getVPMatrix();
-	cameraCB->setData(&data, CB_REG_CAMERA);
+void Mesh::updateCameraCB(ConstantBuffer* cb) {
+	cameraCB = cb;
 }
 
 ConstantBuffer* Mesh::getCameraCB() {
