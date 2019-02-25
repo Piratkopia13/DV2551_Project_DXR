@@ -265,3 +265,4 @@ __pycache__/
 *.ipdb
 
 bin/Debug-x64/D3D12-Backend/D3D12-Backend.exe
+Project_DXR/imgui.ini

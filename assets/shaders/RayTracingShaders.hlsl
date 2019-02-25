@@ -6,6 +6,13 @@ float3 HitWorldPosition() {
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
 }
 
+float2 barrypolation(float3 barry, float2 in1, float2 in2, float2 in3) {
+	return barry.x * in1 + barry.y * in2 + barry.z * in3;
+}
+float3 barrypolation(float3 barry, float3 in1, float3 in2, float3 in3) {
+	return barry.x * in1 + barry.y * in2 + barry.z * in3;
+}
+
 RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
 
@@ -68,6 +75,10 @@ void rayGen() {
 [shader("miss")]
 void miss(inout RayPayload payload) {
 	payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
+
+	if (payload.inShadow == -1) {
+		payload.inShadow = 0;
+	}
 }
 
 [shader("closesthit")]
@@ -79,32 +90,60 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	uint instanceID = InstanceID();
 	uint primitiveID = PrimitiveIndex();
 
+	// If ray is shadow ray
+	if (payload.inShadow == -1) {
+		payload.inShadow = 1;
+		return;
+	}
+
+
 	uint verticesPerPrimitive = 3;
 	Vertex vertex1 = Vertices[primitiveID * verticesPerPrimitive];
 	Vertex vertex2 = Vertices[primitiveID * verticesPerPrimitive + 1];
 	Vertex vertex3 = Vertices[primitiveID * verticesPerPrimitive + 2];
 
-	float3 normalInLocalSpace = vertex1.normal;
+	float3 normalInLocalSpace = barrypolation(barycentrics, vertex1.normal, vertex2.normal, vertex3.normal);
 	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 
-	if (instanceID == 1 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH) {
+	if ( (instanceID == 1 || instanceID == 2)  && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) { // -1 to allow for shadow ray
 		RayDesc ray;
 		ray.Origin = HitWorldPosition();
-		ray.Direction = normalInWorldSpace;
+		ray.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
 		ray.TMin = 0.01;
 		ray.TMax = 100000;
 
 		TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	} else {
 
-		// payload.color.rgb = normalInWorldSpace / 2.0 + 0.5;
-		// payload.color = float4(1.0f, 0.0f, 0.0f, 1.0f);
 
-		// payload.color.rgb = float3(RedChannel, 0, 0) + ShaderTableColor;
-		// payload.color.a = 1.0f;
-		float2 texCoords = barycentrics.x * vertex1.texCoord + barycentrics.y * vertex2.texCoord + barycentrics.z * vertex3.texCoord;
-		payload.color = diffuseTexture.SampleLevel(ss, texCoords, 0);
+		// Trace shadow ray
+		payload.inShadow = -1;
+		RayDesc ray;
+		ray.Origin = HitWorldPosition();
+		ray.Direction = -g_lightDirection;
+		ray.TMin = 0.01;
+		ray.TMax = 100000;
+		TraceRay(gRtScene, 0, 0xFF, 0, 0, 0, ray, payload);
+
+
+		float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
+
+		float diffuseFactor = max(dot(-g_lightDirection, normalInWorldSpace), 0.4f); // 0.4 ambient
+		float3 r = reflect(g_lightDirection, normalInWorldSpace);
+		r = normalize(r);
+		float shininess = 5.0f;
+		float spec = 1.0f;
+		float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
+
+		float3 clr = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
+		float3 color = clr * diffuseFactor + clr * specularFactor; // Not in shadow
+		if (payload.inShadow == 1) {
+			color = clr * 0.5f; // In shadow
+		}
+		payload.color = float4(color, 1.0f);
+
+		// payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
 	}
 
 

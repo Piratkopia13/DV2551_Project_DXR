@@ -47,7 +47,7 @@ public:
 	virtual Material* makeMaterial(const std::string& name) override;
 	virtual Mesh* makeMesh() override;
 	virtual VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) override;
-	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, unsigned int location) override;
+	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, size_t size) override;
 	virtual RenderState* makeRenderState() override;
 	virtual Technique* makeTechnique(Material* m, RenderState* r) override;
 	virtual Texture2D* makeTexture2D() override;
@@ -61,12 +61,13 @@ public:
 	ID3D12RootSignature* getRootSignature() const;
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
-	UINT getFrameIndex() const;
+	inline UINT getFrameIndex() const;
 	Win32Window* getWindow() const;
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
 	
 	void enableDXR(bool enable);
-	bool isDXREnabled() const;
+	bool& isDXREnabled();
+	bool& isDXRSupported();
 	DXR& getDXR();
 
 	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
@@ -78,13 +79,12 @@ public:
 	//	void setRenderTarget(RenderTarget* rt); // complete parameters
 	virtual void setRenderState(RenderState* ps) override;
 	virtual void submit(Mesh* mesh) override;
-	virtual void frame() override;
+	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
 
 	void useCamera(Camera* camera);
 	
-	//void addCbvSrvUavDescriptor();
-	//void addSamplerDescriptor();
+	void executeNextOpenPreCommand(std::function<void()> func);
 
 	void waitForGPU();
 	void reportLiveObjects();
@@ -97,6 +97,7 @@ private:
 	void createGlobalRootSignature();
 	void createShaderResources();
 	void createDepthStencilResources();
+	void nextFrame();
 
 	// DXR
 	bool checkRayTracingSupport();
@@ -107,10 +108,12 @@ private:
 	// Multithreading
 	void workerThread(unsigned int id);
 	struct Command {
-		wComPtr<ID3D12CommandAllocator> allocator; // Allocator only grows, use multple (one for each thing)
+		std::vector<wComPtr<ID3D12CommandAllocator>> allocators; // Allocator only grows, use multple (one for each thing)
 		wComPtr<ID3D12GraphicsCommandList4> list;
 	};
 private:
+	std::vector<std::function<void()>> m_preCommandFuncsToExecute; // Stored functions to execute on next open pre-command list
+
 	// Only used for initialization
 	IDXGIFactory6* m_factory;
 
@@ -118,6 +121,7 @@ private:
 	bool m_globalWireframeMode;
 	float m_clearColor[4];
 	bool m_firstFrame;
+	UINT m_backBufferIndex;
 	
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;
@@ -154,7 +158,7 @@ private:
 	UINT m_samplerDescriptorHandleIncrementSize;
 	
 	UINT m_renderTargetDescriptorSize;
-	UINT64 m_fenceValue;
+	std::vector<UINT64> m_fenceValues;
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
 	HANDLE m_eventHandle;

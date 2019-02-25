@@ -18,6 +18,11 @@ public:
 	Renderer& getRenderer();
 	const UINT getFPS() const;
 
+protected:
+	static const int FRAME_HISTORY_COUNT = 100;
+	float frameTimeHistory[FRAME_HISTORY_COUNT];
+	float frameTimeAvg;
+
 private:
 	void updateDelta();
 private:

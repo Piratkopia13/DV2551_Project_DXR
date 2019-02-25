@@ -10,12 +10,13 @@ CameraController::CameraController(Camera * cam)
 	m_yaw = 90.f;
 	m_pitch = 0.f;
 	m_roll = 0.f;
+	m_speed = 10.0f;
 };
 
 void CameraController::update(float dt) {
 
 	float lookSensitivity = 0.1f;
-	float movementSpeed = 0.01f * dt;
+	float movementSpeed = m_speed * dt;
 
 	XMVECTOR worldUp = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 	XMVECTOR right = XMVector3Cross(getCameraDirection(), worldUp);
@@ -66,4 +67,8 @@ void CameraController::update(float dt) {
 	forwards = XMVector3Normalize(forwards);
 
 	setCameraDirection(forwards);
+}
+
+float& CameraController::getMovementSpeed() {
+	return m_speed;
 }

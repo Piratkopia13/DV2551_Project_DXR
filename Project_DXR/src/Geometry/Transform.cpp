@@ -36,6 +36,11 @@ void Transform::setScale(const DirectX::XMVECTOR scale) {
 	m_needsUpdate = true;
 }
 
+void Transform::setRotation(float x, float y, float z) {
+	m_rotation = XMVectorSet(x, y, z, 1.0f);
+	m_needsUpdate = true;
+}
+
 void Transform::rotateAroundX(const float radians) {
 	XMVectorSetX(m_rotation, XMVectorGetX(m_rotation) + radians);
 	m_needsUpdate = true;

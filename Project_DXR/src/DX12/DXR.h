@@ -17,7 +17,6 @@ namespace DXRGlobalRootParam {
 	enum Slot {
 		FLOAT_RED_CHANNEL = 0,
 		SRV_ACCELERATION_STRUCTURE,
-		SRV_VERTEX_BUFFER,
 		CBV_SCENE_BUFFER,
 		SIZE
 	};
@@ -31,6 +30,7 @@ namespace DXRRayGenRootParam {
 namespace DXRHitGroupRootParam {
 	enum Slot {
 		FLOAT3_SHADER_TABLE_COLOR = 0,
+		SRV_VERTEX_BUFFER,
 		DT_TEXTURES,
 		SIZE
 	};
@@ -50,18 +50,18 @@ public:
 	void doTheRays(ID3D12GraphicsCommandList4* cmdList);
 	void copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target);
 
-	void setMesh(DX12Mesh* mesh);
+	void setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes);
 	void updateBLASnextFrame(bool inPlace = true);
-	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {}, UINT instanceCount = 3);
-
+	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {});
 	void useCamera(Camera* camera);
+	void reloadShaders();
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
 	void createShaderResources();
 	void createShaderTables();
 	void createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate = false);
-	void createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = [](int) {DirectX::XMFLOAT3X4 m; DirectX::XMStoreFloat3x4(&m, DirectX::XMMatrixIdentity()); return m;}, UINT instanceCount = 3);
+	void createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = [](int) {DirectX::XMFLOAT3X4 m; DirectX::XMStoreFloat3x4(&m, DirectX::XMMatrixIdentity()); return m;});
 	void createRaytracingPSO();
 	void createDxrGlobalRootSignature();
 	ID3D12RootSignature* createRayGenLocalRootSignature();
@@ -73,13 +73,14 @@ private:
 	bool m_newInPlace;
 
 	bool m_updateTLAS;
+	bool m_numMeshesChanged;
 	std::function<DirectX::XMFLOAT3X4(int)> m_newInstanceTransform;
-	UINT m_newInstanceCount;
 
 private:
 	DX12Renderer* m_renderer;
 
-	DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
+	const std::vector<std::unique_ptr<DX12Mesh>>* m_meshes;
+	//DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
 
 	Camera* m_camera;
@@ -96,7 +97,7 @@ private:
 		wComPtr<ID3D12Resource1> result = nullptr;
 		wComPtr<ID3D12Resource1> instanceDesc = nullptr;    // Used only for top-level AS
 	};
-	AccelerationStructureBuffers m_DXR_BottomBuffers{};
+	std::vector<AccelerationStructureBuffers> m_DXR_BottomBuffers;
 	AccelerationStructureBuffers m_DXR_TopBuffers{};
 
 	wComPtr<ID3D12StateObject> m_rtPipelineState = nullptr;
@@ -110,11 +111,15 @@ private:
 		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 		wComPtr<ID3D12Resource> resource;
 	};
+	struct MeshHandles {
+		D3D12_GPU_VIRTUAL_ADDRESS vertexBufferHandle;
+		D3D12_GPU_DESCRIPTOR_HANDLE textureHandle;
+	};
 
 	wComPtr<ID3D12DescriptorHeap> m_rtDescriptorHeap = {};
-
 	ResourceWithDescriptor m_rtOutputUAV;
-	D3D12_GPU_DESCRIPTOR_HANDLE m_rtMeshTextureHandle;
+
+	std::vector<MeshHandles> m_rtMeshHandles;
 
 	//D3D12_GPU_VIRTUAL_ADDRESS m_vb_GPU = {};
 

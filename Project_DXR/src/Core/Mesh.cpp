@@ -9,8 +9,7 @@ Mesh::Mesh() { };
 	size: how many elements (how many points, normals, UVs) should be read from this buffer
 */
 void Mesh::setIAVertexBufferBinding(VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) {
-	// inputStream is unique (has to be!) for this Mesh
-	buffer->incRef();
+	//buffer->incRef();
 	geometryBuffer = { sizeElement, numElements, offset, buffer };
 };
 
@@ -31,7 +30,7 @@ Transform& Mesh::getTransform() {
 
 void Mesh::setTransform(Transform& transform) {
 	this->transform = transform;
-	transformCB->setData(&transform.getTransformMatrix(), sizeof(transform.getTransformMatrix()), CB_REG_TRANSFORM);
+	transformCB->setData(&transform.getTransformMatrix(), CB_REG_TRANSFORM);
 }
 
 ConstantBuffer* Mesh::getTransformCB() {

@@ -17,7 +17,7 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_updateTLAS(false)
 	, m_updateBLAS(false)
 	, m_camera(nullptr)
-	, m_mesh(nullptr)
+	, m_meshes(nullptr)
 {
 }
 
@@ -41,19 +41,20 @@ void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 		m_updateBLAS = false;
 	}
 	if (m_updateTLAS) {
-		createTLAS(cmdList, m_newInstanceTransform, m_newInstanceCount);
+		createTLAS(cmdList, m_newInstanceTransform);
 		m_updateTLAS = false;
 	}
+	m_numMeshesChanged = false;
 }
 
 void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
-	assert(m_mesh != nullptr); // Mesh not set
+	assert(m_meshes != nullptr); // Meshes not set
 
 	if (m_camera) {
 		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
 		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
-		m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
+		m_sceneCB->setData(m_sceneCBData, 0);
 	}
 
 	//Set constant buffer descriptor heap
@@ -88,9 +89,6 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	cmdList->SetComputeRoot32BitConstant(DXRGlobalRootParam::FLOAT_RED_CHANNEL, *reinterpret_cast<UINT*>(&redColor), 0);
 	// Set acceleration structure
 	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
-	// Set vertex buffer
-	if (m_mesh)
-		cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_VERTEX_BUFFER, static_cast<DX12VertexBuffer*>(m_mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress());
 	// Set constant buffer
 	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SCENE_BUFFER, m_sceneCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
 
@@ -109,9 +107,12 @@ void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* targ
 	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
-void DXR::setMesh(DX12Mesh* mesh) {
-	m_mesh = mesh;
+void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
+	if (m_meshes == nullptr || meshes.size() != m_meshes->size())
+		m_numMeshesChanged = true;
+	m_meshes = &meshes;
 	m_updateBLAS = true;
+	m_newInPlace = false;
 }
 
 void DXR::updateBLASnextFrame(bool inPlace) {
@@ -119,14 +120,22 @@ void DXR::updateBLASnextFrame(bool inPlace) {
 	m_newInPlace = inPlace;
 }
 
-void DXR::updateTLASnextFrame(std::function<XMFLOAT3X4(int)> instanceTransform, UINT instanceCount) {
+void DXR::updateTLASnextFrame(std::function<XMFLOAT3X4(int)> instanceTransform) {
 	m_updateTLAS = true;
 	m_newInstanceTransform = instanceTransform;
-	m_newInstanceCount = instanceCount;
 }
 
 void DXR::useCamera(Camera* camera) {
 	m_camera = camera;
+}
+
+void DXR::reloadShaders() {
+	m_localSignatureRayGen.Reset();
+	m_localSignatureMiss.Reset();
+	m_localSignatureHitGroup.Reset();
+	m_rtPipelineState.Reset();
+	createRaytracingPSO();
+	createShaderTables();
 }
 
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
@@ -136,6 +145,7 @@ void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 
 void DXR::createShaderResources() {
 
+	m_rtDescriptorHeap.Reset();
 	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
 	heapDescriptorDesc.NumDescriptors = 10;
 	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -168,25 +178,32 @@ void DXR::createShaderResources() {
 	m_rtOutputUAV.gpuHandle = gpuHandle;
 
 
-	// Create a view for mesh texture
-	DX12Texture2D* texture = static_cast<DX12Texture2D*>(m_mesh->textures.begin()->second);
-
+	// Create a view for each mesh textures
 	auto incr = m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	cpuHandle.ptr += incr;
-	gpuHandle.ptr += incr;
+	m_rtMeshHandles.clear();
+	for (auto& mesh : *m_meshes) {
+		DX12Texture2D* texture = static_cast<DX12Texture2D*>(mesh->textures.begin()->second);
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = texture->getFormat();
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = texture->getMips();
-	m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
-	m_rtMeshTextureHandle = gpuHandle;
+		cpuHandle.ptr += incr;
+		gpuHandle.ptr += incr;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = texture->getFormat();
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = texture->getMips();
+		m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
+
+		MeshHandles handles;
+		handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress();
+		handles.textureHandle = gpuHandle;
+		m_rtMeshHandles.emplace_back(handles);
+	}
 
 	// Scene CB
 	m_sceneCBData = new SceneConstantBuffer();
-	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", 0 /*Not used*/, m_renderer);
-	m_sceneCB->setData(m_sceneCBData, sizeof(SceneConstantBuffer), 0);
+	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", sizeof(SceneConstantBuffer), m_renderer);
+	m_sceneCB->setData(m_sceneCBData, 0/*Not used*/);
 }
 
 void DXR::createShaderTables() {
@@ -212,14 +229,13 @@ void DXR::createShaderTables() {
 	// Hit group
 	{
 		m_hitGroupShaderTable.Resource.Reset();
-		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), 3);
-		float shaderTableColor1[] = { 1.0f, 0.0f, 0.0f, 0.0f };
-		/*float shaderTableColor2[] = { 0.0f, 1.0f, 0.0f, 0.0f };
-		float shaderTableColor3[] = { 0.0f, 0.0f, 1.0f, 0.0f };*/
-		tableBuilder.addConstants(4, shaderTableColor1, 0);
-		/*tableBuilder.addConstants(4, shaderTableColor2, 1);
-		tableBuilder.addConstants(4, shaderTableColor3, 2);*/
-		tableBuilder.addDescriptor(m_rtMeshTextureHandle.ptr, 0); // only supports one texture/mesh atm
+		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
+		for (unsigned int i = 0; i < m_meshes->size(); i++) {
+			float shaderTableColor[] = { 1.0f, 0.0f, 0.0f, 0.0f };
+			tableBuilder.addConstants(4, shaderTableColor, i);
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i); // only supports one texture/mesh atm // TODO FIX
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].textureHandle.ptr, i); // only supports one texture/mesh atm // TODO FIX
+		}
 		m_hitGroupShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
 
@@ -230,61 +246,71 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 	// TODO: Allow multiple vertex buffers
 	// TODO: Allow for BLAS updates (multiple calls) in place?
 
-	D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
-	if (m_mesh != nullptr) {
-		DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>(m_mesh->geometryBuffer.buffer);
-		geomDesc[0].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-		geomDesc[0].Triangles.VertexBuffer.StartAddress = vb->getBuffer()->GetGPUVirtualAddress();
-		geomDesc[0].Triangles.VertexBuffer.StrideInBytes = vb->getVertexStride();
-		geomDesc[0].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-		geomDesc[0].Triangles.VertexCount = vb->getVertexCount();
-		geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+	if (m_meshes != nullptr) {
+
+		if (m_numMeshesChanged) {
+			m_DXR_BottomBuffers.clear();
+			m_DXR_BottomBuffers.resize(m_meshes->size());
+		}
+
+		for (unsigned int i = 0; i < m_meshes->size(); i++) {
+			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.buffer);
+			
+			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
+			geomDesc[0] = {};
+			geomDesc[0].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+			geomDesc[0].Triangles.VertexBuffer.StartAddress = vb->getBuffer()->GetGPUVirtualAddress();
+			geomDesc[0].Triangles.VertexBuffer.StrideInBytes = vb->getVertexStride();
+			geomDesc[0].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+			geomDesc[0].Triangles.VertexCount = vb->getVertexCount();
+			geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+			// Get the size requirements for the scratch and AS buffers
+			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
+			inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+			inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+			inputs.NumDescs = 1;
+			inputs.pGeometryDescs = geomDesc;
+			inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
+			m_renderer->getDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+
+			// Only create the buffer the first time or if the size needs to change
+			if (m_numMeshesChanged || !onlyUpdate) {
+				// Release old buffers if they exist
+				m_DXR_BottomBuffers[i].scratch.Reset();
+				m_DXR_BottomBuffers[i].result.Reset();
+				// Create the buffers. They need to support UAV, and since we are going to immediately use them, we create them with an unordered-access state
+				m_DXR_BottomBuffers[i].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
+				m_DXR_BottomBuffers[i].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
+			}
+
+			// Create the bottom-level AS
+			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc = {};
+			asDesc.Inputs = inputs;
+			asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers[i].result->GetGPUVirtualAddress();
+			asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers[i].scratch->GetGPUVirtualAddress();
+
+			cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
+
+			// We need to insert a UAV barrier before using the acceleration structures in a raytracing operation
+			D3D12_RESOURCE_BARRIER uavBarrier = {};
+			uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			uavBarrier.UAV.pResource = m_DXR_BottomBuffers[i].result.Get();
+			cmdList->ResourceBarrier(1, &uavBarrier);
+		}
 	}
 
-	// Get the size requirements for the scratch and AS buffers
-	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
-	inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-	inputs.NumDescs = ARRAYSIZE(geomDesc);
-	inputs.pGeometryDescs = geomDesc;
-	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-
-	// No geometry specified
-	if (m_mesh == nullptr) {
-		inputs.NumDescs = 0;
-		inputs.pGeometryDescs = nullptr;
-	}
-
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
-	m_renderer->getDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
-
-	// Only create the buffer the first time or if the size needs to change
-	if (!onlyUpdate) {
-		// Release old buffers if they exist
-		m_DXR_BottomBuffers.scratch.Reset();
-		m_DXR_BottomBuffers.result.Reset();
-		// Create the buffers. They need to support UAV, and since we are going to immediately use them, we create them with an unordered-access state
-		m_DXR_BottomBuffers.scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
-		m_DXR_BottomBuffers.result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
-	}
-
-	// Create the bottom-level AS
-	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc = {};
-	asDesc.Inputs = inputs;
-	asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers.result->GetGPUVirtualAddress();
-	asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers.scratch->GetGPUVirtualAddress();
-
-	cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
-
-	// We need to insert a UAV barrier before using the acceleration structures in a raytracing operation
-	D3D12_RESOURCE_BARRIER uavBarrier = {};
-	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	uavBarrier.UAV.pResource = m_DXR_BottomBuffers.result.Get();
-	cmdList->ResourceBarrier(1, &uavBarrier);
 
 }
 
-void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform, UINT instanceCount) {
+void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform) {
+
+	unsigned int instanceCount = (m_meshes) ? m_meshes->size() : 0;
+
+	if (m_meshes != nullptr && m_meshes->size() > instanceCount)
+		std::cout << "WARNING: There is more geometry in the BLAS than instances in the TLAS" << std::endl;
 
 	// First, get the size of the TLAS buffers and create them
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
@@ -292,6 +318,12 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 	inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 	inputs.NumDescs = instanceCount;
 	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+
+	if (m_numMeshesChanged) {
+		m_DXR_TopBuffers.instanceDesc.Reset();
+		m_DXR_TopBuffers.result.Reset();
+		m_DXR_TopBuffers.scratch.Reset();
+	}
 
 	// on first call, create the buffer
 	if (m_DXR_TopBuffers.instanceDesc == nullptr) {
@@ -307,7 +339,7 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 			m_DXR_TopBuffers.result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
 		}
 
-		m_DXR_TopBuffers.instanceDesc = D3DUtils::createBuffer(m_renderer->getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * instanceCount, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties);
+		m_DXR_TopBuffers.instanceDesc = D3DUtils::createBuffer(m_renderer->getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * max(instanceCount, 1), D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties);
 	}
 
 	D3D12_RAYTRACING_INSTANCE_DESC* pInstanceDesc;
@@ -323,7 +355,7 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 		XMFLOAT3X4 m = instanceTransform(i);
 		memcpy(pInstanceDesc->Transform, &m, sizeof(pInstanceDesc->Transform));
 
-		pInstanceDesc->AccelerationStructure = m_DXR_BottomBuffers.result->GetGPUVirtualAddress();
+		pInstanceDesc->AccelerationStructure = m_DXR_BottomBuffers[i].result->GetGPUVirtualAddress();
 		pInstanceDesc->InstanceMask = 0xFF;
 
 		pInstanceDesc++;
@@ -383,9 +415,9 @@ void DXR::createDxrGlobalRootSignature() {
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.RegisterSpace = 0;
 
 	// Vertex buffer
-	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	/*rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
-	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
+	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;*/
 
 	// Scene CBV
 	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -453,6 +485,10 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.RegisterSpace = 1;
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.ShaderRegister = 0;
 	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.Num32BitValues = 3;
+
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
 	
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.NumDescriptorRanges = _countof(range);

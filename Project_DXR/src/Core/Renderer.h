@@ -38,7 +38,7 @@ public:
 	virtual RenderState* makeRenderState() = 0;
 	virtual std::string getShaderPath() = 0;
 	virtual std::string getShaderExtension() = 0;
-	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, unsigned int location) = 0;
+	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, size_t size) = 0;
 	virtual Technique* makeTechnique(Material*, RenderState*) = 0;
 
 	Renderer() { /*InitializeCriticalSection(&protectHere);*/ };
@@ -54,7 +54,7 @@ public:
 	virtual void setRenderState(RenderState* ps) = 0;
 	// submit work (to render) to the renderer.
 	virtual void submit(Mesh* mesh) = 0;
-	virtual void frame() = 0;
+	//virtual void frame() = 0;
 	
 	BACKEND IMPL;
 };

@@ -7,6 +7,8 @@ Application::Application(int windowWidth, int windowHeight, const char* windowTi
 	m_renderer->initialize(windowWidth, windowHeight);
 	m_renderer->setWinTitle(windowTitle);
 
+	ZeroMemory(frameTimeHistory, FRAME_HISTORY_COUNT * sizeof(float));
+
 }
 
 Application::~Application() {
@@ -24,8 +26,9 @@ int Application::startGameLoop() {
 		} else {
 			// do the stuff
 			Input::NewFrame();
-			update(m_lastDelta);
-			render(m_lastDelta);
+			double dtSeconds = m_lastDelta / 1000.0;
+			update(dtSeconds);
+			render(dtSeconds);
 			Input::EndFrame();
 			updateDelta();
 
@@ -72,4 +75,16 @@ void Application::updateDelta() {
 		m_renderer->setWinTitle(m_titleBuff);
 	}
 	timeAccumulator += deltaTime;
+
+	if (loop == 0) {
+		// Shift elements to the left
+		float sum = 0;
+		for (int i = 0; i < FRAME_HISTORY_COUNT - 1; i++) {
+			frameTimeHistory[i] = frameTimeHistory[i + 1];
+			sum += frameTimeHistory[i];
+		}
+		// Insert the new delta
+		frameTimeHistory[FRAME_HISTORY_COUNT - 1] = static_cast<float>(m_lastDelta);
+		frameTimeAvg = (sum + frameTimeHistory[FRAME_HISTORY_COUNT - 1]) / FRAME_HISTORY_COUNT;
+	}
 }

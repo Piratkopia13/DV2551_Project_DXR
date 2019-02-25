@@ -5,6 +5,7 @@
 
 DX12Mesh::DX12Mesh(DX12Renderer* renderer) {
 	transformCB = renderer->makeConstantBuffer("Transform", CB_REG_TRANSFORM);
+	//transformCB->setData(&transform.getTransformMatrix(), CB_REG_TRANSFORM); Maybe needed
 }
 DX12Mesh::~DX12Mesh() {
 }
