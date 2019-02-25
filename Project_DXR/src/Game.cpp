@@ -238,14 +238,13 @@ void Game::update(double dt) {
 	Transform& t = m_meshes[0]->getTransform();
 	t.setTranslation(translation);
 	//std::cout << t.getTranslation().x << std::endl;
-	m_mesh->setTransform(t); // Updates transform matrix for rasterisation
+	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
-	m_mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
 
 	m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
-		mesh->updateCamera(*m_persCamera);
+		mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
 
 	if (m_dxRenderer->isDXREnabled()) {
 		auto instanceTransform = [&](int instanceID) {

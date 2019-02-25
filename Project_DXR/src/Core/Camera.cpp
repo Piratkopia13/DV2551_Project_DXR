@@ -30,7 +30,7 @@ Camera::~Camera() {
 }
 
 void Camera::init(DX12Renderer * renderer) {
-	m_constantBuffer = static_cast<DX12ConstantBuffer*>(renderer->makeConstantBuffer("Camera CB", CB_REG_CAMERA));
+	m_constantBuffer = static_cast<DX12ConstantBuffer*>(renderer->makeConstantBuffer("Camera CB", sizeof(CameraData)));
 }
 
 void Camera::lookAt(const DirectX::XMVECTOR& position) {
@@ -192,7 +192,7 @@ void Camera::updateConstantBuffer() {
 		CameraData data;
 		data.VP = getVPMatrix();
 		data.cameraPosition = getPositionF3();
-		m_constantBuffer->setData(&data, sizeof(data), CB_REG_CAMERA);
+		m_constantBuffer->setData(&data, CB_REG_CAMERA);
 	}
 }
 

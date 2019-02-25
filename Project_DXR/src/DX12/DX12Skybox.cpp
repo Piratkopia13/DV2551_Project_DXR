@@ -106,8 +106,8 @@ DX12Skybox::DX12Skybox(DX12Renderer* renderer)
 	m_texture->loadFromFile("../assets/textures/GCanyon_C_YumaPoint_4k.png");
 
 	DirectX::XMMATRIX identityMat = DirectX::XMMatrixIdentity();
-	m_transCB = new DX12ConstantBuffer("Skybox Transform CB", CB_REG_TRANSFORM, renderer);
-	m_transCB->setData(&identityMat, sizeof(DirectX::XMMATRIX), CB_REG_TRANSFORM);
+	m_transCB = new DX12ConstantBuffer("Skybox Transform CB", sizeof(DirectX::XMMATRIX), renderer);
+	m_transCB->setData(&identityMat, CB_REG_TRANSFORM);
 
 	m_camCB = nullptr;
 }

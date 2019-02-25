@@ -4,8 +4,8 @@
 #include "DX12Renderer.h"
 
 DX12Mesh::DX12Mesh(DX12Renderer* renderer) {
-	transformCB = renderer->makeConstantBuffer("Transform", CB_REG_TRANSFORM);
-	//transformCB->setData(&transform.getTransformMatrix(), CB_REG_TRANSFORM); Maybe needed
+	transformCB = renderer->makeConstantBuffer("Transform", sizeof(DirectX::XMMATRIX));
+	transformCB->setData(&transform.getTransformMatrix(), CB_REG_TRANSFORM);
 }
 DX12Mesh::~DX12Mesh() {
 }
