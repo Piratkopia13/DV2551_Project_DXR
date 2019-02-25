@@ -40,4 +40,5 @@ struct SceneConstantBuffer {
 
 struct CameraData {
 	XMMATRIX VP;
+	XMFLOAT3 cameraPosition;
 };

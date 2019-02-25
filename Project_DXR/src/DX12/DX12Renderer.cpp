@@ -9,6 +9,7 @@
 #include "DX12ConstantBuffer.h"
 #include "DX12Texture2D.h"
 #include "DX12VertexBuffer.h"
+#include "DX12Skybox.h"
 #include "D3DUtils.h"
 
 #include "../ImGui/imgui.h"
@@ -56,6 +57,7 @@ DX12Renderer::~DX12Renderer() {
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+	delete m_skybox;
 
 	reportLiveObjects();
 
@@ -258,6 +260,9 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 		// Create thread
 		m_workerThreads.emplace_back(&DX12Renderer::workerThread, this, i);
 	}
+
+	// Skybox
+	m_skybox = new DX12Skybox(this);
 
 	// ImGui
 	initImGui();
@@ -472,13 +477,27 @@ void DX12Renderer::createGlobalRootSignature() {
 	rootParam[GlobalRootParam::DT_SAMPLERS].DescriptorTable = dtSampler;
 	rootParam[GlobalRootParam::DT_SAMPLERS].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
+	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
+	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc.MipLODBias = 0.f;
+	staticSamplerDesc.MaxAnisotropy = 1;
+	staticSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	staticSamplerDesc.MinLOD = 0.f;
+	staticSamplerDesc.MaxLOD = FLT_MAX;
+	staticSamplerDesc.ShaderRegister = 1;
+	staticSamplerDesc.RegisterSpace = 0;
+	staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rsDesc.NumParameters = ARRAYSIZE(rootParam);
 	rsDesc.pParameters = rootParam;
-	rsDesc.NumStaticSamplers = 0;
-	rsDesc.pStaticSamplers = nullptr;
+	rsDesc.NumStaticSamplers = 1;
+	rsDesc.pStaticSamplers = &staticSamplerDesc;
 
 	// Serialize and create the actual signature
 	ID3DBlob* sBlob;
@@ -704,6 +723,19 @@ void DX12Renderer::frame() {
 	m_preCommand.list->ClearRenderTargetView(m_cdh, m_clearColor, 0, nullptr);
 	m_preCommand.list->ClearDepthStencilView(m_dsvDescHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+	if (!m_DXREnabled) {
+		m_preCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
+		// Set topology
+		m_preCommand.list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		//Set necessary states.
+		m_preCommand.list->RSSetViewports(1, &m_viewport);
+		m_preCommand.list->RSSetScissorRects(1, &m_scissorRect);
+
+		m_cam->updateConstantBuffer();
+		m_skybox->setCamCB(m_cam->getConstantBuffer());
+		m_skybox->render(m_preCommand.list.Get());
+	}
+
 	{
 		//Execute the pre command list
 		m_preCommand.list->Close();
@@ -897,6 +929,13 @@ void DX12Renderer::present() {
 	m_swapChain->Present1(0, 0, &pp);
 
 
+}
+
+void DX12Renderer::useCamera(Camera * camera) {
+	m_cam = camera;
+
+	if(m_cam->getConstantBuffer() == nullptr)
+		m_cam->init(this);
 }
 
 void DX12Renderer::waitForGPU() {
