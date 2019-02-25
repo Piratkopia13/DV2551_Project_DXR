@@ -9,6 +9,7 @@ class DX12Renderer;
 class DX12VertexBuffer;
 class DX12ConstantBuffer;
 class DX12Mesh;
+class DX12Texture2D;
 class Camera;
 class CameraController;
 struct SceneConstantBuffer;
@@ -37,6 +38,8 @@ namespace DXRHitGroupRootParam {
 }
 namespace DXRMissRootParam {
 	enum Slot {
+		SRV_SKYBOX = 0,
+		SIZE
 	};
 }
 
@@ -51,6 +54,7 @@ public:
 	void copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target);
 
 	void setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes);
+	void setSkyboxTexture(DX12Texture2D* texture);
 	void updateBLASnextFrame(bool inPlace = true);
 	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {});
 	void useCamera(Camera* camera);
@@ -133,4 +137,6 @@ private:
 	wComPtr<ID3D12RootSignature> m_localSignatureHitGroup;
 	wComPtr<ID3D12RootSignature> m_localSignatureMiss;
 
+	DX12Texture2D* m_skyboxTexture;
+	D3D12_GPU_DESCRIPTOR_HANDLE m_skyboxGPUDescHandle;
 };

@@ -38,15 +38,6 @@ VSOut VSMain(VSIn vin) {
 	return vout;
 }
 
-#define M_1_PI  0.318309886183790671538
-
-float2 wsVectorToLatLong(float3 dir) {
-  float3 p = normalize(dir);
-  float u = (1.f + atan2(p.x, -p.z) * M_1_PI) * 0.5f;
-  float v = acos(p.y) * M_1_PI;
-  return float2(u, v);
-}
-
 float4 PSMain(VSOut pin) : SV_Target {
 	return gLatLongTex.Sample(ss, wsVectorToLatLong(pin.PosL));
 }

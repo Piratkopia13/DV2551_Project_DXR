@@ -269,6 +269,9 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 
 	// Skybox
 	m_skybox = new DX12Skybox(this);
+	if (m_supportsDXR) {
+		m_dxr->setSkyboxTexture(m_skybox->getTexture());
+	}
 
 	// ImGui
 	initImGui();

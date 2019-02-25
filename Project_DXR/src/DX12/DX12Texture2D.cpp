@@ -138,6 +138,8 @@ void DX12Texture2D::bind(unsigned int slot, ID3D12GraphicsCommandList3* cmdList)
 		cmdList->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
 		cmdList->SetGraphicsRootDescriptorTable(GlobalRootParam::DT_SRVS, m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+		m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	}
 }
 
@@ -151,4 +153,12 @@ UINT DX12Texture2D::getMips() {
 
 ID3D12Resource* DX12Texture2D::getResource() {
 	return m_textureBuffer.Get();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DX12Texture2D::getCpuDescHandle() {
+	return m_mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DX12Texture2D::getGpuDescHandle() {
+	return m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 }

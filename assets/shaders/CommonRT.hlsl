@@ -14,6 +14,16 @@ typedef uint UINT;
 
 // Shader only globals
 static float3 g_lightDirection = float3(-0.513861f, -0.596225f, -0.616817f);
+#define M_1_PI 0.318309886183790671538
+
+// Shader only functions
+float2 wsVectorToLatLong(float3 dir) {
+  float3 p = normalize(dir);
+  float u = (1.f + atan2(p.x, -p.z) * M_1_PI) * 0.5f;
+  float v = acos(p.y) * M_1_PI;
+  return float2(u, v);
+}
+
 
 #else
 

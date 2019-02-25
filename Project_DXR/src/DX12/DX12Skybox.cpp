@@ -144,3 +144,7 @@ void DX12Skybox::render(ID3D12GraphicsCommandList4 * cmdList) {
 void DX12Skybox::setCamCB(DX12ConstantBuffer * cb) {
 	m_camCB = cb;
 }
+
+DX12Texture2D * DX12Skybox::getTexture() {
+	return m_texture;
+}

@@ -16,6 +16,8 @@ public:
 
 	void setCamCB(DX12ConstantBuffer* cb);
 
+	DX12Texture2D* getTexture();
+
 private:
 	wComPtr<ID3D12PipelineState> m_pipelineState;
 	DX12Renderer* m_renderer;
