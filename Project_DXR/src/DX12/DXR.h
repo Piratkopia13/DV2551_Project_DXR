@@ -29,9 +29,9 @@ namespace DXRRayGenRootParam {
 }
 namespace DXRHitGroupRootParam {
 	enum Slot {
-		FLOAT3_SHADER_TABLE_COLOR = 0,
-		SRV_VERTEX_BUFFER,
+		SRV_VERTEX_BUFFER = 0,
 		DT_TEXTURES,
+		CBV_SETTINGS,
 		SIZE
 	};
 }
@@ -55,6 +55,10 @@ public:
 	void updateTLASnextFrame(std::function<DirectX::XMFLOAT3X4(int)> instanceTransform = {});
 	void useCamera(Camera* camera);
 	void reloadShaders();
+
+	int& getRTFlags();
+	float& getAORadius();
+	UINT& getNumAORays();
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
@@ -82,6 +86,7 @@ private:
 	const std::vector<std::unique_ptr<DX12Mesh>>* m_meshes;
 	//DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
 	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
+	DX12ConstantBuffer* m_rayGenSettingsCB; // Temporary constant buffer
 
 	Camera* m_camera;
 	
@@ -91,6 +96,7 @@ private:
 	};
 	AlignedSceneConstantBuffer* m_mappedSceneCBData; // TODO: Fix memory leak
 	SceneConstantBuffer* m_sceneCBData; // TODO: Fix memory leak
+	RayGenSettings m_rayGenCBData;
 
 	struct AccelerationStructureBuffers {
 		wComPtr<ID3D12Resource1> scratch = nullptr;
