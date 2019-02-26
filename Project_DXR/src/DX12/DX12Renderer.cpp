@@ -11,6 +11,7 @@
 #include "DX12VertexBuffer.h"
 #include "DX12Skybox.h"
 #include "D3DUtils.h"
+#include "DX12Texture2DArray.h"
 
 #include "../ImGui/imgui_impl_win32.h"
 #include "../ImGui/imgui_impl_dx12.h"
@@ -711,6 +712,14 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	// Reset preCommand
 	m_preCommand.allocators[getFrameIndex()]->Reset();
 	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
+
+
+	std::vector<std::string> filenames;
+	filenames.emplace_back("../assets/textures/cube.png");
+	filenames.emplace_back("../assets/textures/cube.png");
+	filenames.emplace_back("../assets/textures/cube.png");
+	DX12Texture2DArray texArr(this);
+	texArr.loadFromFiles(filenames);
 
 	// Execute stored functions that needs an open preCommand list
 	for (auto& func : m_preCommandFuncsToExecute) {

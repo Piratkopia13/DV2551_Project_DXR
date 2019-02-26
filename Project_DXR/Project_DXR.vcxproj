@@ -172,6 +172,7 @@
     <ClInclude Include="src\Core\CameraController.h" />
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\DX12\DX12Skybox.h" />
+    <ClInclude Include="src\DX12\DX12Texture2DArray.h" />
     <ClInclude Include="src\Game.h" />
     <ClInclude Include="src\Geometry\Transform.h" />
     <ClInclude Include="src\ImGui\imconfig.h" />
@@ -213,6 +214,7 @@
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\DX12\DX12Skybox.cpp" />
+    <ClCompile Include="src\DX12\DX12Texture2DArray.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\Core\CameraController.cpp" />
     <ClCompile Include="src\Geometry\Transform.cpp">
