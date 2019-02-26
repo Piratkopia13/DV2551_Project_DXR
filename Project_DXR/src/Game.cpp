@@ -108,46 +108,46 @@ void Game::init() {
 
 	size_t offset = 0;
 
-	//{
-	//	// Set up mesh from FBX file
-	//	// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
-	//	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-	//	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelVertices().size(), VertexBuffer::STATIC));
-	//	m_vertexBuffers.back()->setData(&dino->getModelVertices()[0], sizeof(Vertex) * dino->getModelVertices().size(), offset);
-	//	m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * dino->getModelIndices().size(), IndexBuffer::STATIC));
-	//	m_indexBuffers.back()->setData(&dino->getModelIndices()[0], sizeof(unsigned int) * dino->getModelIndices().size(), offset);
-	//	m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
-	//	m_meshes.back()->technique = m_technique.get();
-	//	m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-	//	delete dino;
-	//}
+	{
+		// Set up mesh from FBX file
+		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelVertices().size(), VertexBuffer::STATIC));
+		m_vertexBuffers.back()->setData(&dino->getModelVertices()[0], sizeof(Vertex) * dino->getModelVertices().size(), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * dino->getModelIndices().size(), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(&dino->getModelIndices()[0], sizeof(unsigned int) * dino->getModelIndices().size(), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		delete dino;
+	}
 
-	//{
-	//	// Set up mirrror 1 mesh
-	//	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-	//	constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
-	//	constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
-	//	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
-	//	m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
-	//	m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(mirrorIndices), IndexBuffer::STATIC));
-	//	m_indexBuffers.back()->setData(mirrorIndices, sizeof(mirrorIndices), offset);
-	//	m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
-	//	m_meshes.back()->technique = m_technique.get();
-	//	m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-	//}
-	//{
-	//	// Set up mirrror 2 mesh
-	//	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-	//	constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
-	//	constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
-	//	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
-	//	m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
-	//	m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(mirrorIndices), IndexBuffer::STATIC));
-	//	m_indexBuffers.back()->setData(mirrorIndices, sizeof(mirrorIndices), offset);
-	//	m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
-	//	m_meshes.back()->technique = m_technique.get();
-	//	m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-	//}
+	{
+		// Set up mirrror 1 mesh
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
+		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(mirrorIndices), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(mirrorIndices, sizeof(mirrorIndices), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	}
+	{
+		// Set up mirrror 2 mesh
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
+		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(mirrorIndices), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(mirrorIndices, sizeof(mirrorIndices), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	}
 
 	{
 		// Set up floor mesh

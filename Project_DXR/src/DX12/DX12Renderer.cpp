@@ -662,6 +662,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 
 			for (auto mesh : work->second) {
 				size_t numVertices = mesh->geometryBuffer.numVertices;
+				size_t numIndices = mesh->geometryBuffer.numIndices;
 				for (auto t : mesh->textures) {
 					static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
 				}
@@ -676,7 +677,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 				static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 				// Draw
 				//list->DrawInstanced(static_cast<UINT>(numVertices), 1, 0, 0);
-				list->DrawIndexedInstanced(static_cast<UINT>(numVertices), 1, 0, 0, 0);
+				list->DrawIndexedInstanced(static_cast<UINT>(numIndices), 1, 0, 0, 0);
 			}
 		}
 		list->Close();
