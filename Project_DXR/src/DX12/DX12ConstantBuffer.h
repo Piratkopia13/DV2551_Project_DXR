@@ -14,6 +14,7 @@ public:
 	void bind(Material* material, ID3D12GraphicsCommandList3* cmdList);
 
 	ID3D12Resource1* getBuffer(unsigned int frameIndex) const;
+	void forceUpdate(unsigned int frameIndex);
 
 private:
 	void updateBuffer(UINT frameIndex) const;

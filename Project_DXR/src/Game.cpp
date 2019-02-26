@@ -290,6 +290,33 @@ void Game::render(double dt) {
 }
 
 void Game::imguiFunc() {
+
+	if (m_dxRenderer->isDXRSupported()) {
+		if (ImGui::Begin("Raytracer")) {
+			auto& dxr = m_dxRenderer->getDXR();
+
+			static bool enableAO = dxr.getRTFlags() & RT_ENABLE_AO;
+			if (ImGui::Checkbox("Enable AO", &enableAO)) {
+				if (enableAO)
+					dxr.getRTFlags() |= RT_ENABLE_AO;
+				else
+					dxr.getRTFlags() &= ~RT_ENABLE_AO;
+			}
+			ImGui::SameLine();
+			static bool drawNormals = dxr.getRTFlags() & RT_DRAW_NORMALS;
+			if (ImGui::Checkbox("Draw normals", &drawNormals)) {
+				if (drawNormals)
+					dxr.getRTFlags() |= RT_DRAW_NORMALS;
+				else
+					dxr.getRTFlags() &= ~RT_DRAW_NORMALS;
+			}
+			ImGui::SliderFloat("AO radius", &dxr.getAORadius(), 0.1f, 10.0f);
+			ImGui::SliderInt("AO rays", (int*)&dxr.getNumAORays(), 1, 100);
+
+			ImGui::End();
+		}
+	}
+
 	// Only display options if the window isn't collapsed
 	if (ImGui::Begin("Options")) {
 		std::string build = "Release";
@@ -363,6 +390,7 @@ void Game::imguiFunc() {
 
 			if (m_dxRenderer->isDXRSupported()) {
 				ImGui::Checkbox("DXR Enabled", &m_dxRenderer->isDXREnabled());
+
 				ImGui::SameLine();
 				ImGui::PushID(0);
 				ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(1 / 7.0f, 0.6f, 0.6f));
@@ -375,7 +403,6 @@ void Game::imguiFunc() {
 				}
 				ImGui::PopStyleColor(3);
 				ImGui::PopID();
-
 			}
 			ImGui::TreePop();
 			ImGui::Separator();
@@ -387,9 +414,12 @@ void Game::imguiFunc() {
 			static float pausedCopy[FRAME_HISTORY_COUNT];
 			static float pausedAvg;
 			static float pausedLast;
+			static float min = 0.f;
+			static float max = 10.f;
 			char buffer[100];
 			sprintf_s(buffer, 100, "Frame Times\n\nLast:    %.2f ms\nAverage: %.2f ms", (paused) ? pausedLast : frameTimeHistory[FRAME_HISTORY_COUNT-1], (paused) ? pausedAvg : frameTimeAvg);
-			ImGui::PlotLines(buffer, (paused) ? pausedCopy : frameTimeHistory, FRAME_HISTORY_COUNT, 0, "", 0.f, 10.f, ImVec2(0, 100));
+			ImGui::PlotLines(buffer, (paused) ? pausedCopy : frameTimeHistory, FRAME_HISTORY_COUNT, 0, "", min, max, ImVec2(0, 100));
+			ImGui::DragFloatRange2("Range", &min, &max, 0.05f, 0.f, 0.f, "Min: %.1f", "Max: %.1f");
 			if (ImGui::Button((paused) ? "Resume" : "Pause")) {
 				paused = !paused;
 				if (paused) {
@@ -404,6 +434,7 @@ void Game::imguiFunc() {
 		}
 		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_FirstUseEver);
 		ImGui::Text("Controls\nEnter to toggle DXR on/off\nRight click to lock/unlock mouse\nWASD Space and C to move camera\nHold F to move mirror 1\nHold G to move mirror 2");
+
 	}
 
 	//ImGui::ShowDemoWindow();

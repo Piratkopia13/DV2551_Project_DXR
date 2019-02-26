@@ -52,11 +52,17 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 	assert(m_meshes != nullptr); // Meshes not set
 
+	// Update constant buffers
 	if (m_camera) {
 		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
 		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
 		m_sceneCB->setData(m_sceneCBData, 0);
 	}
+
+	m_rayGenCBData.frameCount++;
+	m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
+	m_rayGenSettingsCB->forceUpdate(0);
+
 
 	//Set constant buffer descriptor heap
 	ID3D12DescriptorHeap* descriptorHeaps[] = { m_rtDescriptorHeap.Get() };
@@ -82,7 +88,7 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	raytraceDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTable.StrideInBytes;
 	raytraceDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable.SizeInBytes;
 
-	// Bind the empty root signature
+	// Bind the global root signature
 	cmdList->SetComputeRootSignature(m_dxrGlobalRootSignature.Get());
 
 	// Set float RedChannel; in global root signature
@@ -90,7 +96,7 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	cmdList->SetComputeRoot32BitConstant(DXRGlobalRootParam::FLOAT_RED_CHANNEL, *reinterpret_cast<UINT*>(&redColor), 0);
 	// Set acceleration structure
 	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
-	// Set constant buffer
+	// Set scene constant buffer
 	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SCENE_BUFFER, m_sceneCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
 
 	// Dispatch
@@ -144,6 +150,18 @@ void DXR::reloadShaders() {
 	createShaderTables();
 }
 
+int& DXR::getRTFlags() {
+	return m_rayGenCBData.flags;
+}
+
+float& DXR::getAORadius() {
+	return m_rayGenCBData.AORadius;
+}
+
+UINT& DXR::getNumAORays() {
+	return m_rayGenCBData.numAORays;
+}
+
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 	createBLAS(cmdList);
 	createTLAS(cmdList);
@@ -183,7 +201,6 @@ void DXR::createShaderResources() {
 	m_renderer->getDevice()->CreateUnorderedAccessView(m_rtOutputUAV.resource.Get(), nullptr, &uavDesc, cpuHandle);
 	m_rtOutputUAV.gpuHandle = gpuHandle;
 
-
 	// Create a view for each mesh textures
 	auto incr = m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_rtMeshHandles.clear();
@@ -219,10 +236,19 @@ void DXR::createShaderResources() {
 		The ViewDimension in the View Desc is incompatible with the type of the Resource
 	*/
 
+	// Ray gen settings CB
+	m_rayGenCBData.flags = 0;
+	m_rayGenCBData.numAORays = 5;
+	m_rayGenCBData.AORadius = 0.9f;
+	m_rayGenCBData.frameCount = 0;
+	m_rayGenSettingsCB = new DX12ConstantBuffer("Ray Gen Settings CB", sizeof(RayGenSettings), m_renderer);
+	m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
+
 	// Scene CB
 	m_sceneCBData = new SceneConstantBuffer();
 	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", sizeof(SceneConstantBuffer), m_renderer);
 	m_sceneCB->setData(m_sceneCBData, 0/*Not used*/);
+
 }
 
 void DXR::createShaderTables() {
@@ -248,13 +274,13 @@ void DXR::createShaderTables() {
 
 	// Hit group
 	{
+		auto rayGenHandle = m_rayGenSettingsCB->getBuffer(0)->GetGPUVirtualAddress();
 		m_hitGroupShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
-			float shaderTableColor[] = { 1.0f, 0.0f, 0.0f, 0.0f };
-			tableBuilder.addConstants(4, shaderTableColor, i);
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i); // only supports one texture/mesh atm // TODO FIX
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].textureHandle.ptr, i); // only supports one texture/mesh atm // TODO FIX
+			tableBuilder.addDescriptor(rayGenHandle, i);
 		}
 		m_hitGroupShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
@@ -459,7 +485,7 @@ void DXR::createDxrGlobalRootSignature() {
 
 ID3D12RootSignature* DXR::createRayGenLocalRootSignature() {
 	D3D12_DESCRIPTOR_RANGE range[1]{};
-	D3D12_ROOT_PARAMETER rootParams[1]{};
+	D3D12_ROOT_PARAMETER rootParams[DXRRayGenRootParam::SIZE]{};
 
 	// lOutput
 	range[0].BaseShaderRegister = 0;
@@ -500,12 +526,6 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//float3 ShaderTableColor;
-	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.RegisterSpace = 1;
-	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.ShaderRegister = 0;
-	rootParams[DXRHitGroupRootParam::FLOAT3_SHADER_TABLE_COLOR].Constants.Num32BitValues = 3;
-
 	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
 	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
@@ -513,6 +533,23 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.NumDescriptorRanges = _countof(range);
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.pDescriptorRanges = range;
+
+	/*D3D12_DESCRIPTOR_RANGE range2[1]{};
+	range2[0].BaseShaderRegister = 0;
+	range2[0].RegisterSpace = 1;
+	range2[0].NumDescriptors = 1;
+	range2[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	range2[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].DescriptorTable.NumDescriptorRanges = _countof(range2);
+	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].DescriptorTable.pDescriptorRanges = range2;*/
+
+	// Ray Gen settings CBV
+	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].Descriptor.ShaderRegister = 0;
+	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].Descriptor.RegisterSpace = 1;
+	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
 	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

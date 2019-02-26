@@ -85,6 +85,10 @@ ID3D12Resource1* DX12ConstantBuffer::getBuffer(unsigned int frameIndex) const {
 	return m_constantBufferUploadHeap[frameIndex].Get();
 }
 
+void DX12ConstantBuffer::forceUpdate(unsigned int frameIndex) {
+	updateBuffer(frameIndex);
+}
+
 void DX12ConstantBuffer::updateBuffer(UINT frameIndex) const {
 
 	memcpy(m_cbGPUAddress[frameIndex], m_newData, bufferSize);
