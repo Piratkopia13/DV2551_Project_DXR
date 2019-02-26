@@ -103,8 +103,10 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	PotatoModel* model = new PotatoModel();
 	
 	FbxNode * root = scene->GetRootNode();
+	fetchSkeleton(root, model, objName);
+	fetchGeometry(root, model, objName);
 
-	traverse(root, model);
+
 
 	//for (int i = 0; i < root->GetChildCount(); i++) {
 	//	FbxNode * child = root->GetChild(i);
@@ -530,17 +532,17 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const 
 				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex]][0], (float)cp[indices[vertexIndex]][1],(float)cp[indices[vertexIndex]][2]),
 				DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
 				DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
-			});
+			},vertIndex);
 			model->addVertex({
 				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 2]][0], (float)cp[indices[vertexIndex + 2]][1],(float)cp[indices[vertexIndex + 2]][2]),
 				DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
 				DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
-			});
+			},vertIndex+1);
 			model->addVertex({
 				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 1]][0], (float)cp[indices[vertexIndex + 1]][1],(float)cp[indices[vertexIndex + 1]][2]),
 				DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
 				DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
-			});
+			},vertIndex+2);
 		
 			vertexIndex += 3;
 		}
@@ -563,10 +565,16 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const 
 
 			FbxCluster * cluster = skin->GetCluster(i);
 			cout << cluster->GetLink()->GetName() << endl;
+			FbxAMatrix transformMa;
+			cluster->GetTransformMatrix(transformMa);
 			cout << PrintAttribute( cluster->GetLink()->GetNodeAttribute()) << endl;
+			
+			unsigned int numOfIndices = cluster->GetControlPointIndicesCount();
+			for (unsigned int i = 0; i < numOfIndices; ++i) {
+				
 
+			}
 		}
-
 	}
 
 
@@ -763,7 +771,44 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const 
 }
 }
 
-void PotatoFBXImporter::fetchSkeleton(FbxNode * mesh, PotatoModel* model, const std::string & filename) {
+void PotatoFBXImporter::fetchSkeleton(FbxNode * node, PotatoModel* model, const std::string & filename) {
+
+
+	for (int childIndex = 0; childIndex < node->GetChildCount(); ++childIndex)
+	{
+		FbxNode* currNode = node->GetChild(childIndex);
+		fetchSkeletonRecursive(currNode, model, 0, 0, -1);
+	}
+
+
+
+
+	//PotatoModel::Limb* limb = new PotatoModel::Limb();
+	//if (node->GetNodeAttribute() && node->GetNodeAttribute()->GetAttributeType() && node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+
+	//	limb->parent = parent;
+	//	model->addBone(limb);
+	//}
+	//for (int i = 0; i < node->GetChildCount(); i++)
+	//{
+	//	fetchSkeleton(node->GetChild(i), model, limb, filename);
+	//}
+
+}
+
+void PotatoFBXImporter::fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* model, int inDepth, int myIndex, int inParentIndex) {
+
+	if (inNode->GetNodeAttribute() && inNode->GetNodeAttribute()->GetAttributeType() && inNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+	{
+		PotatoModel::Limb limb;
+		limb.parentIndex = inParentIndex;
+		(int)inNode->GetLine()->GetUniqueID();
+		model->addBone(limb);
+
+	}
+	for (int i = 0; i < inNode->GetChildCount(); i++) {
+		fetchSkeletonRecursive(inNode->GetChild(i), model, inDepth + 1, model->getSkeleton().size(), myIndex);
+	}
 
 
 }

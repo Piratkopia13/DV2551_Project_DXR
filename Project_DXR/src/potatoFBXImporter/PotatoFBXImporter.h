@@ -17,6 +17,10 @@ public:
 		std::vector<float> weights;
 	};
 	struct Limb {
+		int parentIndex;
+		std::vector<int> childIndexes;
+		
+
 		Limb*parent;
 		std::vector<Limb*> children;
 		FbxMatrix mat;
@@ -27,38 +31,49 @@ public:
 	};
 
 	PotatoModel(std::vector<PotatoModel::Vertex> _data) {
-		data = _data;
+		m_Data = _data;
 	};
 
 	~PotatoModel() {};
-
-	void addVertex(Vertex vertex) {
+	void reSizeControlPoints(int size) {
+		m_ControlPoints.resize(size);
+	}
+	void addVertex(Vertex vertex, int controlPointIndex) {
 		int index = exists(vertex);
 		if (index == -1) {
-			data.push_back(vertex);
-			indexes.push_back(data.size() - 1);
+			m_Data.push_back(vertex);
+			indexes.push_back(m_Data.size() - 1);
 		}
 		else {
 			indexes.push_back(index);
 		}
+		m_ControlPoints[controlPointIndex] = &m_Data[index];
 	};
-
+	void addBone(Limb limb) {
+		m_Skeleton.push_back(limb);
+	}
 
 	const std::vector<PotatoModel::Vertex>& getModelData() {
-		return data;
+		return m_Data;
+	}
+
+
+	std::vector<PotatoModel::Limb>& getSkeleton() {
+		return m_Skeleton;
 	}
 
 private:
 
-	std::vector<PotatoModel::Vertex> data;
-	std::vector<PotatoModel::LimbConnection> connectionData;
-	std::vector<PotatoModel::Limb> limbData;
-	std::vector<PotatoModel::Vertex*> controlPoints;
+	std::vector<PotatoModel::Vertex> m_Data;
+	std::vector<PotatoModel::Vertex> m_currentVectors;
+	std::vector<PotatoModel::LimbConnection> m_ConnectionData;
+	std::vector<PotatoModel::Limb> m_Skeleton;
+	std::vector<PotatoModel::Vertex*> m_ControlPoints;
 	std::vector<int> indexes;
 
 	int exists(PotatoModel::Vertex _vert) {
-		for (int i = data.size() - 1; i >= 0; i--) {
-			if (_vert == data[i])
+		for (int i = m_Data.size() - 1; i >= 0; i--) {
+			if (_vert == m_Data[i])
 				return i;
 		}
 		return -1;
@@ -94,8 +109,10 @@ private:
 	void traverse(FbxNode* node, PotatoModel* model);
 	FbxVector2 getTexCoord(int cpIndex, FbxGeometryElementUV* geUV, FbxMesh* mesh, int polyIndex, int vertIndex) const;
 	void fetchGeometry(FbxNode* mesh, PotatoModel* model, const std::string& filename);
+	
+	
 	void fetchSkeleton(FbxNode* mesh, PotatoModel* model, const std::string& filename);
-
+	void fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* model, int inDepth, int myIndex, int inParentIndex);
 
 
 
