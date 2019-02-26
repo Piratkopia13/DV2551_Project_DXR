@@ -218,7 +218,7 @@ void DXR::createShaderResources() {
 		m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 		MeshHandles handles;
-		handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress();
+		handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.vBuffer)->getBuffer()->GetGPUVirtualAddress();
 		handles.textureHandle = gpuHandle;
 		m_rtMeshHandles.emplace_back(handles);
 	}
@@ -300,7 +300,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 		}
 
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
-			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.buffer);
+			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.vBuffer);
 			
 			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
 			geomDesc[0] = {};

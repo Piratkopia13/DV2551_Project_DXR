@@ -36,16 +36,19 @@ public:
 		int index = exists(vertex);
 		if (index == -1) {
 			data.push_back(vertex);
-			indexes.push_back(data.size() - 1);
+			indexes.push_back(static_cast<unsigned int>(data.size()) - 1);
 		}
 		else {
-			indexes.push_back(index);
+			indexes.push_back(static_cast<unsigned int>(index));
 		}
 	};
 
 
-	const std::vector<PotatoModel::Vertex>& getModelData() {
+	const std::vector<PotatoModel::Vertex>& getModelVertices() {
 		return data;
+	}
+	const std::vector<unsigned int>& getModelIndices() {
+		return indexes;
 	}
 
 private:
@@ -54,7 +57,7 @@ private:
 	std::vector<PotatoModel::LimbConnection> connectionData;
 	std::vector<PotatoModel::Limb> limbData;
 	std::vector<PotatoModel::Vertex*> controlPoints;
-	std::vector<int> indexes;
+	std::vector<unsigned int> indexes;
 
 	int exists(PotatoModel::Vertex _vert) {
 		for (int i = data.size() - 1; i >= 0; i--) {
