@@ -96,7 +96,7 @@ void Game::init() {
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
 
 	// create textures
-	m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+	/*m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 	m_texture->loadFromFile("../assets/textures/Dragon_ground_color.png");
 	m_sampler = std::unique_ptr<Sampler2D>(getRenderer().makeSampler2D()); // Sampler does not work in RT mode
 	m_sampler->setWrap(WRAPPING::REPEAT, WRAPPING::REPEAT);
@@ -104,11 +104,20 @@ void Game::init() {
 
 	m_floorTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
-	m_floorTexture->sampler = m_sampler.get();
+	m_floorTexture->sampler = m_sampler.get();*/
+
+	DX12Texture2DArray* testTexture = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
+	m_testTexArray = std::unique_ptr<DX12Texture2DArray>(testTexture);
+	std::vector<std::string> texFiles;
+	texFiles.emplace_back("../assets/textures/Dragon_ground_color.png");
+	texFiles.emplace_back("../assets/textures/Dragon_ground_color.png");
+	m_testTexArray->loadFromFiles(texFiles);
+	//m_testTexArray->setSampler(static_cast<DX12Sampler2D*>(m_sampler.get()));
 
 	size_t offset = 0;
 
 	{
+		/*TODO: Replace textures with TextureArrays*/
 		// Set up mesh from FBX file
 		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
@@ -116,7 +125,8 @@ void Game::init() {
 		m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		//m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
 		delete dino;
 	}
 
@@ -128,7 +138,8 @@ void Game::init() {
 		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
 	}
 	{
 		// Set up mirrror 2 mesh
@@ -138,7 +149,8 @@ void Game::init() {
 		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
 	}
 
 	{
@@ -149,7 +161,8 @@ void Game::init() {
 		m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
 	}
 
 
@@ -370,7 +383,7 @@ void Game::imguiFunc() {
 
 					auto updateTexture = [&]() {
 						try {
-							m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+							/*m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 							m_texture->loadFromFile("../assets/textures/" + m_availableTexturesList[currentTextureIndex]);
 							m_texture->sampler = m_sampler.get();
 							// Set all meshes to this texture
@@ -378,7 +391,7 @@ void Game::imguiFunc() {
 							for (auto& mesh : m_meshes)
 								mesh->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
 							if (m_dxRenderer->isDXRSupported())
-								m_dxRenderer->getDXR().updateBLASnextFrame(true);
+								m_dxRenderer->getDXR().updateBLASnextFrame(true);*/
 						} catch (...) {
 							std::cout << "Error loading texture" << std::endl;
 						}

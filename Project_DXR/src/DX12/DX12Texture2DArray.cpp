@@ -18,17 +18,19 @@ DX12Texture2DArray::~DX12Texture2DArray() {
 	}
 }
 
+// TODO: Per slice(texture) instead of all at once in order to take less memory
 HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 	int width, height, bytesPerPixel;
 	stbi_info(filenames[0].c_str(), &width, &height, &bytesPerPixel); // assume all files are the same width, height and bpp
 
 	UINT imageByteSize = width * height * bytesPerPixel;
-	m_rgbaVec.resize(width * height * bytesPerPixel * filenames.size());
+	UINT numTextures = filenames.size();
+	m_rgbaVec.resize(width * height * bytesPerPixel * numTextures);
 	// Pre-allocate the required memory
 	UINT index = 0;
 	for (auto file : filenames) {
 		int w, h, bpp;
-		m_rgba = stbi_load(filenames[0].c_str(), &w, &h, &bpp, STBI_rgb_alpha); // TODO: remove m_rgba memory after copy to gpu is complete
+		m_rgba = stbi_load(file.c_str(), &w, &h, &bpp, STBI_rgb_alpha); // TODO: remove m_rgba memory after copy to gpu is complete
 		if (m_rgba == nullptr) {
 			return -1;
 		}
@@ -40,13 +42,14 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 		index++;
 
 		delete m_rgba;
+		m_rgba = nullptr;
 	}
 
 	m_textureDesc = {};
 
 	m_textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	//m_textureDesc.Format = DXGI_FORMAT_R32G32B32A32_UINT;
-	m_textureDesc.DepthOrArraySize = 1;
+	m_textureDesc.DepthOrArraySize = numTextures;
 	m_textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	m_textureDesc.Width = width;
 	m_textureDesc.Height = height;
@@ -66,14 +69,14 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 		IID_PPV_ARGS(&m_textureBuffer));
 	if (FAILED(hr))
 		return false;
-	m_textureBuffer->SetName(L"Texture Buffer Resource Heap");
+	m_textureBuffer->SetName(L"Texture Array Buffer Resource Heap");
 
 	UINT64 textureUploadBufferSize;
 	// this function gets the size an upload buffer needs to be to upload a texture to the gpu.
 	// each row must be 256 byte aligned except for the last row, which can just be the size in bytes of the row
 	// eg. textureUploadBufferSize = ((((width * numBytesPerPixel) + 255) & ~255) * (height - 1)) + (width * numBytesPerPixel);
 	//textureUploadBufferSize = (((imageBytesPerRow + 255) & ~255) * (m_textureDesc.Height - 1)) + imageBytesPerRow;
-	m_renderer->getDevice()->GetCopyableFootprints(&m_textureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
+	m_renderer->getDevice()->GetCopyableFootprints(&m_textureDesc, 0, numTextures, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
 
 	// now we create an upload heap to upload our texture to the GPU
 	hr = m_renderer->getDevice()->CreateCommittedResource(
@@ -86,18 +89,18 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 	if (FAILED(hr))
 		return false;
 
-	m_textureBufferUploadHeap->SetName(L"Texture Buffer Upload Resource Heap");
+	m_textureBufferUploadHeap->SetName(L"Texture Array Buffer Upload Resource Heap");
 
 	// store vertex buffer in upload heap
 	D3D12_SUBRESOURCE_DATA textureData = {};
-	textureData.pData = m_rgba; // pointer to our image data
-	textureData.RowPitch = width * bytesPerPixel; /// size of all our triangle vertex data
-	textureData.SlicePitch = textureData.RowPitch * height; /// also the size of our triangle vertex data
+	textureData.pData = m_rgbaVec.data(); // pointer to our image data
+	textureData.RowPitch = width * bytesPerPixel; // Size of each row of each image
+	textureData.SlicePitch = textureData.RowPitch * height; // Size of each image
 
 	// Now we copy the upload buffer contents to the default heap
 
 
-	UpdateSubresources(m_renderer->getCmdList(), m_textureBuffer.Get(), m_textureBufferUploadHeap.Get(), 0, 0, 1, &textureData);
+	UpdateSubresources(m_renderer->getCmdList(), m_textureBuffer.Get(), m_textureBufferUploadHeap.Get(), imageByteSize, 0, numTextures, &textureData);
 
 	// transition the texture default heap to a pixel shader resource (we will be sampling from this heap in the pixel shader to get the color of pixels)
 	m_renderer->getCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
@@ -110,16 +113,22 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 	hr = m_renderer->getDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_mainDescriptorHeap));
 	if (FAILED(hr))
 		return -1;
+	m_mainDescriptorHeap->SetName(L"Texture Array Main Desc Heap");
 
 	// now we create a shader resource view (descriptor that points to the texture and describes it)
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = m_textureDesc.Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-	srvDesc.Texture2D.MipLevels = 1;
-	m_renderer->getDevice()->CreateShaderResourceView(m_textureBuffer.Get(), &srvDesc, m_mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	m_srvDesc = {};
+	m_srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	m_srvDesc.Format = m_textureDesc.Format;
+	m_srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+	m_srvDesc.Texture2DArray.MipLevels = 1;
+	m_srvDesc.Texture2DArray.FirstArraySlice = 0;
+	m_srvDesc.Texture2DArray.ArraySize = numTextures;
+	m_srvDesc.Texture2DArray.MostDetailedMip = 0;
+	m_srvDesc.Texture2DArray.ResourceMinLODClamp = 0.f;
+	m_srvDesc.Texture2DArray.PlaneSlice = 0;
+	m_renderer->getDevice()->CreateShaderResourceView(m_textureBuffer.Get(), &m_srvDesc, m_mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 void DX12Texture2DArray::bind(ID3D12GraphicsCommandList3* cmdList) {
@@ -164,6 +173,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE DX12Texture2DArray::getCpuDescHandle() {
 
 D3D12_GPU_DESCRIPTOR_HANDLE DX12Texture2DArray::getGpuDescHandle() {
 	return D3D12_GPU_DESCRIPTOR_HANDLE();
+}
+
+D3D12_SHADER_RESOURCE_VIEW_DESC DX12Texture2DArray::getSRVDesc()
+{
+	return m_srvDesc;
 }
 
 void DX12Texture2DArray::setSampler(DX12Sampler2D * sampler) {

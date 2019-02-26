@@ -5,6 +5,7 @@
 #include "DXILShaderCompiler.h"
 #include "DX12ConstantBuffer.h"
 #include "DX12Texture2D.h"
+#include "DX12Texture2DArray.h"
 #include "DX12Mesh.h"
 #include "../Core/Camera.h"
 #include "../Core/CameraController.h"
@@ -202,19 +203,21 @@ void DXR::createShaderResources() {
 	m_rtOutputUAV.gpuHandle = gpuHandle;
 
 	// Create a view for each mesh textures
+		/*TODO: Replace textures with TextureArrays in shader tables - might not be required*/
 	auto incr = m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	m_rtMeshHandles.clear();
 	for (auto& mesh : *m_meshes) {
-		DX12Texture2D* texture = static_cast<DX12Texture2D*>(mesh->textures.begin()->second);
+		//DX12Texture2D* texture = static_cast<DX12Texture2D*>(mesh->textures.begin()->second);
+		DX12Texture2DArray* texture = mesh->getTexture2DArray();
 
 		cpuHandle.ptr += incr;
 		gpuHandle.ptr += incr;
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = texture->getSRVDesc();
+		/*srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Format = texture->getFormat();
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = texture->getMips();
+		srvDesc.Texture2D.MipLevels = texture->getMips();*/
 		m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 		MeshHandles handles;
@@ -231,10 +234,7 @@ void DXR::createShaderResources() {
 	srvDesc.Format = m_skyboxTexture->getFormat();
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = m_skyboxTexture->getMips();
-	m_renderer->getDevice()->CreateShaderResourceView(m_skyboxTexture->getResource(), &srvDesc, cpuHandle); 
-	/*TODO:
-		The ViewDimension in the View Desc is incompatible with the type of the Resource
-	*/
+	m_renderer->getDevice()->CreateShaderResourceView(m_skyboxTexture->getResource(), &srvDesc, cpuHandle);
 
 	// Ray gen settings CB
 	m_rayGenCBData.flags = 0;

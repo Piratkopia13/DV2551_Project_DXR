@@ -23,3 +23,11 @@ void DX12Mesh::bindIAVertexBuffer(ID3D12GraphicsCommandList3* cmdList) {
 	// no checking if the key is valid...TODO
 	static_cast<DX12VertexBuffer*>(geometryBuffer.buffer)->bind(geometryBuffer.offset, geometryBuffer.numElements * geometryBuffer.sizeElement, 0, cmdList);
 }
+
+DX12Texture2DArray * DX12Mesh::getTexture2DArray() const {
+	return m_texArr;
+}
+
+void DX12Mesh::setTexture2DArray(DX12Texture2DArray * texArr) {
+	m_texArr = texArr;
+}

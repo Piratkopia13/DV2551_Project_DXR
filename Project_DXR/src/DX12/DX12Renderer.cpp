@@ -658,9 +658,12 @@ void DX12Renderer::workerThread(unsigned int id) {
 
 			for (auto mesh : work->second) {
 				size_t numberElements = mesh->geometryBuffer.numElements;
-				for (auto t : mesh->textures) {
+
+				// TODO: Bind texture array instead
+				/*for (auto t : mesh->textures) {
 					static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
-				}
+				}*/
+				mesh->getTexture2DArray()->bind(list.Get());
 
 				// Bind vertices, normals and UVs
 				mesh->bindIAVertexBuffer(list.Get());
@@ -712,14 +715,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	// Reset preCommand
 	m_preCommand.allocators[getFrameIndex()]->Reset();
 	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
-
-
-	std::vector<std::string> filenames;
-	filenames.emplace_back("../assets/textures/cube.png");
-	filenames.emplace_back("../assets/textures/cube.png");
-	filenames.emplace_back("../assets/textures/cube.png");
-	DX12Texture2DArray texArr(this);
-	texArr.loadFromFiles(filenames);
 
 	// Execute stored functions that needs an open preCommand list
 	for (auto& func : m_preCommandFuncsToExecute) {

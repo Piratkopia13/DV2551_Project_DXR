@@ -66,7 +66,7 @@ RWTexture2D<float4> lOutput : register(u0);
 
 StructuredBuffer<Vertex> Vertices : register(t1, space0);
 
-Texture2D<float4> diffuseTexture : register(t2, space0);
+Texture2DArray<float4> diffuseTexture : register(t2, space0);
 SamplerState ss : register(s0);
 
 Texture2D<float4> skyboxTexture : register(t3, space0);
@@ -202,7 +202,7 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		float spec = 1.0f;
 		float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
 
-		float3 clr = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
+		float3 clr = diffuseTexture.SampleLevel(ss, float3(texCoords, 0.0f), 0).rgb;
 		float3 color = clr * diffuseFactor + clr * specularFactor; // Not in shadow
 		if (payload.inShadow == 1) {
 			color = clr * 0.5f; // In shadow

@@ -22,6 +22,7 @@ public:
 	ID3D12Resource* getResource();
 	D3D12_CPU_DESCRIPTOR_HANDLE getCpuDescHandle();
 	D3D12_GPU_DESCRIPTOR_HANDLE getGpuDescHandle();
+	D3D12_SHADER_RESOURCE_VIEW_DESC getSRVDesc();
 
 	void setSampler(DX12Sampler2D* sampler);
 
@@ -36,4 +37,6 @@ private:
 	wComPtr<ID3D12Resource> m_textureBufferUploadHeap;
 
 	DX12Sampler2D* m_sampler;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC m_srvDesc;
 };

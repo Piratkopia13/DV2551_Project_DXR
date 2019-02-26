@@ -4,6 +4,7 @@
 #include "../Core/Mesh.h"
 
 class DX12Renderer;
+class DX12Texture2DArray;
 
 class DX12Mesh : public Mesh {
 public:
@@ -12,6 +13,12 @@ public:
 	virtual void setIAVertexBufferBinding(VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) override;
 	virtual void bindIAVertexBuffer(unsigned int location) override;
 	void bindIAVertexBuffer(ID3D12GraphicsCommandList3* cmdList);
+
+	DX12Texture2DArray* getTexture2DArray() const;
+	void setTexture2DArray(DX12Texture2DArray* texArr);
+
+private:
+	DX12Texture2DArray* m_texArr;
 
 };
 
