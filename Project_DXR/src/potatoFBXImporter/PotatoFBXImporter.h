@@ -8,6 +8,18 @@ public:
 		DirectX::XMFLOAT3 position;
 		DirectX::XMFLOAT3 normal;
 		DirectX::XMFLOAT2 texCoord;
+		bool operator==(Vertex& other) {
+			return position.x == other.position.x && position.y == other.position.y && position.z == other.position.z;
+		}
+	};
+	struct LimbConnection {
+		std::vector<int> indexes;
+		std::vector<float> weights;
+	};
+	struct Limb {
+		Limb*parent;
+		std::vector<Limb*> children;
+		FbxMatrix mat;
 	};
 
 	PotatoModel() {
@@ -21,7 +33,14 @@ public:
 	~PotatoModel() {};
 
 	void addVertex(Vertex vertex) {
-		data.push_back(vertex);
+		int index = exists(vertex);
+		if (index == -1) {
+			data.push_back(vertex);
+			indexes.push_back(data.size() - 1);
+		}
+		else {
+			indexes.push_back(index);
+		}
 	};
 
 
@@ -32,6 +51,18 @@ public:
 private:
 
 	std::vector<PotatoModel::Vertex> data;
+	std::vector<PotatoModel::LimbConnection> connectionData;
+	std::vector<PotatoModel::Limb> limbData;
+	std::vector<PotatoModel::Vertex*> controlPoints;
+	std::vector<int> indexes;
+
+	int exists(PotatoModel::Vertex _vert) {
+		for (int i = data.size() - 1; i >= 0; i--) {
+			if (_vert == data[i])
+				return i;
+		}
+		return -1;
+	}
 
 };
 

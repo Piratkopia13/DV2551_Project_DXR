@@ -548,6 +548,31 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const 
 
 
 
+
+	unsigned int numOfDeformers = mesh->GetDeformerCount();
+
+	for (unsigned int i = 0; i < numOfDeformers; i++) {
+		FbxSkin* currSkin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(i, FbxDeformer::eSkin));
+		if (!currSkin) {
+			cout << "not a skin at skin " << to_string(i) << endl;
+			continue;
+		}
+
+		unsigned int numOfClusters = currSkin->GetClusterCount();
+		for (unsigned int clusterIndex = 0; clusterIndex < numOfClusters; ++clusterIndex)
+		{
+
+
+
+
+
+	}
+
+
+
+
+
+
 	{
 	// Number of polygon vertices 
 	//m_buildData.numVertices = mesh->GetPolygonVertexCount();
