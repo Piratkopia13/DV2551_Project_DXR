@@ -235,13 +235,32 @@ void Game::update(double dt) {
 	if (shift >= XM_PI * 2.0f) shift -= XM_PI * 2.0f;
 
 	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
-	Transform& t = m_meshes[0]->getTransform();
-	t.setTranslation(translation);
+	if (Input::IsKeyDown('H')) {
+		Transform& mainMeshTransform = m_meshes[0]->getTransform();
+
+		XMVECTOR camPos = m_persCamera->getPositionVec();
+		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
+
+		XMVECTOR d = XMVector3Normalize(pos - camPos);
+		float dx = XMVectorGetX(d);
+		float dy = XMVectorGetY(d);
+		float dz = XMVectorGetZ(d);
+
+		float pitch = asin(-dy);
+		float yaw = atan2(dx, dz);
+
+		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
+		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
+
+		mainMeshTransform.setTransformMatrix(mat);
+	}
+	//Transform& t = m_meshes[0]->getTransform();
+	//t.setTranslation(translation);
 	//std::cout << t.getTranslation().x << std::endl;
 	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
 
-	m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
+	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
 		mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
