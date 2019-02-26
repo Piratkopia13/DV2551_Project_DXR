@@ -563,7 +563,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const 
 
 			FbxCluster * cluster = skin->GetCluster(i);
 			cout << cluster->GetLink()->GetName() << endl;
-
+			cout << PrintAttribute( cluster->GetLink()->GetNodeAttribute()) << endl;
 
 		}
 
