@@ -202,7 +202,7 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		float spec = 1.0f;
 		float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
 
-		float3 clr = diffuseTexture.SampleLevel(ss, float3(texCoords, 0.0f), 0).rgb;
+		float3 clr = diffuseTexture.SampleLevel(ss, float3(texCoords, 0.0), 0).rgb + diffuseTexture.SampleLevel(ss, float3(texCoords, 1.0), 0).rgb;
 		float3 color = clr * diffuseFactor + clr * specularFactor; // Not in shadow
 		if (payload.inShadow == 1) {
 			color = clr * 0.5f; // In shadow

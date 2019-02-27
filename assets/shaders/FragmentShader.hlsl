@@ -16,7 +16,7 @@ cbuffer CB_DiffuseTint : register(MERGE(b, CB_REG_DIFFUSE_TINT)) {
 }
 
 float4 PSMain(VSOut input) : SV_TARGET0 {
-    float4 color = tex.Sample(static_ss, float3(input.texCoord, 0.0));
+    float4 color = tex.Sample(static_ss, float3(input.texCoord, 0.0)) * tex.Sample(static_ss, float3(input.texCoord, 1.0));
     //color = float4(input.texCoord, 0.0, 0.0);
 	return color * float4(diffuseTint.rgb, 1.0);
 }

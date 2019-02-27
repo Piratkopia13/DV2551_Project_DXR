@@ -109,8 +109,8 @@ void Game::init() {
 	DX12Texture2DArray* testTexture = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
 	m_testTexArray = std::unique_ptr<DX12Texture2DArray>(testTexture);
 	std::vector<std::string> texFiles;
-	texFiles.emplace_back("../assets/textures/Dragon_ground_color.png");
-	texFiles.emplace_back("../assets/textures/Dragon_ground_color.png");
+	texFiles.emplace_back("../assets/textures/derp-diffuse.png");
+	texFiles.emplace_back("../assets/textures/derp-mat.png");
 	m_testTexArray->loadFromFiles(texFiles);
 	//m_testTexArray->setSampler(static_cast<DX12Sampler2D*>(m_sampler.get()));
 

@@ -36,9 +36,10 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 		}
 		assert(w == width && h == height && bpp == bytesPerPixel && "All images has to have the same dimensions and BPP");
 
-		for (UINT i = 0; i < imageByteSize; i++) {
+		/*for (UINT i = 0; i < imageByteSize; i++) {
 			m_rgbaVec[i + imageByteSize * index] = m_rgba[i];
-		}
+		}*/
+		memcpy(m_rgbaVec.data() + imageByteSize * index, m_rgba, imageByteSize);
 		index++;
 
 		delete m_rgba;
@@ -77,7 +78,9 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 	// eg. textureUploadBufferSize = ((((width * numBytesPerPixel) + 255) & ~255) * (height - 1)) + (width * numBytesPerPixel);
 	//textureUploadBufferSize = (((imageBytesPerRow + 255) & ~255) * (m_textureDesc.Height - 1)) + imageBytesPerRow;
 	m_renderer->getDevice()->GetCopyableFootprints(&m_textureDesc, 0, numTextures, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
+	// Undefined behaviour, stuff doesn't get copied properly ^
 
+	auto uploadHeapDesc = CD3DX12_RESOURCE_DESC::Buffer(textureUploadBufferSize);
 	// now we create an upload heap to upload our texture to the GPU
 	hr = m_renderer->getDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // upload heap
@@ -92,15 +95,17 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 	m_textureBufferUploadHeap->SetName(L"Texture Array Buffer Upload Resource Heap");
 
 	// store vertex buffer in upload heap
-	D3D12_SUBRESOURCE_DATA textureData = {};
-	textureData.pData = m_rgbaVec.data(); // pointer to our image data
-	textureData.RowPitch = width * bytesPerPixel; // Size of each row of each image
-	textureData.SlicePitch = textureData.RowPitch * height; // Size of each image
+	D3D12_SUBRESOURCE_DATA textureData[2];
+	textureData[0].pData = m_rgbaVec.data(); // pointer to our image data
+	textureData[0].RowPitch = width * bytesPerPixel; // Size of each row of each image
+	textureData[0].SlicePitch = textureData[0].RowPitch * height; // Size of each image
+	textureData[1] = textureData[0];
+	textureData[1].pData = m_rgbaVec.data() + imageByteSize;
 
 	// Now we copy the upload buffer contents to the default heap
 
 
-	UpdateSubresources(m_renderer->getCmdList(), m_textureBuffer.Get(), m_textureBufferUploadHeap.Get(), imageByteSize, 0, numTextures, &textureData);
+	UpdateSubresources(m_renderer->getCmdList(), m_textureBuffer.Get(), m_textureBufferUploadHeap.Get(), 0, 0, numTextures, textureData);
 
 	// transition the texture default heap to a pixel shader resource (we will be sampling from this heap in the pixel shader to get the color of pixels)
 	m_renderer->getCmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));

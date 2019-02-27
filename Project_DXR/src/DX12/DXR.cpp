@@ -268,7 +268,7 @@ void DXR::createShaderTables() {
 	{
 		m_missShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
-		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr); // TODO: Check if correct
+		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr);
 		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
 
@@ -516,19 +516,19 @@ ID3D12RootSignature* DXR::createRayGenLocalRootSignature() {
 }
 
 ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
-	D3D12_DESCRIPTOR_RANGE range[1]{};
 	D3D12_ROOT_PARAMETER rootParams[DXRHitGroupRootParam::SIZE]{};
 
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
+
 	// diffuseTexture
+	D3D12_DESCRIPTOR_RANGE range[1]{};
 	range[0].BaseShaderRegister = 2;
 	range[0].NumDescriptors = 1;
 	range[0].RegisterSpace = 0;
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
-	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
 	
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.NumDescriptorRanges = _countof(range);
