@@ -61,6 +61,7 @@ public:
 
 	const std::vector<PotatoModel::Vertex>& getModelVertices() {
 		return m_Data;
+	}
 
 	std::vector<PotatoModel::Limb>& getSkeleton() {
 		return m_Skeleton;
