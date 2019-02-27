@@ -47,18 +47,17 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
-	
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/sphere.fbx");
 
 	float floorHalfWidth = 50.0f;
 	float floorTiling = 5.0f;
 	const Vertex floorVertices[] = {
 		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
-		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 		{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
+		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 
-		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},
 		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
+		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},
 		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 	};
 	float mirrorHalfWidth = 5.0f;
@@ -106,16 +105,58 @@ void Game::init() {
 	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
 	m_floorTexture->sampler = m_sampler.get();*/
 
-	DX12Texture2DArray* testTexture = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
-	m_testTexArray = std::unique_ptr<DX12Texture2DArray>(testTexture);
+	DX12Texture2DArray* reflectTexture = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
+	m_reflectTexArray = std::unique_ptr<DX12Texture2DArray>(reflectTexture);
 	std::vector<std::string> texFiles;
-	texFiles.emplace_back("../assets/textures/derp-diffuse.png");
-	texFiles.emplace_back("../assets/textures/derp-mat.png");
-	m_testTexArray->loadFromFiles(texFiles);
+	texFiles.emplace_back("../assets/textures/white.png");
+	texFiles.emplace_back("../assets/textures/reflect.png");
+	m_reflectTexArray->loadFromFiles(texFiles);
+
+	DX12Texture2DArray* refractTexture = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
+	m_refractTexArray = std::unique_ptr<DX12Texture2DArray>(refractTexture);
+	texFiles.clear();
+	texFiles.emplace_back("../assets/textures/white.png");
+	texFiles.emplace_back("../assets/textures/refract.png");
+	m_refractTexArray->loadFromFiles(texFiles);
+
+	DX12Texture2DArray* diffuseTexture = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
+	m_diffuseTexArray = std::unique_ptr<DX12Texture2DArray>(diffuseTexture);
+	texFiles.clear();
+	texFiles.emplace_back("../assets/textures/white.png");
+	texFiles.emplace_back("../assets/textures/diffuse.png");
+	m_diffuseTexArray->loadFromFiles(texFiles);
+
+	DX12Texture2DArray* mirrorTextures = new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer()));
+	m_mirrorTextures = std::unique_ptr<DX12Texture2DArray>(mirrorTextures);
+	texFiles.clear();
+	texFiles.emplace_back("../assets/textures/diffuse-mirror.png");
+	texFiles.emplace_back("../assets/textures/mat-mirror.png");
+	m_mirrorTextures->loadFromFiles(texFiles);
+
+
 	//m_testTexArray->setSampler(static_cast<DX12Sampler2D*>(m_sampler.get()));
+
+	PotatoModel* mirror;
+	mirror = m_fbxImporter->importStaticModelFromScene("../assets/fbx/mirror.fbx");
+	{
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * mirror->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&mirror->getModelData()[0], sizeof(Vertex) * mirror->getModelData().size(), 0);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), 0, mirror->getModelData().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		//m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_mirrorTextures.get());
+		Transform t = m_meshes.back()->getTransform();
+		t.setScale(DirectX::XMVectorSet(0.3f, 0.3f, 0.3f, 1.0f));
+		//t.setTranslation(DirectX::XMVectorSet(0.0f, 5.f, 0.f, 1.0f));
+		t.rotateAroundY(3.14f / 2.f);
+		m_meshes.back()->setTransform(t);
+	}
+
 
 	size_t offset = 0;
 
+	// Reflection and refraction models
 	{
 		/*TODO: Replace textures with TextureArrays*/
 		// Set up mesh from FBX file
@@ -126,7 +167,22 @@ void Game::init() {
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		//m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
+		m_meshes.back()->setTexture2DArray(m_reflectTexArray.get());
+		Transform t = m_meshes.back()->getTransform();
+		t.setTranslation(DirectX::XMVectorSet(15.0f, 5.f, 0.f, 1.0f));
+		m_meshes.back()->setTransform(t);
+
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		//m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_refractTexArray.get());
+		t = m_meshes.back()->getTransform();
+		t.setTranslation(DirectX::XMVectorSet(-15.0f, 5.f, 0.f, 1.0f));
+		m_meshes.back()->setTransform(t);
+
 		delete dino;
 	}
 
@@ -139,7 +195,7 @@ void Game::init() {
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
+		m_meshes.back()->setTexture2DArray(m_reflectTexArray.get());
 	}
 	{
 		// Set up mirrror 2 mesh
@@ -150,7 +206,7 @@ void Game::init() {
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
+		m_meshes.back()->setTexture2DArray(m_reflectTexArray.get());
 	}
 
 	{
@@ -162,7 +218,7 @@ void Game::init() {
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->setTexture2DArray(m_testTexArray.get());
+		m_meshes.back()->setTexture2DArray(m_diffuseTexArray.get());
 	}
 
 

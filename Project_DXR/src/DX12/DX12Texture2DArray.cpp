@@ -161,27 +161,26 @@ void DX12Texture2DArray::bind(ID3D12GraphicsCommandList3* cmdList) {
 }
 
 DXGI_FORMAT DX12Texture2DArray::getFormat() {
-	return DXGI_FORMAT();
+	return m_textureBuffer->GetDesc().Format;
 }
 
 UINT DX12Texture2DArray::getMips() {
-	return 0;
+	return m_textureBuffer->GetDesc().MipLevels;
 }
 
 ID3D12Resource * DX12Texture2DArray::getResource() {
-	return nullptr;
+	return m_textureBuffer.Get();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE DX12Texture2DArray::getCpuDescHandle() {
-	return D3D12_CPU_DESCRIPTOR_HANDLE();
+	return m_mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE DX12Texture2DArray::getGpuDescHandle() {
-	return D3D12_GPU_DESCRIPTOR_HANDLE();
+	return m_mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 }
 
-D3D12_SHADER_RESOURCE_VIEW_DESC DX12Texture2DArray::getSRVDesc()
-{
+D3D12_SHADER_RESOURCE_VIEW_DESC DX12Texture2DArray::getSRVDesc() {
 	return m_srvDesc;
 }
 

@@ -60,6 +60,52 @@ float3 getCosHemisphereSample(inout uint randSeed, float3 hitNorm) {
 }
 
 
+float3 CalculatePhong(in float3 albedo, in float3 normal, in float diffuseCoef = 1.0f, in float specularCoef = 1.0f, in float specularPower = 1.0f) {
+	float diffuseFactor = max(dot(-g_lightDirection, normal), diffuseCoef);
+	float3 r = reflect(g_lightDirection, normal);
+	r = normalize(r);
+	float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), specularPower) * specularCoef;
+
+	return albedo * diffuseFactor + albedo * specularFactor;
+}
+
+// Approximation of reflectance and transmittance
+// Provided by: https://graphics.stanford.edu/courses/cs148-10-summer/docs/2006--degreve--reflection_refraction.pdf
+// Ray, normal, refractive indices n1 (from), n2 (to)
+// Refractive indices - air ~1, water 20*C ~1.33, glass ~1.5
+// Reflectance = rSchlick2, Transmittance = 1 - Reflectance
+float rSchlick2(in float3 incident, in float3 normal, in float n1, in float n2) {
+	float r0 = pow((n1 - n2) / (n1 + n2), 2);
+	float cosI = -dot(normal, incident);
+
+	// Due to restriction in approximation
+	if (n1 > n2) {
+		float n = n1 / n2;
+		float sinT2 = pow(n, 2) * (1.0 - pow(cosI, 2));
+		if (sinT2 > 1.0f) return 1.0f;
+		cosI = sqrt(1.0f - sinT2);
+	}
+
+	float x = 1.0 - cosI;
+	return r0 + (1.0f - r0) * pow(x, 5);
+}
+
+// Ray, normal, refractive indices n1 (from), n2 (to)
+float3 GetTransmittanceRay(in float3 incident, in float3 normal, float n1, float n2) {
+	float n = n1/n2;
+	float cosI = -dot(incident, normal);
+	float sinT2 = pow(n, 2) * (1.0f - pow(cosI, 2));
+	if(sinT2 > 1.0) return float3(0.0, 0.0, 0.0);
+	float cosT = sqrt(1.0 - sinT2);
+	return n * incident + (n * cosI - cosT) * normal;
+}
+
+float3 GetReflectionColor(in float3 incident, in float3 normal, in float3 albedo) {
+	float cosI = saturate(-dot(incident, normal));
+	return albedo + (1.0 - albedo) * pow(1.0 - cosI, 5);
+}
+
+
 
 RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
@@ -117,7 +163,7 @@ void rayGen() {
 
 	RayPayload payload;
 	payload.recursionDepth = 0;
-	TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+	TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	lOutput[launchIndex] = payload.color;
 
 	// if (RayGenSettings.frameCount == 0)
@@ -172,72 +218,110 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 
-	if ( (instanceID == 1 || instanceID == 2)  && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) { // -1 to allow for shadow ray
+	//if ( (instanceID == 1 || instanceID == 2)  && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) { // -1 to allow for shadow ray
+	// 	RayDesc ray;
+	// 	ray.Origin = HitWorldPosition();
+	// 	ray.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
+	// 	ray.TMin = 0.0001;
+	// 	ray.TMax = 100000;
+
+	// 	TraceRay(gRtScene, 0/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+	// }
+
+
+
+
+	// Trace shadow ray
+	payload.inShadow = -1;
+	RayDesc ray;
+	ray.Origin = HitWorldPosition();
+	ray.Direction = -g_lightDirection;
+	ray.TMin = 0.01;
+	ray.TMax = 100000;
+	TraceRay(gRtScene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, 0, 0, 0, ray, payload);
+
+
+
+	float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
+
+	// Sample diffuse texture
+	float3 diffuseColor = diffuseTexture.SampleLevel(ss, float3(texCoords, 0.0), 0).rgb;
+
+	float3 phongColor = CalculatePhong(diffuseColor, normalInWorldSpace, 0.2f, 1.0, 100.0f);
+	float3 color;
+
+	// Reflection and refraction values
+	float2 matValues = diffuseTexture.SampleLevel(ss, float3(texCoords, 1.0), 0).rg;
+	float3 reflectedColor = float3(0.0, 0.0, 0.0);
+	// Reflection
+	if (matValues.r > 0.001 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) {
 		RayDesc ray;
 		ray.Origin = HitWorldPosition();
 		ray.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
 		ray.TMin = 0.0001;
 		ray.TMax = 100000;
+		TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 
-		TraceRay(gRtScene, 0/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-	} else {
+		reflectedColor = GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor) * matValues.r * payload.color;
+		//reflectedColor = GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor) * (1.0 - rSchlick2(WorldRayDirection(), normalInWorldSpace, 1.0, matValues.g + 1.0)) * payload.color;
+		//reflectedColor = rShlick2(WorldRayDirection(), normalInWorldSpace, 1.0, matValues.g + 1.0) * payload.color;
+		//reflectedColor = payload.color;
+	}
 
-
-		// Trace shadow ray
-		payload.inShadow = -1;
+	// Refraction
+	float3 refractionColor = float3(0.0, 0.0, 0.0);
+	if (matValues.g > 0.001 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) {
 		RayDesc ray;
 		ray.Origin = HitWorldPosition();
-		ray.Direction = -g_lightDirection;
-		ray.TMin = 0.01;
+		ray.Direction = GetTransmittanceRay(WorldRayDirection(), normalInWorldSpace, 1.0 /* Air */, 1.0 + matValues.g);
+		ray.TMin = 0.0001;
 		ray.TMax = 100000;
-		TraceRay(gRtScene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, 0, 0, 0, ray, payload);
 
+		TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 
-		float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
+		float reflectanceFactor = saturate(rSchlick2(WorldRayDirection(), normalInWorldSpace, 1.0, 1.0 + matValues.g));
+		reflectedColor *= reflectanceFactor;
+		refractionColor = payload.color * (1.0 - reflectanceFactor);
+		// refractionColor = float3(1.0, 1.0, 1.0) * (1.0 - reflectanceFactor);
+	}
 
-		float diffuseFactor = max(dot(-g_lightDirection, normalInWorldSpace), 0.4f); // 0.4 ambient
-		float3 r = reflect(g_lightDirection, normalInWorldSpace);
-		r = normalize(r);
-		float shininess = 5.0f;
-		float spec = 1.0f;
-		float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
+	color = phongColor + reflectedColor + refractionColor;
 
-		float3 clr = diffuseTexture.SampleLevel(ss, float3(texCoords, 0.0), 0).rgb + diffuseTexture.SampleLevel(ss, float3(texCoords, 1.0), 0).rgb;
-		float3 color = clr * diffuseFactor + clr * specularFactor; // Not in shadow
-		if (payload.inShadow == 1) {
-			color = clr * 0.5f; // In shadow
+	color *= diffuseColor;
+
+	if (payload.inShadow == 1 && matValues.r == 0.0 && matValues.g == 0.0) {
+		color = diffuseColor * 0.5f; // In shadow
+	}
+
+	if (RayGenSettings.flags & RT_ENABLE_AO) {
+
+		// Initialize a random seed, per-pixel and per-frame
+		uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, RayGenSettings.frameCount );
+
+		float ao = 0.0;
+		for (int i = 0; i < RayGenSettings.numAORays; i++) {
+
+			float3 aoDir = getCosHemisphereSample(randSeed, normalInWorldSpace);
+			// Trace Ambient Occlusion ray
+			payload.aoVal = -1;
+			RayDesc ray;
+			ray.Origin = HitWorldPosition();
+			ray.Direction = aoDir;
+			ray.TMin = 0.01;
+			ray.TMax = RayGenSettings.AORadius;
+			TraceRay(gRtScene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, 0, 0, 0, ray, payload);
+			ao += payload.aoVal;
 		}
+		ao /= RayGenSettings.numAORays;
+		color *= ao;
 
-		if (RayGenSettings.flags & RT_ENABLE_AO) {
+	}
 
-			// Initialize a random seed, per-pixel and per-frame
-			uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, RayGenSettings.frameCount );
-
-			float ao = 0.0;
-			for (int i = 0; i < RayGenSettings.numAORays; i++) {
-
-				float3 aoDir = getCosHemisphereSample(randSeed, normalInWorldSpace);
-				// Trace Ambient Occlusion ray
-				payload.aoVal = -1;
-				RayDesc ray;
-				ray.Origin = HitWorldPosition();
-				ray.Direction = aoDir;
-				ray.TMin = 0.01;
-				ray.TMax = RayGenSettings.AORadius;
-				TraceRay(gRtScene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, 0, 0, 0, ray, payload);
-				ao += payload.aoVal;
-			}
-			ao /= RayGenSettings.numAORays;
-			color *= ao;
-
-		}
-
-		if (RayGenSettings.flags & RT_DRAW_NORMALS) {
-			// Use normal as color
-			payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
-		} else {
-			payload.color = float4(color, 1.0f);
-		}
+	if (RayGenSettings.flags & RT_DRAW_NORMALS) {
+		// Use normal as color
+		payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
+	} else {
+		payload.color = float4(color, 1.0f);
 	}
 
 
