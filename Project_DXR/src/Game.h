@@ -40,6 +40,7 @@ private:
 	//std::unique_ptr<Mesh> m_mesh;
 
 	std::vector<std::unique_ptr<VertexBuffer>> m_vertexBuffers;
+	std::vector<std::unique_ptr<IndexBuffer>> m_indexBuffers;
 	std::vector<std::unique_ptr<DX12Mesh>> m_meshes;
 
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;

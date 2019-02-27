@@ -47,6 +47,7 @@ public:
 	virtual Material* makeMaterial(const std::string& name) override;
 	virtual Mesh* makeMesh() override;
 	virtual VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) override;
+	virtual IndexBuffer* makeIndexBuffer(size_t size, IndexBuffer::DATA_USAGE usage) override;
 	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, size_t size) override;
 	virtual RenderState* makeRenderState() override;
 	virtual Technique* makeTechnique(Material* m, RenderState* r) override;

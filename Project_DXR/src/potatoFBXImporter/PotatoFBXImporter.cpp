@@ -144,7 +144,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	QueryPerformanceCounter(&end);
 	float loadTime = (float)((end.QuadPart - start.QuadPart) * 1.0 / frequency.QuadPart);
 
-	cout << "\t LOAD TIME OF " << fileName << ": " << to_string(loadTime) << "s" << " Size: " << to_string(model->getModelData().size()) << " Vertices" << endl;
+	cout << "\t LOAD TIME OF " << fileName << ": " << to_string(loadTime) << "s" << " Size: " << to_string(model->getModelVertices().size()) << " Vertices" << to_string(model->getModelIndices().size()) << " Indices" << endl;
 
 
 

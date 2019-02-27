@@ -2,6 +2,7 @@
 #include "DXR.h"
 #include "DX12Renderer.h"
 #include "DX12VertexBuffer.h"
+#include "DX12IndexBuffer.h"
 #include "DXILShaderCompiler.h"
 #include "DX12ConstantBuffer.h"
 #include "DX12Texture2D.h"
@@ -218,7 +219,8 @@ void DXR::createShaderResources() {
 		m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 		MeshHandles handles;
-		handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress();
+		handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.vBuffer)->getBuffer()->GetGPUVirtualAddress();
+		handles.indexBufferHandle = static_cast<DX12IndexBuffer*>(mesh->geometryBuffer.iBuffer)->getBuffer()->GetGPUVirtualAddress();
 		handles.textureHandle = gpuHandle;
 		m_rtMeshHandles.emplace_back(handles);
 	}
@@ -278,7 +280,8 @@ void DXR::createShaderTables() {
 		m_hitGroupShaderTable.Resource.Reset();
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
-			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i); // only supports one texture/mesh atm // TODO FIX
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i);
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].indexBufferHandle, i);
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].textureHandle.ptr, i); // only supports one texture/mesh atm // TODO FIX
 			tableBuilder.addDescriptor(rayGenHandle, i);
 		}
@@ -300,7 +303,8 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 		}
 
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
-			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.buffer);
+			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.vBuffer);
+			DX12IndexBuffer* ib = static_cast<DX12IndexBuffer*>((*m_meshes)[i]->geometryBuffer.iBuffer);
 			
 			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
 			geomDesc[0] = {};
@@ -309,6 +313,9 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			geomDesc[0].Triangles.VertexBuffer.StrideInBytes = vb->getVertexStride();
 			geomDesc[0].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 			geomDesc[0].Triangles.VertexCount = vb->getVertexCount();
+			geomDesc[0].Triangles.IndexBuffer = ib->getBuffer()->GetGPUVirtualAddress();
+			geomDesc[0].Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+			geomDesc[0].Triangles.IndexCount = ib->getNumIndices();
 			geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 			// Get the size requirements for the scratch and AS buffers
@@ -529,6 +536,10 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
 	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
+
+	rootParams[DXRHitGroupRootParam::SRV_INDEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRHitGroupRootParam::SRV_INDEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::SRV_INDEX_BUFFER].Descriptor.RegisterSpace = 1;
 	
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.NumDescriptorRanges = _countof(range);

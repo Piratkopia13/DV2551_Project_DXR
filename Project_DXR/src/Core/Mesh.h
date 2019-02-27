@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include "VertexBuffer.h"
+#include "IndexBuffer.h"
 #include "Technique.h"
 #include "../Geometry/Transform.h"
 #include "ConstantBuffer.h"
@@ -19,8 +20,9 @@ public:
 	// Not used since vertices are interleaved now
 	// TODO: remove?
 	struct VertexBufferBind {
-		size_t sizeElement, numElements, offset;
-		VertexBuffer* buffer;
+		size_t sizeElement, numVertices, numIndices, offset;
+		VertexBuffer* vBuffer;
+		IndexBuffer* iBuffer;
 	};
 	
 	void addTexture(Texture2D* texture, unsigned int slot);
@@ -33,13 +35,9 @@ public:
 	ConstantBuffer* getCameraCB();
 
 	// array of buffers with locations (binding points in shaders)
-	virtual void setIAVertexBufferBinding(
-		VertexBuffer* buffer, 
-		size_t offset, 
-		size_t numElements, 
-		size_t sizeElement);
+	virtual void setIABinding(VertexBuffer* vBuffer, IndexBuffer* iBuffer, size_t offset, size_t numVertices, size_t numIndices, size_t sizeElement);
 
-	virtual void bindIAVertexBuffer(unsigned int location);
+	virtual void bindIA(unsigned int location);
 	//std::unordered_map<unsigned int, VertexBufferBind> geometryBuffers;
 	VertexBufferBind geometryBuffer;
 	std::unordered_map<unsigned int, Texture2D*> textures;

@@ -65,6 +65,7 @@ RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
 
 StructuredBuffer<Vertex> Vertices : register(t1, space0);
+StructuredBuffer<uint> Indices : register(t1, space1);
 
 Texture2D<float4> diffuseTexture : register(t2, space0);
 SamplerState ss : register(s0);
@@ -126,20 +127,21 @@ void rayGen() {
 
 [shader("miss")]
 void miss(inout RayPayload payload) {
-	//payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
-	float2 dims;
-	skyboxTexture.GetDimensions(dims.x, dims.y);
-	float2 uv = wsVectorToLatLong(WorldRayDirection());
-	payload.color = skyboxTexture[uint2(uv * dims)];
-
 	if (payload.inShadow == -1) {
 		payload.inShadow = 0;
+		return;
 	}
 	// If ray is AO ray
 	if (payload.aoVal == -1) {
 		payload.aoVal = 1;
 		return;
 	}
+
+	float2 dims;
+	skyboxTexture.GetDimensions(dims.x, dims.y);
+	float2 uv = wsVectorToLatLong(WorldRayDirection());
+	payload.color = skyboxTexture[uint2(uv * dims)];
+
 }
 
 [shader("closesthit")]
@@ -164,9 +166,9 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 
 	uint verticesPerPrimitive = 3;
-	Vertex vertex1 = Vertices[primitiveID * verticesPerPrimitive];
-	Vertex vertex2 = Vertices[primitiveID * verticesPerPrimitive + 1];
-	Vertex vertex3 = Vertices[primitiveID * verticesPerPrimitive + 2];
+	Vertex vertex1 = Vertices[Indices[primitiveID * verticesPerPrimitive]];
+	Vertex vertex2 = Vertices[Indices[primitiveID * verticesPerPrimitive + 1]];
+	Vertex vertex3 = Vertices[Indices[primitiveID * verticesPerPrimitive + 2]];
 
 	float3 normalInLocalSpace = barrypolation(barycentrics, vertex1.normal, vertex2.normal, vertex3.normal);
 	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;

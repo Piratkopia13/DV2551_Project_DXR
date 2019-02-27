@@ -9,7 +9,9 @@ public:
 		DirectX::XMFLOAT3 normal;
 		DirectX::XMFLOAT2 texCoord;
 		bool operator==(Vertex& other) {
-			return position.x == other.position.x && position.y == other.position.y && position.z == other.position.z;
+			return position.x == other.position.x && position.y == other.position.y && position.z == other.position.z
+				   && normal.x == other.normal.x && normal.y == other.normal.y && normal.z == other.normal.z
+				   && texCoord.x == other.texCoord.x && texCoord.y == other.texCoord.y;
 		}
 	};
 	struct LimbConnection {
@@ -42,10 +44,10 @@ public:
 		int index = exists(vertex);
 		if (index == -1) {
 			m_Data.push_back(vertex);
-			indexes.push_back(m_Data.size() - 1);
+			indexes.push_back(static_cast<unsigned int>(m_Data.size()) - 1);
 		}
 		else {
-			indexes.push_back(index);
+			indexes.push_back(static_cast<unsigned int>(index));
 		}
 		m_ControlPoints[controlPointIndex] = &m_Data[index];
 	};
@@ -57,9 +59,14 @@ public:
 		return m_Data;
 	}
 
+	const std::vector<PotatoModel::Vertex>& getModelVertices() {
+		return m_Data;
 
 	std::vector<PotatoModel::Limb>& getSkeleton() {
 		return m_Skeleton;
+	}
+	const std::vector<unsigned int>& getModelIndices() {
+		return indexes;
 	}
 
 private:
@@ -69,7 +76,7 @@ private:
 	std::vector<PotatoModel::LimbConnection> m_ConnectionData;
 	std::vector<PotatoModel::Limb> m_Skeleton;
 	std::vector<PotatoModel::Vertex*> m_ControlPoints;
-	std::vector<int> indexes;
+	std::vector<unsigned int> indexes;
 
 	int exists(PotatoModel::Vertex _vert) {
 		for (int i = m_Data.size() - 1; i >= 0; i--) {
