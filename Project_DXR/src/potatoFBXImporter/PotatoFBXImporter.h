@@ -9,7 +9,9 @@ public:
 		DirectX::XMFLOAT3 normal;
 		DirectX::XMFLOAT2 texCoord;
 		bool operator==(Vertex& other) {
-			return position.x == other.position.x && position.y == other.position.y && position.z == other.position.z;
+			return position.x == other.position.x && position.y == other.position.y && position.z == other.position.z
+				   && normal.x == other.normal.x && normal.y == other.normal.y && normal.z == other.normal.z
+				   && texCoord.x == other.texCoord.x && texCoord.y == other.texCoord.y;
 		}
 	};
 	struct LimbConnection {

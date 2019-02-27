@@ -31,6 +31,7 @@ namespace DXRRayGenRootParam {
 namespace DXRHitGroupRootParam {
 	enum Slot {
 		SRV_VERTEX_BUFFER = 0,
+		SRV_INDEX_BUFFER,
 		DT_TEXTURES,
 		CBV_SETTINGS,
 		SIZE
@@ -123,6 +124,7 @@ private:
 	};
 	struct MeshHandles {
 		D3D12_GPU_VIRTUAL_ADDRESS vertexBufferHandle;
+		D3D12_GPU_VIRTUAL_ADDRESS indexBufferHandle;
 		D3D12_GPU_DESCRIPTOR_HANDLE textureHandle;
 	};
 

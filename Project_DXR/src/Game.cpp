@@ -47,7 +47,7 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/tex_cube.fbx");
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 	
 
 	float floorHalfWidth = 50.0f;
@@ -358,16 +358,18 @@ void Game::imguiFunc() {
 
 					auto updateVB = [&]() {
 						try {
-							//PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/" + m_availableModelsList[currentModelIndex]);
-							//m_vertexBuffers[0] = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelVertices().size(), VertexBuffer::DATA_USAGE::STATIC));
-							//m_vertexBuffers[0]->setData(&model->getModelVertices()[0], sizeof(Vertex) * model->getModelVertices().size(), 0);
-							//m_meshes[0]->setIABinding(m_vertexBuffers[0].get(), 0, model->getModelVertices().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
+							PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/" + m_availableModelsList[currentModelIndex]);
+							m_vertexBuffers[0] = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelVertices().size(), VertexBuffer::DATA_USAGE::STATIC));
+							m_vertexBuffers[0]->setData(&model->getModelVertices()[0], sizeof(Vertex) * model->getModelVertices().size(), 0);
+							m_indexBuffers[0] = std::unique_ptr<IndexBuffer>(getRenderer().makeIndexBuffer(sizeof(unsigned int) * model->getModelIndices().size(), IndexBuffer::STATIC));
+							m_indexBuffers[0]->setData(&model->getModelIndices()[0], sizeof(unsigned int) * model->getModelIndices().size(), 0);
+							m_meshes[0]->setIABinding(m_vertexBuffers[0].get(), m_indexBuffers[0].get(), 0, model->getModelVertices().size(), model->getModelIndices().size(), sizeof(Vertex)); // 3 positions, 3 normals and 2 UVs
 
-							//if (m_dxRenderer->isDXRSupported()) {
-							//	m_dxRenderer->getDXR().setMeshes(m_meshes);
-							//}
+							if (m_dxRenderer->isDXRSupported()) {
+								m_dxRenderer->getDXR().setMeshes(m_meshes);
+							}
 
-							//delete model;
+							delete model;
 						} catch (...) {
 							std::cout << "Error importing model" << std::endl;
 						}
