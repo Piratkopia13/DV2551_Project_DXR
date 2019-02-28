@@ -75,18 +75,22 @@ float3 CalculatePhong(in float3 albedo, in float3 normal, in float diffuseCoef =
 // Refractive indices - air ~1, water 20*C ~1.33, glass ~1.5
 // Reflectance = rSchlick2, Transmittance = 1 - Reflectance
 float rSchlick2(in float3 incident, in float3 normal, in float n1, in float n2) {
-	float r0 = pow((n1 - n2) / (n1 + n2), 2);
-	float cosI = -dot(normal, incident);
-
+	float mat1 = n1, mat2 = n2;
+	float cosI = -dot(incident, normal);
+	// Leaving the material
+	//if(cosI < 0.0) {
+	//	mat1 = n2;
+	//	mat2 = n1;
+	//}
 	// Due to restriction in approximation
-	if (n1 > n2) {
-		float n = n1 / n2;
-		float sinT2 = pow(n, 2) * (1.0 - pow(cosI, 2));
-		if (sinT2 > 1.0f) return 1.0f;
+	if (mat1 > mat2) {
+		float n = mat1 / mat2;
+		float sinT2 = pow(n, 2) * (1.0 - pow(abs(cosI), 2));
+		if (sinT2 > 1.0f) return 1.0f; // TIR
 		cosI = sqrt(1.0f - sinT2);
 	}
-
-	float x = 1.0 - cosI;
+	float x = 1.0f - cosI;
+	float r0 = pow(abs(mat1 - mat2) / (mat1 + mat2), 2);
 	return r0 + (1.0f - r0) * pow(x, 5);
 }
 
@@ -94,7 +98,7 @@ float rSchlick2(in float3 incident, in float3 normal, in float n1, in float n2) 
 float3 GetTransmittanceRay(in float3 incident, in float3 normal, float n1, float n2) {
 	float n = n1/n2;
 	float cosI = -dot(incident, normal);
-	float sinT2 = pow(n, 2) * (1.0f - pow(cosI, 2));
+	float sinT2 = pow(n, 2) * (1.0f - pow(abs(cosI), 2));
 	if(sinT2 > 1.0) return float3(0.0, 0.0, 0.0);
 	float cosT = sqrt(1.0 - sinT2);
 	return n * incident + (n * cosI - cosT) * normal;
@@ -248,46 +252,75 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	float3 diffuseColor = diffuseTexture.SampleLevel(ss, float3(texCoords, 0.0), 0).rgb;
 
 	float3 phongColor = CalculatePhong(diffuseColor, normalInWorldSpace, 0.2f, 1.0, 100.0f);
-	float3 color;
+	float3 color = float3(0.0, 0.0, 0.0);
 
 	// Reflection and refraction values
 	float2 matValues = diffuseTexture.SampleLevel(ss, float3(texCoords, 1.0), 0).rg;
 	float3 reflectedColor = float3(0.0, 0.0, 0.0);
-	// Reflection
-	if (matValues.r > 0.001 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) {
-		RayDesc ray;
-		ray.Origin = HitWorldPosition();
-		ray.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
-		ray.TMin = 0.0001;
-		ray.TMax = 100000;
-		TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-
-		reflectedColor = GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor) * matValues.r * payload.color;
-		//reflectedColor = GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor) * (1.0 - rSchlick2(WorldRayDirection(), normalInWorldSpace, 1.0, matValues.g + 1.0)) * payload.color;
-		//reflectedColor = rShlick2(WorldRayDirection(), normalInWorldSpace, 1.0, matValues.g + 1.0) * payload.color;
-		//reflectedColor = payload.color;
-	}
-
-	// Refraction
 	float3 refractionColor = float3(0.0, 0.0, 0.0);
-	if (matValues.g > 0.001 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) {
-		RayDesc ray;
-		ray.Origin = HitWorldPosition();
-		ray.Direction = GetTransmittanceRay(WorldRayDirection(), normalInWorldSpace, 1.0 /* Air */, 1.0 + matValues.g);
-		ray.TMin = 0.0001;
-		ray.TMax = 100000;
 
-		TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+	// Reflection / Refraction
+	if(payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) {
 
-		float reflectanceFactor = saturate(rSchlick2(WorldRayDirection(), normalInWorldSpace, 1.0, 1.0 + matValues.g));
-		reflectedColor *= reflectanceFactor;
-		refractionColor = payload.color * (1.0 - reflectanceFactor);
-		// refractionColor = float3(1.0, 1.0, 1.0) * (1.0 - reflectanceFactor);
+		// Reflection
+		if (matValues.r > 0.01) {
+			RayDesc reflectionRay;
+			reflectionRay.Origin = HitWorldPosition();
+			reflectionRay.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
+			reflectionRay.TMin = 0.0001;
+			reflectionRay.TMax = 100000;
+			TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 0, 0, reflectionRay, payload);
+
+
+			reflectedColor = /*GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor)*/ matValues.r * payload.color;
+			//reflectedColor = float3(1.0, 1.0, 1.0);
+			//reflectedColor = GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor) * (1.0 - rSchlick2(WorldRayDirection(), normalInWorldSpace, 1.0, matValues.g + 1.0)) * payload.color;
+			//reflectedColor = rShlick2(WorldRayDirection(), normalInWorldSpace, 1.0, matValues.g + 1.0) * payload.color;
+			//reflectedColor = payload.color;
+		}
+
+		// Refraction
+		if (matValues.g > 0.01) {
+			// Material refraction indices
+			float n1 = 1.0; /* Air */
+			float n2 = 1.0 + matValues.g;
+			n2 = 1.5;
+			float reflectanceFactor = saturate(rSchlick2(WorldRayDirection(), normalInWorldSpace, n1, n2));
+
+
+			RayDesc refractionRay;
+			refractionRay.Origin = HitWorldPosition();
+			refractionRay.Direction = GetTransmittanceRay(WorldRayDirection(), normalInWorldSpace, n1, n2);
+			refractionRay.TMin = 0.0001;
+			refractionRay.TMax = 100000;
+			RayPayload refracRayPayload;
+			refracRayPayload.color = float4(0.0, 0.0, 0.0, 1.0);;
+			refracRayPayload.recursionDepth = payload.recursionDepth;
+			TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 0, 0, refractionRay, refracRayPayload);
+
+			refractionColor = refracRayPayload.color * (1.0 - reflectanceFactor);
+			
+
+
+			RayDesc reflectionRay;
+			reflectionRay.Origin = HitWorldPosition();
+			reflectionRay.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
+			reflectionRay.TMin = 0.0001;
+			reflectionRay.TMax = 100000;
+			TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 0, 0, reflectionRay, payload);
+
+			reflectedColor = /*GetReflectionColor(WorldRayDirection(), normalInWorldSpace, diffuseColor)*/ payload.color * reflectanceFactor;
+			//color = float3(reflectanceFactor, reflectanceFactor, reflectanceFactor);
+			//color = reflectedColor;
+			//color = reflectedColor * reflectanceFactor;
+			// refractionColor = float3(1.0, 1.0, 1.0) * (1.0 - reflectanceFactor);
+			//color = float3(1.0, 1.0, 1.0);
+		}
 	}
 
 	color = phongColor + reflectedColor + refractionColor;
 
-	color *= diffuseColor;
+	//color *= diffuseColor;
 
 	if (payload.inShadow == 1 && matValues.r == 0.0 && matValues.g == 0.0) {
 		color = diffuseColor * 0.5f; // In shadow
