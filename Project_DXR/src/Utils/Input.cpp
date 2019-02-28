@@ -11,6 +11,7 @@ bool Input::m_mouseButtonsPressed[2] = { false, false };
 bool Input::m_cursorHidden = false;
 std::map<unsigned int, bool> Input::m_keysDown = {};
 std::vector<unsigned int> Input::m_keysPressedPreviousFrame = {};
+bool Input::m_isActive = true;
 
 void Input::RegisterKeyDown(const UINT keyCode) {
 	auto iter = m_keysDown.find(keyCode);
@@ -58,14 +59,33 @@ bool Input::IsKeyDown(const UINT keyCode) {
 	return false;
 }
 
-bool Input::IsKeyPressed(const UINT keyCode)
-{
+bool Input::IsKeyPressed(const UINT keyCode) {
 	return std::find(m_keysPressedPreviousFrame.begin(), m_keysPressedPreviousFrame.end(), keyCode) == m_keysPressedPreviousFrame.end()
 			&& IsKeyDown(keyCode);
 }
 
 void Input::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
-	//std::cout << "Processing messages..." << std::endl;
+	
+	switch (msg) {
+	case WM_ACTIVATEAPP:
+		if (LOWORD(wParam) == WA_ACTIVE) {
+			setActive(true);
+		}
+		else {
+			setActive(false);
+		}
+		break;
+	case WM_KEYDOWN:
+		Input::RegisterKeyDown(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
+		break;
+	case WM_SYSKEYDOWN:
+		break;
+	case WM_KEYUP:
+		Input::RegisterKeyUp(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
+		break;
+	case WM_SYSKEYUP:
+		break;
+	}
 
 	UINT dwSize;
 
@@ -129,7 +149,16 @@ void Input::showCursor(bool show) {
 	ShowCursor(show);
 }
 
-bool Input::IsCursorHidden()
-{
+bool Input::IsCursorHidden() {
 	return m_cursorHidden;
+}
+
+void Input::setActive(bool active) {
+	m_isActive = active;
+	if (!active) {
+		m_keysDown.clear();
+		for (int i = 0; i < MouseButton::NUM_MOUSE_BUTTONS; i++)
+			m_mouseButtonsDown[i] = false;
+		showCursor(true);
+	}
 }

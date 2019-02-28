@@ -11,20 +11,11 @@ public:
 		RIGHT,
 		NUM_MOUSE_BUTTONS
 	};
-
-	// Used by Win32Window to register keystrokes
-	static void RegisterKeyDown(const UINT keyCode);
-	// Used by Win32Window to register keystrokes
-	static void RegisterKeyUp(const UINT keyCode);
 	
 	// Call at the start of a new frame
 	static void NewFrame();
 	// Call at the end of frame
 	static void EndFrame();
-
-	// Check if key is down
-	static bool IsKeyDown(const UINT keyCode);
-	static bool IsKeyPressed(const UINT keyCode);
 
 	static void ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -32,11 +23,28 @@ public:
 	static float GetMouseDY();
 	static bool IsMouseButtonDown(MouseButton button);
 	static bool IsMouseButtonPressed(MouseButton button);
+	
+	// Check if key is down
+	static bool IsKeyDown(const UINT keyCode);
+	static bool IsKeyPressed(const UINT keyCode);
 
 	static void showCursor(bool show);
 	static bool IsCursorHidden();
 
+	static void setActive(bool active);
+
 private:
+	// Used by Win32Window to register keystrokes
+	static void RegisterKeyDown(const UINT keyCode);
+	// Used by Win32Window to register keystrokes
+	static void RegisterKeyUp(const UINT keyCode);
+	// Disallow instances
+	Input() {}
+	~Input() {}
+
+private:
+	static bool m_isActive;
+
 	static std::map<unsigned int, bool> m_keysDown;
 	static std::vector<unsigned int> m_keysPressedPreviousFrame;
 	// TODO: Add system keys
@@ -51,11 +59,6 @@ private:
 	static float m_mouseDeltaYSinceLastFrame;
 
 	static bool m_cursorHidden;
-
-private:
-	// Disallow instances
-	Input() {}
-	~Input() {}
 
 };
 
