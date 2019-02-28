@@ -103,8 +103,14 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	PotatoModel* model = new PotatoModel();
 	
 	FbxNode * root = scene->GetRootNode();
-	fetchSkeleton(root, model, objName);
-	fetchGeometry(root, model, objName);
+	if (root) {
+		fetchSkeleton(root, model, objName);
+
+		fetchGeometry(root, model, objName);
+	}
+	else {
+		cout << "no root in " << objName << endl;
+	}
 
 
 
@@ -243,7 +249,6 @@ PotatoModel * PotatoFBXImporter::createDefaultPyramid(float width, float height)
 
 	return nullptr;
 }
-
 PotatoModel * PotatoFBXImporter::createDefaultCube(float width, float height) {
 
 	/****************************************************************************************
@@ -422,10 +427,6 @@ void PotatoFBXImporter::traverse(FbxNode*node, PotatoModel* model) {
 	for (int i = 0; i < node->GetChildCount(); i++) {
 		traverse(node->GetChild(i), model);
 	}
-
-
-
-
 }
 
 
@@ -467,310 +468,332 @@ FbxVector2 PotatoFBXImporter::getTexCoord(int cpIndex, FbxGeometryElementUV* geU
 }
 
 
-void PotatoFBXImporter::fetchGeometry(FbxNode* node , PotatoModel* model, const std::string& filename) {
+void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const std::string& filename) {
 
 	// Number of polygon vertices 
 
-	FbxMesh* mesh = node->GetMesh();
-	int amount = mesh->GetPolygonVertexCount();
-	int* indices = mesh->GetPolygonVertices();
-	if (int(amount / 3) != mesh->GetPolygonCount()) {
-		cout << "The mesh in '" << filename << "' has to be triangulated.";
-		return;
-	}
+	int numAttributes = node->GetNodeAttributeCount();
+	for (int j = 0; j < numAttributes; j++) {
+
+		FbxNodeAttribute *nodeAttribute = node->GetNodeAttributeByIndex(j);
+		FbxNodeAttribute::EType attributeType = nodeAttribute->GetAttributeType();
+
+		if (attributeType == FbxNodeAttribute::eMesh) {
 
 
-	int vertexIndex = 0;
-	FbxVector4* cp = mesh->GetControlPoints();
-	if (cp == nullptr) {
-		cout << "Couldn't find any vertices in the mesh in the file " << filename << endl;
-		return;
-	}
-	for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
-		int numVertices = mesh->GetPolygonSize(polyIndex);
-
-		for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
-
-
-			FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
-			FbxVector4 norm[3] = { {0, 0, 0},{0, 0, 0},{0, 0, 0} };
-			FbxVector2 texCoord[3] = {{0,0}, {0,0}};
-			if (leNormal == nullptr) {
-				cout << "Couldn't find any normals in the mesh in the file " << filename << endl;
+			FbxMesh* mesh = node->GetMesh();
+			int amount = mesh->GetPolygonVertexCount();
+			model->reSizeControlPoints(amount);
+			int* indices = mesh->GetPolygonVertices();
+			if (int(amount / 3) != mesh->GetPolygonCount()) {
+				cout << "The mesh in '" << filename << "' has to be triangulated.";
+				return;
 			}
-			else if (leNormal) {
-				if (leNormal->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
-					int normIndex = 0;
-					if (leNormal->GetReferenceMode() == FbxLayerElement::eDirect)
-						normIndex = vertexIndex;
-					if (leNormal->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-						normIndex = leNormal->GetIndexArray().GetAt(vertexIndex);
-					norm[0] = leNormal->GetDirectArray().GetAt(normIndex);
-					norm[1] = leNormal->GetDirectArray().GetAt(normIndex+1);
-					norm[2] = leNormal->GetDirectArray().GetAt(normIndex+2);
+
+
+			int vertexIndex = 0;
+			FbxVector4* cp = mesh->GetControlPoints();
+			if (cp == nullptr) {
+				cout << "Couldn't find any vertices in the mesh in the file " << filename << endl;
+				return;
+			}
+			for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
+				int numVertices = mesh->GetPolygonSize(polyIndex);
+
+				for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
+
+
+					FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
+					FbxVector4 norm[3] = { {0, 0, 0},{0, 0, 0},{0, 0, 0} };
+					FbxVector2 texCoord[3] = { {0,0}, {0,0} };
+					if (leNormal == nullptr) {
+						cout << "Couldn't find any normals in the mesh in the file " << filename << endl;
+					}
+					else if (leNormal) {
+						if (leNormal->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+							int normIndex = 0;
+							if (leNormal->GetReferenceMode() == FbxLayerElement::eDirect)
+								normIndex = vertexIndex;
+							if (leNormal->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+								normIndex = leNormal->GetIndexArray().GetAt(vertexIndex);
+							norm[0] = leNormal->GetDirectArray().GetAt(normIndex);
+							norm[1] = leNormal->GetDirectArray().GetAt(normIndex + 1);
+							norm[2] = leNormal->GetDirectArray().GetAt(normIndex + 2);
+						}
+					}
+
+					//		/*
+		//		--	UV Coords
+		//		*/
+					FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
+					if (geUV == nullptr) {
+						cout << "Couldn't find any texture coordinates in the mesh in the file " << filename << endl;
+					}
+					else if (geUV) {
+						int cpIndex;
+						cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex);
+						texCoord[0] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex);
+						cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 2);
+						texCoord[1] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 2);
+						cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 1);
+						texCoord[2] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 1);
+					}
+
+					model->addVertex({
+						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex]][0], (float)cp[indices[vertexIndex]][1],(float)cp[indices[vertexIndex]][2]),
+						DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
+						DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
+						}, vertIndex);
+					model->addVertex({
+						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 2]][0], (float)cp[indices[vertexIndex + 2]][1],(float)cp[indices[vertexIndex + 2]][2]),
+						DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
+						DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
+						}, vertIndex + 1);
+					model->addVertex({
+						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 1]][0], (float)cp[indices[vertexIndex + 1]][1],(float)cp[indices[vertexIndex + 1]][2]),
+						DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
+						DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
+						}, vertIndex + 2);
+
+					vertexIndex += 3;
 				}
 			}
 
-				//		/*
-	//		--	UV Coords
-	//		*/
-			FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
-			if (geUV == nullptr) {
-				cout << "Couldn't find any texture coordinates in the mesh in the file " << filename << endl;
-			}
-			else if (geUV) {
-				int cpIndex;
-				cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex);
-	 			texCoord[0] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex);
-				cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 2);
-				texCoord[1] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 2);
-				cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 1);
-				texCoord[2] = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 1);
+
+
+
+			unsigned int numOfDeformers = mesh->GetDeformerCount();
+
+			for (unsigned int i = 0; i < numOfDeformers; i++) {
+				FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(i, FbxDeformer::eSkin));
+				if (!skin) {
+					cout << "not a skin at skin " << to_string(i) << endl;
+					continue;
+				}
+
+				unsigned int clusterCount = skin->GetClusterCount();
+				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
+
+					FbxCluster * cluster = skin->GetCluster(i);
+					PotatoModel::Limb* limb = model->findLimb(cluster->GetLink()->GetUniqueID());
+					int limbIndex = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
+					if (limb == nullptr) {
+						cout << "Could not find limb at clusterIndex: " << to_string(clusterIndex) << endl;
+						continue;
+					}
+					FbxAMatrix transformMa;
+					cluster->GetTransformMatrix(transformMa);
+					cout << PrintAttribute(cluster->GetLink()->GetNodeAttribute()) << endl;
+
+					unsigned int numOfIndices = cluster->GetControlPointIndicesCount();
+					int* CPIndices = cluster->GetControlPointIndices();
+					double* CPWeights = cluster->GetControlPointWeights();
+					for (unsigned int i = 0; i < numOfIndices; ++i) {
+						model->addConnection(CPIndices[i], limbIndex, (float)CPWeights[i]);
+
+					}
+				}
 			}
 
-			model->addVertex({
-				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex]][0], (float)cp[indices[vertexIndex]][1],(float)cp[indices[vertexIndex]][2]),
-				DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
-				DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
-			},vertIndex);
-			model->addVertex({
-				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 2]][0], (float)cp[indices[vertexIndex + 2]][1],(float)cp[indices[vertexIndex + 2]][2]),
-				DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
-				DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
-			},vertIndex+1);
-			model->addVertex({
-				DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 1]][0], (float)cp[indices[vertexIndex + 1]][1],(float)cp[indices[vertexIndex + 1]][2]),
-				DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
-				DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
-			},vertIndex+2);
-		
-			vertexIndex += 3;
+
+		}
+
+
+	
+
+
+		if(true){
+			// Number of polygon vertices 
+			//m_buildData.numVertices = mesh->GetPolygonVertexCount();
+			//int* indices = mesh->GetPolygonVertices();
+
+			//if (int(m_buildData.numVertices / 3) != mesh->GetPolygonCount()) {
+			//	Logger::Error("The mesh in '" + filename + "' has to be triangulated.");
+			//	return;
+			//}
+
+			//m_buildData.positions = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+			//m_buildData.normals = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+			//m_buildData.texCoords = new DirectX::SimpleMath::Vector2[m_buildData.numVertices];
+			//m_buildData.tangents = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+			//m_buildData.bitangents = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
+
+			//bool norms = true, uvs = true, tangs = true, bitangs = true;
+
+			//int vertexIndex = 0;
+			//FbxVector4* cp = mesh->GetControlPoints();
+			//if (cp == nullptr) {
+			//	Logger::Error("Couldn't find any vertices in the mesh in the file " + filename);
+			//	return;
+			//}
+			//for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
+			//	int numVertices = mesh->GetPolygonSize(polyIndex);
+
+			//	for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
+
+			//		/*
+			//		--	Positions
+			//		*/
+			//		m_buildData.positions[vertexIndex].x = -(float)cp[indices[vertexIndex]][0];
+			//		m_buildData.positions[vertexIndex].y = (float)cp[indices[vertexIndex]][1];
+			//		m_buildData.positions[vertexIndex].z = (float)cp[indices[vertexIndex]][2];
+
+			//		m_buildData.positions[vertexIndex + 1].x = -(float)cp[indices[vertexIndex + 2]][0];
+			//		m_buildData.positions[vertexIndex + 1].y = (float)cp[indices[vertexIndex + 2]][1];
+			//		m_buildData.positions[vertexIndex + 1].z = (float)cp[indices[vertexIndex + 2]][2];
+
+			//		m_buildData.positions[vertexIndex + 2].x = -(float)cp[indices[vertexIndex + 1]][0];
+			//		m_buildData.positions[vertexIndex + 2].y = (float)cp[indices[vertexIndex + 1]][1];
+			//		m_buildData.positions[vertexIndex + 2].z = (float)cp[indices[vertexIndex + 1]][2];
+
+
+			//		/*
+			//		--	Normals
+			//		*/
+			//		FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
+			//		if (leNormal == nullptr && norms) {
+			//			Logger::Warning("Couldn't find any normals in the mesh in the file " + filename);
+			//			norms = false;
+			//		}
+			//		else if (norms) {
+			//			if (leNormal->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+			//				int normIndex = 0;
+
+			//				if (leNormal->GetReferenceMode() == FbxLayerElement::eDirect)
+			//					normIndex = vertexIndex;
+
+
+			//				if (leNormal->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+			//					normIndex = leNormal->GetIndexArray().GetAt(vertexIndex);
+
+
+			//				FbxVector4 norm = leNormal->GetDirectArray().GetAt(normIndex);
+			//				m_buildData.normals[vertexIndex].x = -(float)norm[0];
+			//				m_buildData.normals[vertexIndex].y = (float)norm[1];
+			//				m_buildData.normals[vertexIndex].z = (float)norm[2];
+
+			//				norm = leNormal->GetDirectArray().GetAt(normIndex + 2);
+			//				m_buildData.normals[vertexIndex + 1].x = -(float)norm[0];
+			//				m_buildData.normals[vertexIndex + 1].y = (float)norm[1];
+			//				m_buildData.normals[vertexIndex + 1].z = (float)norm[2];
+
+			//				norm = leNormal->GetDirectArray().GetAt(normIndex + 1);
+			//				m_buildData.normals[vertexIndex + 2].x = -(float)norm[0];
+			//				m_buildData.normals[vertexIndex + 2].y = (float)norm[1];
+			//				m_buildData.normals[vertexIndex + 2].z = (float)norm[2];
+			//			}
+			//		}
+
+			//		/*
+			//		--	Tangents
+			//		*/
+			//		FbxGeometryElementTangent *geTang = mesh->GetElementTangent(0);
+			//		if (geTang == nullptr && tangs) {
+			//			Logger::Warning("Couldn't find any tangents in the mesh in the file " + filename);
+			//			tangs = false;
+			//		}
+			//		else if (tangs) {
+			//			if (geTang->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+			//				int tangIndex = 0;
+
+			//				if (geTang->GetReferenceMode() == FbxLayerElement::eDirect)
+			//					tangIndex = vertexIndex;
+
+
+			//				if (geTang->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+			//					tangIndex = geTang->GetIndexArray().GetAt(vertexIndex);
+
+			//				FbxVector4 tangent = geTang->GetDirectArray().GetAt(tangIndex);
+			//				m_buildData.tangents[vertexIndex].x = (float)tangent[0];
+			//				m_buildData.tangents[vertexIndex].y = (float)tangent[1];
+			//				m_buildData.tangents[vertexIndex].z = (float)tangent[2];
+
+			//				tangent = geTang->GetDirectArray().GetAt(tangIndex + 2);
+			//				m_buildData.tangents[vertexIndex + 1].x = (float)tangent[0];
+			//				m_buildData.tangents[vertexIndex + 1].y = (float)tangent[1];
+			//				m_buildData.tangents[vertexIndex + 1].z = (float)tangent[2];
+
+			//				tangent = geTang->GetDirectArray().GetAt(tangIndex + 1);
+			//				m_buildData.tangents[vertexIndex + 2].x = (float)tangent[0];
+			//				m_buildData.tangents[vertexIndex + 2].y = (float)tangent[1];
+			//				m_buildData.tangents[vertexIndex + 2].z = (float)tangent[2];
+			//			}
+			//		}
+
+			//		/*
+			//		--	Binormals
+			//		*/
+			//		FbxGeometryElementBinormal *geBN = mesh->GetElementBinormal(0);
+			//		if (geBN == nullptr && bitangs) {
+			//			Logger::Warning("Couldn't find any binormals in the mesh in the file " + filename);
+			//			bitangs = false;
+			//		}
+			//		else if (bitangs) {
+			//			if (geBN->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
+			//				int biNormIndex = 0;
+
+			//				if (geBN->GetReferenceMode() == FbxLayerElement::eDirect)
+			//					biNormIndex = vertexIndex;
+
+
+			//				if (geBN->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
+			//					biNormIndex = geBN->GetIndexArray().GetAt(vertexIndex);
+
+			//				FbxVector4 biNorm = geBN->GetDirectArray().GetAt(biNormIndex);
+			//				m_buildData.bitangents[vertexIndex].x = (float)biNorm[0];
+			//				m_buildData.bitangents[vertexIndex].y = (float)biNorm[1];
+			//				m_buildData.bitangents[vertexIndex].z = (float)biNorm[2];
+
+			//				biNorm = geBN->GetDirectArray().GetAt(biNormIndex + 2);
+			//				m_buildData.bitangents[vertexIndex + 1].x = (float)biNorm[0];
+			//				m_buildData.bitangents[vertexIndex + 1].y = (float)biNorm[1];
+			//				m_buildData.bitangents[vertexIndex + 1].z = (float)biNorm[2];
+
+			//				biNorm = geBN->GetDirectArray().GetAt(biNormIndex + 1);
+			//				m_buildData.bitangents[vertexIndex + 2].x = (float)biNorm[0];
+			//				m_buildData.bitangents[vertexIndex + 2].y = (float)biNorm[1];
+			//				m_buildData.bitangents[vertexIndex + 2].z = (float)biNorm[2];
+			//			}
+			//		}
+
+			//		/*
+			//		--	UV Coords
+			//		*/
+			//		FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
+			//		if (geUV == nullptr && uvs) {
+			//			Logger::Warning("Couldn't find any texture coordinates in the mesh in the file " + filename);
+			//			uvs = false;
+			//		}
+			//		else if (uvs) {
+			//			FbxVector2 texCoord;
+			//			int cpIndex;
+
+			//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex);
+			//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex);
+			//			m_buildData.texCoords[vertexIndex].x = static_cast<float>(texCoord[0]);
+			//			m_buildData.texCoords[vertexIndex].y = -static_cast<float>(texCoord[1]);
+
+			//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 2);
+			//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 2);
+			//			m_buildData.texCoords[vertexIndex + 1].x = static_cast<float>(texCoord[0]);
+			//			m_buildData.texCoords[vertexIndex + 1].y = -static_cast<float>(texCoord[1]);
+
+			//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 1);
+			//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 1);
+			//			m_buildData.texCoords[vertexIndex + 2].x = static_cast<float>(texCoord[0]);
+			//			m_buildData.texCoords[vertexIndex + 2].y = -static_cast<float>(texCoord[1]);
+			//		}
+
+			//		vertexIndex += 3;
+			//	}
+
+			//}
 		}
 	}
-
-
-
-
-	unsigned int numOfDeformers = mesh->GetDeformerCount();
-
-	for (unsigned int i = 0; i < numOfDeformers; i++) {
-		FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(i, FbxDeformer::eSkin));
-		if (!skin) {
-			cout << "not a skin at skin " << to_string(i) << endl;
-			continue;
-		}
-
-		unsigned int clusterCount = skin->GetClusterCount();
-		for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
-
-			FbxCluster * cluster = skin->GetCluster(i);
-			cout << cluster->GetLink()->GetName() << endl;
-			FbxAMatrix transformMa;
-			cluster->GetTransformMatrix(transformMa);
-			cout << PrintAttribute( cluster->GetLink()->GetNodeAttribute()) << endl;
-			
-			unsigned int numOfIndices = cluster->GetControlPointIndicesCount();
-			for (unsigned int i = 0; i < numOfIndices; ++i) {
-				
-
-			}
-		}
+	for (int childIndex = 0; childIndex < node->GetChildCount(); ++childIndex) {
+		fetchGeometry(node->GetChild(childIndex), model, filename);
 	}
-
-
-
-
-
-
-	{
-	// Number of polygon vertices 
-	//m_buildData.numVertices = mesh->GetPolygonVertexCount();
-	//int* indices = mesh->GetPolygonVertices();
-
-	//if (int(m_buildData.numVertices / 3) != mesh->GetPolygonCount()) {
-	//	Logger::Error("The mesh in '" + filename + "' has to be triangulated.");
-	//	return;
-	//}
-
-	//m_buildData.positions = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
-	//m_buildData.normals = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
-	//m_buildData.texCoords = new DirectX::SimpleMath::Vector2[m_buildData.numVertices];
-	//m_buildData.tangents = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
-	//m_buildData.bitangents = new DirectX::SimpleMath::Vector3[m_buildData.numVertices];
-
-	//bool norms = true, uvs = true, tangs = true, bitangs = true;
-
-	//int vertexIndex = 0;
-	//FbxVector4* cp = mesh->GetControlPoints();
-	//if (cp == nullptr) {
-	//	Logger::Error("Couldn't find any vertices in the mesh in the file " + filename);
-	//	return;
-	//}
-	//for (int polyIndex = 0; polyIndex < mesh->GetPolygonCount(); polyIndex++) {
-	//	int numVertices = mesh->GetPolygonSize(polyIndex);
-
-	//	for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
-
-	//		/*
-	//		--	Positions
-	//		*/
-	//		m_buildData.positions[vertexIndex].x = -(float)cp[indices[vertexIndex]][0];
-	//		m_buildData.positions[vertexIndex].y = (float)cp[indices[vertexIndex]][1];
-	//		m_buildData.positions[vertexIndex].z = (float)cp[indices[vertexIndex]][2];
-
-	//		m_buildData.positions[vertexIndex + 1].x = -(float)cp[indices[vertexIndex + 2]][0];
-	//		m_buildData.positions[vertexIndex + 1].y = (float)cp[indices[vertexIndex + 2]][1];
-	//		m_buildData.positions[vertexIndex + 1].z = (float)cp[indices[vertexIndex + 2]][2];
-
-	//		m_buildData.positions[vertexIndex + 2].x = -(float)cp[indices[vertexIndex + 1]][0];
-	//		m_buildData.positions[vertexIndex + 2].y = (float)cp[indices[vertexIndex + 1]][1];
-	//		m_buildData.positions[vertexIndex + 2].z = (float)cp[indices[vertexIndex + 1]][2];
-
-
-	//		/*
-	//		--	Normals
-	//		*/
-	//		FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
-	//		if (leNormal == nullptr && norms) {
-	//			Logger::Warning("Couldn't find any normals in the mesh in the file " + filename);
-	//			norms = false;
-	//		}
-	//		else if (norms) {
-	//			if (leNormal->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
-	//				int normIndex = 0;
-
-	//				if (leNormal->GetReferenceMode() == FbxLayerElement::eDirect)
-	//					normIndex = vertexIndex;
-
-
-	//				if (leNormal->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-	//					normIndex = leNormal->GetIndexArray().GetAt(vertexIndex);
-
-
-	//				FbxVector4 norm = leNormal->GetDirectArray().GetAt(normIndex);
-	//				m_buildData.normals[vertexIndex].x = -(float)norm[0];
-	//				m_buildData.normals[vertexIndex].y = (float)norm[1];
-	//				m_buildData.normals[vertexIndex].z = (float)norm[2];
-
-	//				norm = leNormal->GetDirectArray().GetAt(normIndex + 2);
-	//				m_buildData.normals[vertexIndex + 1].x = -(float)norm[0];
-	//				m_buildData.normals[vertexIndex + 1].y = (float)norm[1];
-	//				m_buildData.normals[vertexIndex + 1].z = (float)norm[2];
-
-	//				norm = leNormal->GetDirectArray().GetAt(normIndex + 1);
-	//				m_buildData.normals[vertexIndex + 2].x = -(float)norm[0];
-	//				m_buildData.normals[vertexIndex + 2].y = (float)norm[1];
-	//				m_buildData.normals[vertexIndex + 2].z = (float)norm[2];
-	//			}
-	//		}
-
-	//		/*
-	//		--	Tangents
-	//		*/
-	//		FbxGeometryElementTangent *geTang = mesh->GetElementTangent(0);
-	//		if (geTang == nullptr && tangs) {
-	//			Logger::Warning("Couldn't find any tangents in the mesh in the file " + filename);
-	//			tangs = false;
-	//		}
-	//		else if (tangs) {
-	//			if (geTang->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
-	//				int tangIndex = 0;
-
-	//				if (geTang->GetReferenceMode() == FbxLayerElement::eDirect)
-	//					tangIndex = vertexIndex;
-
-
-	//				if (geTang->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-	//					tangIndex = geTang->GetIndexArray().GetAt(vertexIndex);
-
-	//				FbxVector4 tangent = geTang->GetDirectArray().GetAt(tangIndex);
-	//				m_buildData.tangents[vertexIndex].x = (float)tangent[0];
-	//				m_buildData.tangents[vertexIndex].y = (float)tangent[1];
-	//				m_buildData.tangents[vertexIndex].z = (float)tangent[2];
-
-	//				tangent = geTang->GetDirectArray().GetAt(tangIndex + 2);
-	//				m_buildData.tangents[vertexIndex + 1].x = (float)tangent[0];
-	//				m_buildData.tangents[vertexIndex + 1].y = (float)tangent[1];
-	//				m_buildData.tangents[vertexIndex + 1].z = (float)tangent[2];
-
-	//				tangent = geTang->GetDirectArray().GetAt(tangIndex + 1);
-	//				m_buildData.tangents[vertexIndex + 2].x = (float)tangent[0];
-	//				m_buildData.tangents[vertexIndex + 2].y = (float)tangent[1];
-	//				m_buildData.tangents[vertexIndex + 2].z = (float)tangent[2];
-	//			}
-	//		}
-
-	//		/*
-	//		--	Binormals
-	//		*/
-	//		FbxGeometryElementBinormal *geBN = mesh->GetElementBinormal(0);
-	//		if (geBN == nullptr && bitangs) {
-	//			Logger::Warning("Couldn't find any binormals in the mesh in the file " + filename);
-	//			bitangs = false;
-	//		}
-	//		else if (bitangs) {
-	//			if (geBN->GetMappingMode() == FbxLayerElement::eByPolygonVertex) {
-	//				int biNormIndex = 0;
-
-	//				if (geBN->GetReferenceMode() == FbxLayerElement::eDirect)
-	//					biNormIndex = vertexIndex;
-
-
-	//				if (geBN->GetReferenceMode() == FbxLayerElement::eIndexToDirect)
-	//					biNormIndex = geBN->GetIndexArray().GetAt(vertexIndex);
-
-	//				FbxVector4 biNorm = geBN->GetDirectArray().GetAt(biNormIndex);
-	//				m_buildData.bitangents[vertexIndex].x = (float)biNorm[0];
-	//				m_buildData.bitangents[vertexIndex].y = (float)biNorm[1];
-	//				m_buildData.bitangents[vertexIndex].z = (float)biNorm[2];
-
-	//				biNorm = geBN->GetDirectArray().GetAt(biNormIndex + 2);
-	//				m_buildData.bitangents[vertexIndex + 1].x = (float)biNorm[0];
-	//				m_buildData.bitangents[vertexIndex + 1].y = (float)biNorm[1];
-	//				m_buildData.bitangents[vertexIndex + 1].z = (float)biNorm[2];
-
-	//				biNorm = geBN->GetDirectArray().GetAt(biNormIndex + 1);
-	//				m_buildData.bitangents[vertexIndex + 2].x = (float)biNorm[0];
-	//				m_buildData.bitangents[vertexIndex + 2].y = (float)biNorm[1];
-	//				m_buildData.bitangents[vertexIndex + 2].z = (float)biNorm[2];
-	//			}
-	//		}
-
-	//		/*
-	//		--	UV Coords
-	//		*/
-	//		FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
-	//		if (geUV == nullptr && uvs) {
-	//			Logger::Warning("Couldn't find any texture coordinates in the mesh in the file " + filename);
-	//			uvs = false;
-	//		}
-	//		else if (uvs) {
-	//			FbxVector2 texCoord;
-	//			int cpIndex;
-
-	//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex);
-	//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex);
-	//			m_buildData.texCoords[vertexIndex].x = static_cast<float>(texCoord[0]);
-	//			m_buildData.texCoords[vertexIndex].y = -static_cast<float>(texCoord[1]);
-
-	//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 2);
-	//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 2);
-	//			m_buildData.texCoords[vertexIndex + 1].x = static_cast<float>(texCoord[0]);
-	//			m_buildData.texCoords[vertexIndex + 1].y = -static_cast<float>(texCoord[1]);
-
-	//			cpIndex = mesh->GetPolygonVertex(polyIndex, vertIndex + 1);
-	//			texCoord = getTexCoord(cpIndex, geUV, mesh, polyIndex, vertIndex + 1);
-	//			m_buildData.texCoords[vertexIndex + 2].x = static_cast<float>(texCoord[0]);
-	//			m_buildData.texCoords[vertexIndex + 2].y = -static_cast<float>(texCoord[1]);
-	//		}
-
-	//		vertexIndex += 3;
-	//	}
-
-	//}
 }
-}
-
 void PotatoFBXImporter::fetchSkeleton(FbxNode * node, PotatoModel* model, const std::string & filename) {
 
 
@@ -780,12 +803,8 @@ void PotatoFBXImporter::fetchSkeleton(FbxNode * node, PotatoModel* model, const 
 		fetchSkeletonRecursive(currNode, model, 0, 0, -1);
 	}
 
-
-
-
 	//PotatoModel::Limb* limb = new PotatoModel::Limb();
 	//if (node->GetNodeAttribute() && node->GetNodeAttribute()->GetAttributeType() && node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
-
 	//	limb->parent = parent;
 	//	model->addBone(limb);
 	//}
@@ -802,7 +821,7 @@ void PotatoFBXImporter::fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* mod
 	{
 		PotatoModel::Limb limb;
 		limb.parentIndex = inParentIndex;
-		(int)inNode->GetLine()->GetUniqueID();
+		limb.uniqueID = inNode->GetUniqueID();
 		model->addBone(limb);
 
 	}

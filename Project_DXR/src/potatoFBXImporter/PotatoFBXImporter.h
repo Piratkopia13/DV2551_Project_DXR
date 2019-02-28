@@ -19,12 +19,12 @@ public:
 		std::vector<float> weights;
 	};
 	struct Limb {
+		fbxsdk::FbxUInt64 uniqueID;
 		int parentIndex;
 		std::vector<int> childIndexes;
-		
 
-		Limb*parent;
-		std::vector<Limb*> children;
+		//Limb*parent;
+		//std::vector<Limb*> children;
 		FbxMatrix mat;
 	};
 
@@ -38,22 +38,28 @@ public:
 
 	~PotatoModel() {};
 	void reSizeControlPoints(int size) {
-		m_ControlPoints.resize(size);
+		m_ControlPointIndexes.resize(size);
 	}
 	void addVertex(Vertex vertex, int controlPointIndex) {
 		int index = exists(vertex);
 		if (index == -1) {
 			m_Data.push_back(vertex);
+			m_currentData.push_back(vertex);
+			m_ConnectionData.push_back({});
 			indexes.push_back(static_cast<unsigned int>(m_Data.size()) - 1);
 		}
 		else {
 			indexes.push_back(static_cast<unsigned int>(index));
 		}
-		m_ControlPoints[controlPointIndex] = &m_Data[index];
+		m_ControlPointIndexes[controlPointIndex] = index;
 	};
 	void addBone(Limb limb) {
 		m_Skeleton.push_back(limb);
 	}
+	void addConnection(int ControlPointIndex, int boneIndex, float weight) {
+		m_ConnectionData[m_ControlPointIndexes[ControlPointIndex]].indexes.push_back(boneIndex);
+		m_ConnectionData[m_ControlPointIndexes[ControlPointIndex]].weights.push_back(weight);
+	};
 
 	const std::vector<PotatoModel::Vertex>& getModelData() {
 		return m_Data;
@@ -70,13 +76,30 @@ public:
 		return indexes;
 	}
 
+	
+	PotatoModel::Limb* findLimb(fbxsdk::FbxUInt64 id) {
+		for (Limb limb : m_Skeleton) {
+			if (limb.uniqueID == id)
+				return &limb;
+		}
+		return nullptr;
+	};
+	int findLimbIndex(fbxsdk::FbxUInt64 id) {
+		int size = m_Skeleton.size();
+		for (int i = 0; i < size; i++) {
+			if (m_Skeleton[i].uniqueID == id)
+				return i;
+		}
+		return -1;
+	}
+
 private:
 
 	std::vector<PotatoModel::Vertex> m_Data;
-	std::vector<PotatoModel::Vertex> m_currentVectors;
+	std::vector<PotatoModel::Vertex> m_currentData;
 	std::vector<PotatoModel::LimbConnection> m_ConnectionData;
 	std::vector<PotatoModel::Limb> m_Skeleton;
-	std::vector<PotatoModel::Vertex*> m_ControlPoints;
+	std::vector<int> m_ControlPointIndexes;
 	std::vector<unsigned int> indexes;
 
 	int exists(PotatoModel::Vertex _vert) {
@@ -86,7 +109,6 @@ private:
 		}
 		return -1;
 	}
-
 };
 
 
