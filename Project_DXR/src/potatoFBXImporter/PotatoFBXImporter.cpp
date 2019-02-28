@@ -543,17 +543,17 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex]][0], (float)cp[indices[vertexIndex]][1],(float)cp[indices[vertexIndex]][2]),
 						DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
-						}, vertIndex);
+						}, polyIndex*3+vertIndex);
 					model->addVertex({
 						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 2]][0], (float)cp[indices[vertexIndex + 2]][1],(float)cp[indices[vertexIndex + 2]][2]),
 						DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
-						}, vertIndex + 1);
+						}, polyIndex * 3 + vertIndex + 1);
 					model->addVertex({
 						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 1]][0], (float)cp[indices[vertexIndex + 1]][1],(float)cp[indices[vertexIndex + 1]][2]),
 						DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
-						}, vertIndex + 2);
+						}, polyIndex * 3 + vertIndex + 2);
 
 					vertexIndex += 3;
 				}
@@ -564,17 +564,17 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 			unsigned int numOfDeformers = mesh->GetDeformerCount();
 
-			for (unsigned int i = 0; i < numOfDeformers; i++) {
-				FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(i, FbxDeformer::eSkin));
+			for (unsigned int deformerIndex = 0; deformerIndex < numOfDeformers; deformerIndex++) {
+				FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
 				if (!skin) {
-					cout << "not a skin at skin " << to_string(i) << endl;
+					cout << "not a skin at skin " << to_string(deformerIndex) << endl;
 					continue;
 				}
 
 				unsigned int clusterCount = skin->GetClusterCount();
 				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
 
-					FbxCluster * cluster = skin->GetCluster(i);
+					FbxCluster * cluster = skin->GetCluster(clusterIndex);
 					PotatoModel::Limb* limb = model->findLimb(cluster->GetLink()->GetUniqueID());
 					int limbIndex = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
 					if (limb == nullptr) {
@@ -588,8 +588,8 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					unsigned int numOfIndices = cluster->GetControlPointIndicesCount();
 					int* CPIndices = cluster->GetControlPointIndices();
 					double* CPWeights = cluster->GetControlPointWeights();
-					for (unsigned int i = 0; i < numOfIndices; ++i) {
-						model->addConnection(CPIndices[i], limbIndex, (float)CPWeights[i]);
+					for (unsigned int index = 0; index < numOfIndices; ++index) {
+						model->addConnection(CPIndices[index], limbIndex, (float)CPWeights[index]);
 
 					}
 				}

@@ -42,11 +42,13 @@ public:
 	}
 	void addVertex(Vertex vertex, int controlPointIndex) {
 		int index = exists(vertex);
+
 		if (index == -1) {
 			m_Data.push_back(vertex);
 			m_currentData.push_back(vertex);
 			m_ConnectionData.push_back({});
 			indexes.push_back(static_cast<unsigned int>(m_Data.size()) - 1);
+			index = m_Data.size() - 1;
 		}
 		else {
 			indexes.push_back(static_cast<unsigned int>(index));
