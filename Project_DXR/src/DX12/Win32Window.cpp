@@ -101,21 +101,26 @@ LRESULT Win32Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 		PostQuitMessage(0);
 		return 0;
 		break;
-
 	case WM_ACTIVATEAPP:
-
+		if (LOWORD(wParam) == WA_ACTIVE) {
+			Input::setActive(true);
+		}
+		else {
+			Input::setActive(false);
+		}
+		break;
 	case WM_INPUT:
 		Input::ProcessMessage(msg, wParam, lParam);
 		break;
-
 	case WM_KEYDOWN:
+		Input::RegisterKeyDown(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
 		break;
 	case WM_SYSKEYDOWN:
 		break;
 	case WM_KEYUP:
+		Input::RegisterKeyUp(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
 		break;
 	case WM_SYSKEYUP:
-		//Keyboard::ProcessMessage(msg, wParam, lParam);
 		break;
 
 	case WM_SIZE:

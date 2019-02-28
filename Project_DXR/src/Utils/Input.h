@@ -11,6 +11,11 @@ public:
 		RIGHT,
 		NUM_MOUSE_BUTTONS
 	};
+
+	// Used by Win32Window to register keystrokes
+	static void RegisterKeyDown(const UINT keyCode);
+	// Used by Win32Window to register keystrokes
+	static void RegisterKeyUp(const UINT keyCode);
 	
 	// Call at the start of a new frame
 	static void NewFrame();
@@ -34,10 +39,6 @@ public:
 	static void setActive(bool active);
 
 private:
-	// Used by Win32Window to register keystrokes
-	static void RegisterKeyDown(const UINT keyCode);
-	// Used by Win32Window to register keystrokes
-	static void RegisterKeyUp(const UINT keyCode);
 	// Disallow instances
 	Input() {}
 	~Input() {}

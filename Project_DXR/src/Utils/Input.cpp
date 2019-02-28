@@ -65,27 +65,6 @@ bool Input::IsKeyPressed(const UINT keyCode) {
 }
 
 void Input::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
-	
-	switch (msg) {
-	case WM_ACTIVATEAPP:
-		if (LOWORD(wParam) == WA_ACTIVE) {
-			setActive(true);
-		}
-		else {
-			setActive(false);
-		}
-		break;
-	case WM_KEYDOWN:
-		Input::RegisterKeyDown(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
-		break;
-	case WM_SYSKEYDOWN:
-		break;
-	case WM_KEYUP:
-		Input::RegisterKeyUp(MapVirtualKeyA(wParam, MAPVK_VK_TO_CHAR));
-		break;
-	case WM_SYSKEYUP:
-		break;
-	}
 
 	UINT dwSize;
 
