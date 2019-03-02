@@ -35,8 +35,9 @@ using namespace DirectX;
 
 #define MAX_RAY_RECURSION_DEPTH 30
 
-static const int RT_ENABLE_AO = 1 << 0;
-static const int RT_DRAW_NORMALS = 1 << 1;
+static const int RT_DRAW_NORMALS = 	1 << 0;
+static const int RT_ENABLE_AO = 	1 << 1;
+static const int RT_ENABLE_GI = 	1 << 2;
 
 struct Vertex {
     XMFLOAT3 position;
@@ -47,8 +48,7 @@ struct Vertex {
 struct RayPayload {
 	XMFLOAT4 color;
 	UINT recursionDepth;
-	int inShadow;
-	int aoVal;
+	int hit;
 };
 
 struct RayGenSettings {
@@ -56,6 +56,8 @@ struct RayGenSettings {
 	float AORadius;
 	UINT frameCount;
 	UINT numAORays;
+	UINT GISamples;
+	UINT GIBounces;
 };
 
 struct SceneConstantBuffer {

@@ -63,6 +63,8 @@ public:
 	int& getRTFlags();
 	float& getAORadius();
 	UINT& getNumAORays();
+	UINT& getNumGISamples();
+	UINT& getNumGIBounces();
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);

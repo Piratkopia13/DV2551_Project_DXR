@@ -162,6 +162,14 @@ UINT& DXR::getNumAORays() {
 	return m_rayGenCBData.numAORays;
 }
 
+UINT& DXR::getNumGISamples() {
+	return m_rayGenCBData.GISamples;
+}
+
+UINT& DXR::getNumGIBounces() {
+	return m_rayGenCBData.GIBounces;
+}
+
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 	createBLAS(cmdList);
 	createTLAS(cmdList);
@@ -241,6 +249,8 @@ void DXR::createShaderResources() {
 	m_rayGenCBData.numAORays = 5;
 	m_rayGenCBData.AORadius = 0.9f;
 	m_rayGenCBData.frameCount = 0;
+	m_rayGenCBData.GISamples = 1;
+	m_rayGenCBData.GIBounces = 1;
 	m_rayGenSettingsCB = new DX12ConstantBuffer("Ray Gen Settings CB", sizeof(RayGenSettings), m_renderer);
 	m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
 
