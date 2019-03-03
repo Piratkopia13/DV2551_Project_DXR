@@ -170,6 +170,7 @@ void rayGen() {
 	RayPayload payload;
 	payload.recursionDepth = 0;
 	payload.hit = 0;
+	payload.color = float4(0,0,0,0);
 	TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	lOutput[launchIndex] = payload.color;
 

@@ -9,7 +9,7 @@ class DX12Renderer;
 
 class DX12Technique : public Technique {
 public:
-	DX12Technique(DX12Material* m, DX12RenderState* r, DX12Renderer* renderer);
+	DX12Technique(DX12Material* m, DX12RenderState* r, DX12Renderer* renderer, bool hasDSV = true);
 	~DX12Technique();
 	virtual void enable(Renderer* renderer) override;
 	void enable(Renderer* renderer, ID3D12GraphicsCommandList3* cmdList);

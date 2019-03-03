@@ -16,7 +16,7 @@ public:
 
 	virtual void setShader(const std::string& shaderFileName, ShaderType type) override;
 	virtual void removeShader(ShaderType type) override;
-	virtual int compileMaterial(std::string& errString) override;
+	int compileMaterial(std::string& errString, D3D12_INPUT_ELEMENT_DESC* inputLayout = nullptr, UINT numElements = 0);
 	virtual int enable() override;
 	int enable(ID3D12GraphicsCommandList3* cmdList);
 	void disable();

@@ -2,7 +2,7 @@
 #include "DX12Technique.h"
 #include "DX12Renderer.h"
 
-DX12Technique::DX12Technique(DX12Material* m, DX12RenderState* r, DX12Renderer* renderer)
+DX12Technique::DX12Technique(DX12Material* m, DX12RenderState* r, DX12Renderer* renderer, bool hasDSV)
 	: Technique(m, r) {
 
 	ID3DBlob* vertexBlob = m->getShaderBlob(Material::ShaderType::VS);
@@ -42,9 +42,11 @@ DX12Technique::DX12Technique(DX12Material* m, DX12RenderState* r, DX12Renderer* 
 	for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
 		gpsd.BlendState.RenderTarget[i] = defaultRTdesc;
 
-	// Specify depth stencil state descriptor.
-	gpsd.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	gpsd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	if (hasDSV) {
+		// Specify depth stencil state descriptor.
+		gpsd.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+		gpsd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	}
 
 	ThrowIfFailed(renderer->getDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(&m_pipelineState)));
 

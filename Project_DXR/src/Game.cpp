@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Game.h"
 #include "DX12/DX12Renderer.h"
+#include "DX12/DX12Material.h"
 #include "DX12/DX12Mesh.h"
 #include "Utils/Input.h"
 
@@ -81,7 +82,7 @@ void Game::init() {
 	m_material->setShader(shaderPath + "VertexShader" + shaderExtension, Material::ShaderType::VS);
 	m_material->setShader(shaderPath + "FragmentShader" + shaderExtension, Material::ShaderType::PS);
 	std::string err;
-	m_material->compileMaterial(err);
+	((DX12Material*)m_material.get())->compileMaterial(err);
 
 	// add a constant buffer to the material, to tint every triangle using this material
 	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT, 4 * sizeof(float));
