@@ -240,8 +240,13 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 			diffuseColor *= giColor / RayGenSettings.GISamples;
 		}
 
-		bool inShadow = traceHitRay();
-		float3 color = diffuseColor * 0.5f; // In shadow
+		bool towardsLight = dot(-g_lightDirection, normalInWorldSpace) > 0.0;
+		bool inShadow = true;
+		// Trace shadow ray if normal is within 90 degrees of the light
+		if (towardsLight) {
+			inShadow = traceHitRay();
+		}
+		float3 color = diffuseColor * 0.4f; // In shadow
 		if (!inShadow) {
 			color = phongShading(diffuseColor, normalInWorldSpace, texCoords);
 		}

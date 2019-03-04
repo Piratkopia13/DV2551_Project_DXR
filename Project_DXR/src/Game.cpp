@@ -6,7 +6,7 @@
 #include "Utils/Input.h"
 
 Game::Game() 
-	: Application(1280, 720, "DX12 DXR Raytracer thing with soon to come skinned animated models")
+	: Application(1700, 900, "DX12 DXR Raytracer thing with soon to come skinned animated models")
 {
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
 
@@ -101,7 +101,7 @@ void Game::init() {
 	m_texture->sampler = m_sampler.get();
 
 	m_floorTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
-	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
+	m_floorTexture->loadFromFile("../assets/textures/Dragon_ground_color.png");
 	m_floorTexture->sampler = m_sampler.get();
 
 	m_cornellTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
@@ -124,16 +124,16 @@ void Game::init() {
 	}
 	{
 		// Box mesh
-		PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/tex_cube.fbx");
+		PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
 		m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
-		m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);
-		//m_meshes.back()->getTransform().scaleUniformly(0.01f);
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		/*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
+		m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
+		m_meshes.back()->getTransform().scaleUniformly(0.3f);
 		delete box;
 	}
 
@@ -178,7 +178,7 @@ void Game::init() {
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->getTransform().translate(XMVectorSet(-6.0f, 6.0f, 0.f, 0.0f));
+		m_meshes.back()->getTransform().translate(XMVectorSet(-6.0f, 18.0f, 3.f, 0.0f));
 		delete box;
 	}
 
@@ -302,6 +302,12 @@ void Game::update(double dt) {
 			return m;
 		};
 		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform); // Updates transform matrix for raytracing
+
+		auto io = ImGui::GetIO();
+		if (io.MouseDown[0] || std::any_of(std::begin(io.KeysDown), std::end(io.KeysDown), [](bool k) { return k; })) {
+			// Reset temporal accumulation count when states affecting how the rendered image looks may have changed
+			m_dxRenderer->getDXR().getTemporalAccumulationCount() = 0;
+		}
 	}
 
 
@@ -339,6 +345,9 @@ void Game::imguiFunc() {
 			}
 			ImGui::PopStyleColor(3);
 			ImGui::PopID();
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
 
 			static bool enableAO = dxr.getRTFlags() & RT_ENABLE_AO;
 			if (ImGui::Checkbox("Enable AO", &enableAO)) {
@@ -357,6 +366,9 @@ void Game::imguiFunc() {
 			}
 			ImGui::SliderFloat("AO radius", &dxr.getAORadius(), 0.1f, 10.0f);
 			ImGui::SliderInt("AO rays", (int*)&dxr.getNumAORays(), 1, 100);
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
 
 			static bool enableGI = dxr.getRTFlags() & RT_ENABLE_GI;
 			if (ImGui::Checkbox("Enable GI", &enableGI)) {
@@ -367,9 +379,24 @@ void Game::imguiFunc() {
 			}
 			ImGui::SliderInt("GI samples", (int*)&dxr.getNumGISamples(), 1, 10);
 			ImGui::SliderInt("GI bounces", (int*)&dxr.getNumGIBounces(), 1, 5);
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
 
-			ImGui::End();
+			static bool enableTA = dxr.getRTFlags() & RT_ENABLE_TA;
+			if (ImGui::Checkbox("Enable TA", &enableTA)) {
+				if (enableTA)
+					dxr.getRTFlags() |= RT_ENABLE_TA;
+				else
+					dxr.getRTFlags() &= ~RT_ENABLE_TA;
+			}
+			ImGui::Text("Accumulation count: %i", dxr.getTemporalAccumulationCount());
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
 		}
+		ImGui::End();
 	}
 
 	// Only display options if the window isn't collapsed
@@ -476,5 +503,5 @@ void Game::imguiFunc() {
 
 	}
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 }

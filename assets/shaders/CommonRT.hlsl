@@ -38,6 +38,7 @@ using namespace DirectX;
 static const int RT_DRAW_NORMALS = 	1 << 0;
 static const int RT_ENABLE_AO = 	1 << 1;
 static const int RT_ENABLE_GI = 	1 << 2;
+static const int RT_ENABLE_TA = 	1 << 3;
 
 struct Vertex {
     XMFLOAT3 position;

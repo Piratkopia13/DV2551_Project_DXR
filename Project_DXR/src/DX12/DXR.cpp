@@ -129,12 +129,7 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 	// Enable the technique
 	// This binds constant buffers
 	m_taTechnique->enable(m_renderer, cmdList);
-	// Increase frame accumulation count
-	m_taCBData.accumCount++;
-	m_taMaterial->updateConstantBuffer(&m_taCBData, 0);
-
-
-
+	
 	// Set topology
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	
@@ -161,6 +156,10 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 	cmdList->CopyResource(m_taLastFrameBuffer.Get(), renderTarget);
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_taLastFrameBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	D3DUtils::setResourceTransitionBarrier(cmdList, renderTarget, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	// Increase frame accumulation count
+	m_taCBData.accumCount++;
+	m_taMaterial->updateConstantBuffer(&m_taCBData, 0);
 }
 
 void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target) {
@@ -230,6 +229,10 @@ UINT& DXR::getNumGIBounces() {
 	return m_rayGenCBData.GIBounces;
 }
 
+UINT& DXR::getTemporalAccumulationCount() {
+	return m_taCBData.accumCount;
+}
+
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 	createBLAS(cmdList);
 	createTLAS(cmdList);
@@ -280,7 +283,7 @@ void DXR::createShaderResources() {
 		m_rtHeapGPUHandle = gpuHandle;
 
 		// Ray gen settings CB
-		m_rayGenCBData.flags = 0;
+		m_rayGenCBData.flags = RT_ENABLE_TA;
 		m_rayGenCBData.numAORays = 5;
 		m_rayGenCBData.AORadius = 0.9f;
 		m_rayGenCBData.frameCount = 0;

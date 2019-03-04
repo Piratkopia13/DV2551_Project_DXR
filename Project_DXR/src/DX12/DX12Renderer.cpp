@@ -807,9 +807,12 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_postCommand.list->RSSetViewports(1, &m_viewport);
 		m_postCommand.list->RSSetScissorRects(1, &m_scissorRect);
 
-		m_dxr->doTemporalAccumulation(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
+		if (m_dxr->getRTFlags() & RT_ENABLE_TA) {
+			m_dxr->doTemporalAccumulation(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
+		} else {
+			m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
+		}
 
-		//m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 	}
 
 	// ImGui

@@ -69,6 +69,7 @@ public:
 	UINT& getNumAORays();
 	UINT& getNumGISamples();
 	UINT& getNumGIBounces();
+	UINT& getTemporalAccumulationCount();
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
