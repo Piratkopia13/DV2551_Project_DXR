@@ -395,6 +395,17 @@ void Game::imguiFunc() {
 			ImGui::Separator();
 			ImGui::Spacing();
 
+			static bool enableAA = dxr.getRTFlags() & RT_ENABLE_JITTER_AA;
+			if (ImGui::Checkbox("Enable camera jitter AA", &enableAA)) {
+				if (enableAA)
+					dxr.getRTFlags() |= RT_ENABLE_JITTER_AA;
+				else
+					dxr.getRTFlags() &= ~RT_ENABLE_JITTER_AA;
+			}
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
 		}
 		ImGui::End();
 	}
@@ -503,5 +514,5 @@ void Game::imguiFunc() {
 
 	}
 
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 }

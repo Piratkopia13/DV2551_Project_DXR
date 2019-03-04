@@ -987,7 +987,7 @@ void DX12Renderer::present() {
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = { };
-	m_swapChain->Present1(0, 0, &pp);
+	m_swapChain->Present1(1, 0, &pp);
 
 	//waitForGPU(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.

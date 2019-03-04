@@ -21,6 +21,8 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_camera(nullptr)
 	, m_meshes(nullptr)
 	, m_skyboxTexture(nullptr)
+	, m_gen(m_rd())
+	, m_dis(0.f, 1.0f)
 {
 }
 
@@ -58,8 +60,14 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 	// Update constant buffers
 	if (m_camera) {
+		XMMATRIX jitterMat = XMMatrixIdentity();
+		if (getRTFlags() & RT_ENABLE_JITTER_AA) {
+			float jitterX = (m_dis(m_gen) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowWidth();
+			float jitterY = (m_dis(m_gen) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowHeight();
+			jitterMat = XMMatrixTranslation(jitterX, jitterY, 0.f);
+		}
 		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
-		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
+		m_sceneCBData->projectionToWorld = (m_camera->getInvProjMatrix() * jitterMat) * m_camera->getInvViewMatrix();
 		m_sceneCB->setData(m_sceneCBData, 0);
 	}
 
@@ -158,8 +166,8 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 	D3DUtils::setResourceTransitionBarrier(cmdList, renderTarget, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	// Increase frame accumulation count
-	m_taCBData.accumCount++;
 	m_taMaterial->updateConstantBuffer(&m_taCBData, 0);
+	m_taCBData.accumCount++;
 }
 
 void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target) {
@@ -283,7 +291,7 @@ void DXR::createShaderResources() {
 		m_rtHeapGPUHandle = gpuHandle;
 
 		// Ray gen settings CB
-		m_rayGenCBData.flags = RT_ENABLE_TA;
+		m_rayGenCBData.flags = RT_ENABLE_TA | RT_ENABLE_JITTER_AA;
 		m_rayGenCBData.numAORays = 5;
 		m_rayGenCBData.AORadius = 0.9f;
 		m_rayGenCBData.frameCount = 0;

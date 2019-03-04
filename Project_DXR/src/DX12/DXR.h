@@ -3,6 +3,7 @@
 #include "DX12.h"
 #include <d3d12.h>
 #include "D3DUtils.h"
+#include <random>
 #include <DirectXMath.h>
 
 class DX12Renderer;
@@ -170,6 +171,8 @@ private:
 		UINT accumCount;
 	};
 	TAConstantBufferData m_taCBData;
-	// Copy of the camera view matrix
-	DirectX::XMMATRIX m_camViewMat;
+	DirectX::XMMATRIX m_camViewMat; // Copy of the camera view matrix
+	std::random_device m_rd;  //Will be used to obtain a seed for the random number engine
+	std::mt19937 m_gen; //Standard mersenne_twister_engine seeded with rd()
+	std::uniform_real_distribution<> m_dis;
 };

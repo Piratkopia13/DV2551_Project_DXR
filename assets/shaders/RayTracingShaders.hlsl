@@ -118,12 +118,31 @@ float traceAmbientOcclusionRays(inout uint seed, float3 normal) {
 	return ao;
 }
 
+float3 globalIllumination(inout uint seed, inout RayPayload payload, float3 normal) {
+	if (payload.hit != 10 + RayGenSettings.GIBounces) { // Check if recursive GI shoud be done
+		if (payload.hit < 10)
+			payload.hit = 10;
+		else
+			payload.hit++;
+
+		float3 giColor = float3(0,0,0);
+		for (uint i = 0; i < RayGenSettings.GISamples; i++) {
+			float3 dir = getCosHemisphereSample(seed, normal);
+			scatter(dir, payload, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
+
+			giColor += payload.color.rgb * 1.0; // 100% of the light from global sources is applied
+		}
+		return giColor / RayGenSettings.GISamples;
+	}
+	return float3(1.0, 1.0, 1.0);
+}
+
 float3 phongShading(float3 diffuseColor, float3 normal, float2 texCoords) {
 	float shininess = 5.0f;
 	float spec = 1.0f;
 	float ambient = 0.4f;
 
-	float diffuseFactor = max(dot(-g_lightDirection, normal), ambient);
+	float diffuseFactor = max(dot(-g_lightDirection, normal), ambient) * 3.0;
 	float3 r = reflect(g_lightDirection, normal);
 	r = normalize(r);
 	float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
@@ -203,6 +222,7 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 	// Initialize a random seed, per-pixel and per-frame
 	uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, RayGenSettings.frameCount );
+	// uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, 1 );
 
 	uint verticesPerPrimitive = 3;
 	Vertex vertex1 = Vertices[primitiveID * verticesPerPrimitive];
@@ -221,23 +241,11 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 		float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
 		// float3 diffuseColor = float3(0.f, 0.8, 0.0);
+		float3 giColor = float3(1,1,1);
 
 		// Global illumination
-		if (RayGenSettings.flags & RT_ENABLE_GI && payload.hit != 10 + RayGenSettings.GIBounces) { // Check if recursive GI shoud be done
-			if (payload.hit < 10)
-				payload.hit = 10;
-			else
-				payload.hit++;
-
-			float3 giColor = float3(0,0,0);
-			for (uint i = 0; i < RayGenSettings.GISamples; i++) {
-				float3 dir = getCosHemisphereSample(randSeed, normalInWorldSpace);
-				scatter(dir, payload, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
-
-				giColor += payload.color;
-			}
-			// diffuseColor *= 0.5f;
-			diffuseColor *= giColor / RayGenSettings.GISamples;
+		if (RayGenSettings.flags & RT_ENABLE_GI) {
+			giColor = globalIllumination(randSeed, payload, normalInWorldSpace);
 		}
 
 		bool towardsLight = dot(-g_lightDirection, normalInWorldSpace) > 0.0;
@@ -250,6 +258,8 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		if (!inShadow) {
 			color = phongShading(diffuseColor, normalInWorldSpace, texCoords);
 		}
+		// Apply global illumination
+		color *= giColor;
 
 		// Ambient occlusion
 		if (RayGenSettings.flags & RT_ENABLE_AO) {
@@ -259,7 +269,9 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 		if (RayGenSettings.flags & RT_ENABLE_GI) {
 			// Gamma correction
-			color = sqrt(color);
+			// color = sqrt(color);
+			float gamma = 2.0;
+			color = pow(color, 1.0 / gamma);
 		}
 
 		if (RayGenSettings.flags & RT_DRAW_NORMALS) {
