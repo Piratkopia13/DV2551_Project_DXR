@@ -15,8 +15,8 @@ PotatoModel::~PotatoModel() {
 
 void PotatoModel::update(float d) {
 	m_FrameTime += d;
-	updateVertexes();
 	//updateLimb(0, XMMatrixIdentity(), m_FrameTime);
+	updateVertexes();
 
 
 }
@@ -105,7 +105,7 @@ void PotatoModel::updateLimb(int index, XMMATRIX & matrix, unsigned int frame) {
 	m_Skeleton[index].animation[frame];
 
 	for (int i = 0; i < m_Skeleton[index].childIndexes.size(); i++) {
-		updateLimb(i, matrix, frame);
+		updateLimb(m_Skeleton[index].childIndexes[i], matrix, frame);
 	}
 }
 

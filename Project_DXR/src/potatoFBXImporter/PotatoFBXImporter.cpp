@@ -616,9 +616,9 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
 					FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
 
-					for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames1000); frame <= end.GetFrameCount(FbxTime::eFrames1000); frame++) {
+					for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames30); frame <= end.GetFrameCount(FbxTime::eFrames30); frame++) {
 						FbxTime currTime;
-						currTime.SetFrame(frame, FbxTime::eFrames1000);
+						currTime.SetFrame(frame, FbxTime::eFrames30);
 						FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
 						model->addFrame(limbIndex, convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
 					}
