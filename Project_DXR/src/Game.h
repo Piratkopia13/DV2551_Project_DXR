@@ -45,6 +45,10 @@ private:
 
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 
+	std::vector<PotatoModel*> m_models;
+
+
+
 	// ImGui
 	std::string m_availableModels;
 	std::vector<std::string> m_availableModelsList;

@@ -42,6 +42,11 @@ Game::Game()
 }
 
 Game::~Game() {
+
+	for (int i = 0; i < m_models.size(); i++) {
+		if (m_models[i])
+			delete m_models[i];
+	}
 }
 
 void Game::init() {
@@ -49,6 +54,7 @@ void Game::init() {
 	PotatoModel* dino;
 	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
 	
+	m_models.push_back(dino);
 
 	float floorHalfWidth = 50.0f;
 	float floorTiling = 5.0f;
@@ -119,7 +125,7 @@ void Game::init() {
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-		delete dino;
+		//delete dino;
 	}
 
 	{
@@ -271,6 +277,9 @@ void Game::update(double dt) {
 	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
 
+	for (PotatoModel*pModel : m_models) {
+		pModel->update(dt);
+	}
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
@@ -287,6 +296,8 @@ void Game::update(double dt) {
 
 
 }
+
+
 
 void Game::render(double dt) {
 	//getRenderer().clearBuffer(CLEAR_BUFFER_FLAGS::COLOR | CLEAR_BUFFER_FLAGS::DEPTH); // Doesnt do anything

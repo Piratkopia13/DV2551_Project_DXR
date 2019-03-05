@@ -472,6 +472,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 	// Number of polygon vertices 
 
+	FbxScene* scene = node->GetScene();
 	int numAttributes = node->GetNodeAttributeCount();
 	for (int j = 0; j < numAttributes; j++) {
 
@@ -479,17 +480,15 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 		FbxNodeAttribute::EType attributeType = nodeAttribute->GetAttributeType();
 
 		if (attributeType == FbxNodeAttribute::eMesh) {
-
-
 			FbxMesh* mesh = node->GetMesh();
-			int amount = mesh->GetPolygonVertexCount();
-			model->reSizeControlPoints(amount);
+			FbxAMatrix geometryTransform(node->GetGeometricTranslation(FbxNode::eSourcePivot), node->GetGeometricRotation(FbxNode::eSourcePivot), node->GetGeometricScaling(FbxNode::eSourcePivot));
+
+			int polygonVertexCount= mesh->GetPolygonVertexCount();
 			int* indices = mesh->GetPolygonVertices();
-			if (int(amount / 3) != mesh->GetPolygonCount()) {
+			if (int(polygonVertexCount / 3) != mesh->GetPolygonCount()) {
 				cout << "The mesh in '" << filename << "' has to be triangulated.";
 				return;
 			}
-
 
 			int vertexIndex = 0;
 			FbxVector4* cp = mesh->GetControlPoints();
@@ -502,7 +501,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 				for (int vertIndex = 0; vertIndex < numVertices; vertIndex += 3) {
 
-
+					/*NORMALS*/
 					FbxLayerElementNormal* leNormal = mesh->GetLayer(0)->GetNormals();
 					FbxVector4 norm[3] = { {0, 0, 0},{0, 0, 0},{0, 0, 0} };
 					FbxVector2 texCoord[3] = { {0,0}, {0,0} };
@@ -522,9 +521,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 						}
 					}
 
-					//		/*
-		//		--	UV Coords
-		//		*/
+					/*UV COORDS*/
 					FbxGeometryElementUV* geUV = mesh->GetElementUV(0);
 					if (geUV == nullptr) {
 						cout << "Couldn't find any texture coordinates in the mesh in the file " << filename << endl;
@@ -559,48 +556,75 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 				}
 			}
 
+			/*CONTROLPOINTS*/
+			unsigned int cpCount = mesh->GetControlPointsCount();
+			FbxVector4* cps = mesh->GetControlPoints();
+			model->reSizeControlPoints(cpCount);
+			for (int i = 0; i < cpCount; i++) {
+				model->addControlPoint({ (float)cps[i][0], (float)cps[i][1], (float)cps[i][2] }, i);
+			}
 
 
-
-			unsigned int numOfDeformers = mesh->GetDeformerCount();
-
-			for (unsigned int deformerIndex = 0; deformerIndex < numOfDeformers; deformerIndex++) {
+			/*BONE CONNECTIONS*/
+			int largestIndex = -1;
+			unsigned int deformerCount = mesh->GetDeformerCount();
+			cout << "deformers: " << to_string(deformerCount) << endl;
+			for (unsigned int deformerIndex = 0; deformerIndex < deformerCount; deformerIndex++) {
 				FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
 				if (!skin) {
-					cout << "not a skin at skin " << to_string(deformerIndex) << endl;
+					cout << "not a skin at deformer " << to_string(deformerIndex) << endl;
 					continue;
 				}
 
 				unsigned int clusterCount = skin->GetClusterCount();
+				cout << "  clusters: " << to_string(clusterCount) << endl;
 				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
 
 					FbxCluster * cluster = skin->GetCluster(clusterIndex);
-					PotatoModel::Limb* limb = model->findLimb(cluster->GetLink()->GetUniqueID());
+					cout <<"    " <<PrintAttribute(cluster->GetLink()->GetNodeAttribute()) << endl;
 					int limbIndex = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
-					if (limb == nullptr) {
+					if (limbIndex == -1) {
 						cout << "Could not find limb at clusterIndex: " << to_string(clusterIndex) << endl;
 						continue;
 					}
-					FbxAMatrix transformMa;
-					cluster->GetTransformMatrix(transformMa);
-					cout << PrintAttribute(cluster->GetLink()->GetNodeAttribute()) << endl;
+					
+					FbxAMatrix transformMatrix;
+					FbxAMatrix transformLinkMatrix;
+					FbxAMatrix globalBindposeInverseMatrix;
 
-					unsigned int numOfIndices = cluster->GetControlPointIndicesCount();
+					cluster->GetTransformMatrix(transformMatrix);	// The transformation of the mesh at binding time
+					cluster->GetTransformLinkMatrix(transformLinkMatrix);	// The transformation of the cluster(joint) at binding time from joint space to world space
+					globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * geometryTransform;
+
+					// Update the information in mSkeleton 
+					model->setGlobalBindposeInverse(limbIndex, convertToXMMatrix(globalBindposeInverseMatrix));
+
+
+					unsigned int indexCount = cluster->GetControlPointIndicesCount();
 					int* CPIndices = cluster->GetControlPointIndices();
 					double* CPWeights = cluster->GetControlPointWeights();
-					for (unsigned int index = 0; index < numOfIndices; ++index) {
+					for (unsigned int index = 0; index < indexCount; ++index) {
+						if (CPIndices[index] > largestIndex)
+							largestIndex = CPIndices[index];
 						model->addConnection(CPIndices[index], limbIndex, (float)CPWeights[index]);
 
 					}
+
+					FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(0);
+					FbxString animStackName = currAnimStack->GetName();
+					FbxTakeInfo* takeInfo = scene->GetTakeInfo(animStackName);
+					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
+					FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
+
+					for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames1000); frame <= end.GetFrameCount(FbxTime::eFrames1000); frame++) {
+						FbxTime currTime;
+						currTime.SetFrame(frame, FbxTime::eFrames1000);
+						FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
+						model->addFrame(limbIndex, convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
+					}
 				}
 			}
-
-
 		}
-
-
-	
-
 
 		if(true){
 			// Number of polygon vertices 
