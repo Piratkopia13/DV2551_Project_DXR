@@ -278,15 +278,15 @@ void Game::update(double dt) {
 	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
 
-	//for (PotatoModel*pModel : m_models) {
-	//pModel->update(dt);
-	m_models[0]->update(dt);
+	for (int i = 0; i < m_models.size(); i++) {
+		PotatoModel* pModel = m_models[i];
+		pModel->update(dt);
 
-		m_dxRenderer->executeNextOpenPreCommand([&] {
-			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(m_models[0]->getModelVertices().data(), sizeof(Vertex) * m_models[0]->getModelVertices().size());
+		m_dxRenderer->executeNextOpenPreCommand([&, pModel] {
+			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(pModel->getModelVertices().data(), sizeof(Vertex) * pModel->getModelVertices().size());
 		});
 
-	//}
+	}
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
