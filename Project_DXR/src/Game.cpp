@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "DX12/DX12Renderer.h"
 #include "DX12/DX12Mesh.h"
+#include "DX12/DX12VertexBuffer.h"
 #include "Utils/Input.h"
 
 Game::Game() 
@@ -277,9 +278,15 @@ void Game::update(double dt) {
 	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
 
-	for (PotatoModel*pModel : m_models) {
-		pModel->update(dt);
-	}
+	//for (PotatoModel*pModel : m_models) {
+	//pModel->update(dt);
+	m_models[0]->update(dt);
+
+		m_dxRenderer->executeNextOpenPreCommand([&] {
+			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(m_models[0]->getModelVertices().data(), sizeof(Vertex) * m_models[0]->getModelVertices().size());
+		});
+
+	//}
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)

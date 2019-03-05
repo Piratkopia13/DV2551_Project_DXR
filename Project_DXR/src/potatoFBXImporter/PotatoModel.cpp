@@ -15,7 +15,8 @@ PotatoModel::~PotatoModel() {
 
 void PotatoModel::update(float d) {
 	m_FrameTime += d;
-	updateLimb(0, XMMatrixIdentity(), m_FrameTime);
+	updateVertexes();
+	//updateLimb(0, XMMatrixIdentity(), m_FrameTime);
 
 
 }
