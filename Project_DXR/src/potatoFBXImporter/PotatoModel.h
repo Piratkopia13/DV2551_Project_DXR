@@ -22,12 +22,14 @@ public:
 	struct Limb {
 		fbxsdk::FbxUInt64 uniqueID;
 		int parentIndex;
-		unsigned int currentFrame = 0;
+		float expiredTime = 0.0f;
+		float animationTime = 1.0f;
 		std::vector<int> childIndexes;
 		std::vector<DirectX::XMMATRIX> animation;
 		DirectX::XMMATRIX globalBindposeInverse;
 		DirectX::XMMATRIX& getAnimation() {
-			return animation[currentFrame];
+			int frame = floor(animation.size()*(expiredTime / animationTime));
+			return animation[frame];
 		}
 	};
 

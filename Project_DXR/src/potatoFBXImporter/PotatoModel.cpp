@@ -68,7 +68,7 @@ void PotatoModel::reSizeControlPoints(int size) {
 }
 
 const std::vector<PotatoModel::Vertex>& PotatoModel::getModelData() {
-	return m_Data;
+	return m_currentData;
 }
 
 const std::vector<PotatoModel::Vertex>& PotatoModel::getModelVertices() {
