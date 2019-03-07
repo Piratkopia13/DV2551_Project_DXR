@@ -37,16 +37,18 @@ public:
 
 		void update(float t) {
 			expiredTime += t;
-			if (expiredTime >= animationTime)
+			if (expiredTime >= animationTime) {
 				expiredTime -= animationTime;
+				currentFrame = 0;
+			}
 			if(animation.size() > 0)
 				if (expiredTime >= getTime(1)) {
 					currentFrame++;
 				}
 		}
-		XMMATRIX&getCurrentTransform() {
+		XMMATRIX getCurrentTransform() {
 			if (animation.size() > 0)
-				return interpolate();
+				return globalBindposeInverse*interpolate();
 			else
 				return XMMatrixIdentity();
 		}
@@ -57,10 +59,10 @@ public:
 			return animation[(currentFrame+step)%animation.size()].transform;
 		}
 		float getLinearWeight() {
-			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0))*0.5f) + 0.25f;
+			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0)));
 		}
 		float getQuadWeight() {
-			return 0.5f;
+			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0))*0.5f) + 0.25f;
 		}
 		float getTime(int step) {
 			return animation[(currentFrame + step) % animation.size()].time;
@@ -81,6 +83,7 @@ public:
 			}
 		}
 		XMMATRIX interpLinear(XMMATRIX & m1, XMMATRIX & m2, float t) {
+			assert(t >= 0 && t <= 1);
 			XMVECTOR scal1, scal2; //for scaling
 			XMVECTOR quat1, quat2; //for rotation
 			XMVECTOR tran1, tran2; //for translation

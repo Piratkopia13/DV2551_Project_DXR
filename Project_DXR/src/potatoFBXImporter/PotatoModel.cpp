@@ -53,6 +53,7 @@ void PotatoModel::setGlobalBindposeInverse(unsigned int index, XMMATRIX matrix) 
 
 void PotatoModel::addFrame(unsigned int index, float time, XMMATRIX matrix) {
 	m_Skeleton[index].animation.push_back({ time,matrix });
+	m_Skeleton[index].animationTime = time;
 }
 
 void PotatoModel::addConnection(int ControlPointIndex, int boneIndex, float weight) {
@@ -100,6 +101,7 @@ int PotatoModel::findLimbIndex(fbxsdk::FbxUInt64 id) {
 
 void PotatoModel::updateLimb(int index, XMMATRIX & matrix, float t) {
 	m_Skeleton[index].update(t);
+	
 	for (int i = 0; i < m_Skeleton[index].childIndexes.size(); i++) {
 		updateLimb(m_Skeleton[index].childIndexes[i], matrix, t);
 	}
@@ -116,7 +118,7 @@ void PotatoModel::updateVertexes() {
 
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {
 			int dataIndex = m_ControlPointIndexes[cpi][index];
-
+			
 			XMStoreFloat3(&m_currentData[dataIndex].position, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].position),sum));
 		}
 	}

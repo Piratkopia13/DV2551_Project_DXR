@@ -616,7 +616,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					FbxTakeInfo* takeInfo = scene->GetTakeInfo(animStackName);
 					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
 					FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
-					cout << "animation Time: "<<to_string((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble()) << endl;
+					cout << "Animation Time: " << to_string((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble()) << " Frame Count: " << to_string((int)end.GetFrameCount(FbxTime::eFrames24)) << endl;
 					for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames24); frame <= end.GetFrameCount(FbxTime::eFrames24); frame++) {
 						FbxTime currTime;
 						currTime.SetFrame(frame, FbxTime::eFrames24);
