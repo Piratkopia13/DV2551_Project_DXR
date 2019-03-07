@@ -66,7 +66,7 @@ struct MaterialProperties {
 	float reflectionAttenuation;
 	float fuzziness;
 	float refractiveIndex;
-	float padding;
+	UINT maxRecursionDepth;
 	XMFLOAT3 albedoColor;
 };
 
@@ -79,3 +79,5 @@ struct CameraData {
 	XMMATRIX VP;
 	XMFLOAT3 cameraPosition;
 };
+
+// potoat

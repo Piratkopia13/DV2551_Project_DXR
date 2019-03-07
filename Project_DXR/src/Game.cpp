@@ -92,7 +92,7 @@ void Game::init() {
 	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
 
 	MaterialProperties matProps = dxMaterial->getProperties();
-	matProps.fuzziness = 13.37f;
+	matProps.fuzziness = 0.0f;
 	dxMaterial->setProperties(matProps);
 
 	// basic technique
@@ -411,6 +411,33 @@ void Game::imguiFunc() {
 			ImGui::Separator();
 			ImGui::Spacing();
 
+			DX12Material* dxMaterial = ((DX12Material*)m_material.get());
+			MaterialProperties matProps = dxMaterial->getProperties();
+			static float fuzziness = 0.0f;
+			if (ImGui::SliderFloat("Fuzziness", &fuzziness, 0.0f, 1.0f)) {
+				matProps.fuzziness = fuzziness;
+				dxMaterial->setProperties(matProps);
+			}
+			static float reflectionAttenuation = 1.0f;
+			if (ImGui::SliderFloat("ReflectionAttenuation", &reflectionAttenuation, 0.0f, 1.0f)) {
+				matProps.reflectionAttenuation = reflectionAttenuation;
+				dxMaterial->setProperties(matProps);
+			}
+			static int recursionDepth = 3.0f;
+			if (ImGui::SliderInt("Recursion", &recursionDepth, 0, MAX_RAY_RECURSION_DEPTH)) {
+				matProps.maxRecursionDepth = recursionDepth;
+				dxMaterial->setProperties(matProps);
+				std::cout << recursionDepth << std::endl;
+			}
+
+			static ImVec4 color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+			if (ImGui::ColorEdit4("Albedo color##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha)) {
+				matProps.albedoColor = XMFLOAT3(color.x, color.y, color.z);
+				dxMaterial->setProperties(matProps);
+			}
+			ImGui::SameLine();
+			ImGui::Text("Albedo color");
+
 		}
 		ImGui::End();
 	}
@@ -519,5 +546,5 @@ void Game::imguiFunc() {
 
 	}
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 }

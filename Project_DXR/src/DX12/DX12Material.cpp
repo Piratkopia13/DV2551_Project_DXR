@@ -28,6 +28,10 @@ DX12Material::DX12Material(const std::string& name, DX12Renderer* renderer)
 	, m_materialCB(name + "_cb", sizeof(MaterialProperties), m_renderer)
 {
 	isValid = false;
+
+	m_matProps.maxRecursionDepth = 3;
+	m_matProps.reflectionAttenuation = 1.0f;
+	m_matProps.albedoColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
 };
 
 DX12Material::~DX12Material() {

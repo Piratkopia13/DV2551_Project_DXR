@@ -142,7 +142,7 @@ float3 globalIllumination(inout uint seed, inout RayPayload payload, float3 norm
 }
 
 float3 phongShading(float3 diffuseColor, float3 normal, float2 texCoords) {
-	float shininess = 5.0f + material.fuzziness * 0.0f;
+	float shininess = 5.0f;
 	float spec = 1.0f;
 	float ambient = 0.4f;
 
@@ -237,13 +237,17 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 	float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
 
-	if ( (instanceID == 2 || instanceID == 3)  && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 2) { // -1 to allow for shadow ray
-		// Shoot a recursive reflected ray
-		float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
-		scatter(dir, payload);
-	} else {
+	// psuedo
+	// payload.color = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation * scatter(bounceDir, payload));
 
-		float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
+	// if (material.reflectionAttenuation < 0.01 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 2) { // -1 to allow for shadow ray
+	// 	// Shoot a recursive reflected ray
+	// 	float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
+	// 	dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
+	// 	scatter(dir, payload);
+	// } else {
+
+		float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb * material.albedoColor;
 		// float3 diffuseColor = float3(0.f, 0.8, 0.0);
 		float3 giColor = float3(1,1,1);
 
@@ -280,11 +284,24 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 
 		if (RayGenSettings.flags & RT_DRAW_NORMALS) {
 			// Use normal as color
-			payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
-		} else {
-			payload.color = float4(color, 1.0f);
+			color = normalInWorldSpace * 0.5f + 0.5f;
 		}
-	}
+
+		float3 scatteredColor = color;
+		if (material.reflectionAttenuation < 1.0 && payload.recursionDepth < min(material.maxRecursionDepth+3, MAX_RAY_RECURSION_DEPTH) - 2) { // -1 to allow for shadow ray
+			// Shoot a recursive reflected ray
+			float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
+			dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
+			scatter(dir, payload);
+			scatteredColor = payload.color;
+		}
+
+	 	payload.color.rgb = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation) * scatteredColor;
+	 	payload.color.a = 1.0f;
+
+
+		// payload.color = float4(color, 1.0f);
+	// }
 
 
 }
