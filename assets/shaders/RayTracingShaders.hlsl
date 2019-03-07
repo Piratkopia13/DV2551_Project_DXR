@@ -19,6 +19,10 @@ cbuffer CB_RayGen : register(b0, space1) {
 	RayGenSettings RayGenSettings;
 }
 
+cbuffer CB_Material : register(b1, space0) {
+	MaterialProperties material;
+}
+
 ConstantBuffer<SceneConstantBuffer> CB_SceneData : register(b0, space2);
 
 
@@ -138,7 +142,7 @@ float3 globalIllumination(inout uint seed, inout RayPayload payload, float3 norm
 }
 
 float3 phongShading(float3 diffuseColor, float3 normal, float2 texCoords) {
-	float shininess = 5.0f;
+	float shininess = 5.0f + material.fuzziness * 0.0f;
 	float spec = 1.0f;
 	float ambient = 0.4f;
 

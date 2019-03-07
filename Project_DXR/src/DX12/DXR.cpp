@@ -338,6 +338,9 @@ void DXR::createShaderResources() {
 			MeshHandles handles;
 			handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress();
 			handles.textureHandle = gpuHandle;
+
+			handles.materialHandle = static_cast<DX12Material*>(mesh->technique->getMaterial())->getMaterialCB()->getBuffer(0)->GetGPUVirtualAddress();
+
 			m_rtMeshHandles.emplace_back(handles);
 
 			cpuHandle.ptr += m_heapIncr;
@@ -375,7 +378,8 @@ void DXR::createShaderTables() {
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i); // only supports one texture/mesh atm // TODO FIX
-			tableBuilder.addDescriptor(m_rtMeshHandles[i].textureHandle.ptr, i); // only supports one texture/mesh atm // TODO FIX
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].textureHandle.ptr, i);
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].materialHandle, i);
 			tableBuilder.addDescriptor(rayGenHandle, i);
 		}
 		m_hitGroupShaderTable = tableBuilder.build(m_renderer->getDevice());
@@ -640,6 +644,12 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].DescriptorTable.NumDescriptorRanges = _countof(range2);
 	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].DescriptorTable.pDescriptorRanges = range2;*/
+
+	// Material properties CBV
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].Descriptor.RegisterSpace = 0;
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	// Ray Gen settings CBV
 	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;

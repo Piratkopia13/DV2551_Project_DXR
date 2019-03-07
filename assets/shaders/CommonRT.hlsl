@@ -62,6 +62,14 @@ struct RayGenSettings {
 	UINT GIBounces;
 };
 
+struct MaterialProperties {
+	float reflectionAttenuation;
+	float fuzziness;
+	float refractiveIndex;
+	float padding;
+	XMFLOAT3 albedoColor;
+};
+
 struct SceneConstantBuffer {
 	XMMATRIX projectionToWorld;
 	XMFLOAT3 cameraPosition;

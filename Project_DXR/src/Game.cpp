@@ -81,14 +81,19 @@ void Game::init() {
 	m_material = std::unique_ptr<Material>(getRenderer().makeMaterial("material_0"));
 	m_material->setShader(shaderPath + "VertexShader" + shaderExtension, Material::ShaderType::VS);
 	m_material->setShader(shaderPath + "FragmentShader" + shaderExtension, Material::ShaderType::PS);
+	DX12Material* dxMaterial = ((DX12Material*)m_material.get());
 	std::string err;
-	((DX12Material*)m_material.get())->compileMaterial(err);
+	dxMaterial->compileMaterial(err);
 
 	// add a constant buffer to the material, to tint every triangle using this material
 	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT, 4 * sizeof(float));
 	// no need to update anymore
 	// when material is bound, this buffer should be also bound for access.
 	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
+
+	MaterialProperties matProps = dxMaterial->getProperties();
+	matProps.fuzziness = 13.37f;
+	dxMaterial->setProperties(matProps);
 
 	// basic technique
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
