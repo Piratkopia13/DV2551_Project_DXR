@@ -14,11 +14,8 @@ PotatoModel::~PotatoModel() {
 }
 
 void PotatoModel::update(float d) {
-	m_FrameTime += d;
-	//updateLimb(0, XMMatrixIdentity(), m_FrameTime);
+	updateLimb(0, XMMatrixIdentity(), d);
 	updateVertexes();
-
-
 }
 
 void PotatoModel::addVertex(Vertex vertex, int controlPointIndex) {
@@ -54,8 +51,8 @@ void PotatoModel::setGlobalBindposeInverse(unsigned int index, XMMATRIX matrix) 
 	m_Skeleton[index].globalBindposeInverse = matrix;
 }
 
-void PotatoModel::addFrame(unsigned int index, XMMATRIX matrix) {
-	m_Skeleton[index].animation.push_back(matrix);
+void PotatoModel::addFrame(unsigned int index, float time, XMMATRIX matrix) {
+	m_Skeleton[index].animation.push_back({ time,matrix });
 }
 
 void PotatoModel::addConnection(int ControlPointIndex, int boneIndex, float weight) {
@@ -69,11 +66,11 @@ void PotatoModel::reSizeControlPoints(int size) {
 }
 
 const std::vector<PotatoModel::Vertex>& PotatoModel::getModelData() {
-	return m_currentData;
+	return m_Data;
 }
 
 const std::vector<PotatoModel::Vertex>& PotatoModel::getModelVertices() {
-	return m_Data;
+	return m_currentData;
 }
 
 std::vector<PotatoModel::Limb>& PotatoModel::getSkeleton() {
@@ -101,14 +98,12 @@ int PotatoModel::findLimbIndex(fbxsdk::FbxUInt64 id) {
 	return -1;
 }
 
-void PotatoModel::updateLimb(int index, XMMATRIX & matrix, unsigned int frame) {
-	m_Skeleton[index].animation[frame];
-
+void PotatoModel::updateLimb(int index, XMMATRIX & matrix, float t) {
+	m_Skeleton[index].update(t);
 	for (int i = 0; i < m_Skeleton[index].childIndexes.size(); i++) {
-		updateLimb(m_Skeleton[index].childIndexes[i], matrix, frame);
+		updateLimb(m_Skeleton[index].childIndexes[i], matrix, t);
 	}
-}
-
+}																																														
 void PotatoModel::updateVertexes() {
 
 	for (unsigned int cpi = 0; cpi < m_ControlPointIndexes.size(); cpi++) {
@@ -116,7 +111,7 @@ void PotatoModel::updateVertexes() {
 		XMMATRIX sum = XMMatrixIdentity();
 		for (int i = 0; i < m_ConnectionData[cpi].indexes.size(); i++) {
 			Limb&limb = m_Skeleton[m_ConnectionData[cpi].indexes[i]];
-			sum += limb.getAnimation()*m_ConnectionData[cpi].weights[i];
+			sum += limb.getCurrentTransform() *m_ConnectionData[cpi].weights[i];
 		}
 
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {
