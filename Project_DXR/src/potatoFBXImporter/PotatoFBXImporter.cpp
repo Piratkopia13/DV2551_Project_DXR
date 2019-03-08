@@ -611,7 +611,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 
 					//FbxAnimCurve* curve; node->LclRotation.GetCurve();
-					FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(1);
+					FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(0);
 					FbxString animStackName = currAnimStack->GetName();
 					FbxTakeInfo* takeInfo = scene->GetTakeInfo(animStackName);
 					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
@@ -621,7 +621,8 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 						FbxTime currTime;
 						currTime.SetFrame(frame, FbxTime::eFrames24);
 						FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
-						model->addFrame(limbIndex, (float)frame*((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble() / end.GetFrameCount(FbxTime::eFrames24)), convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
+						model->addFrame(limbIndex, (float)frame*((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble() / end.GetFrameCount(FbxTime::eFrames24)), 
+							convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
 					}
 				}
 			}

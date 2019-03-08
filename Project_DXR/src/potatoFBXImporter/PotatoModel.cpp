@@ -16,6 +16,7 @@ PotatoModel::~PotatoModel() {
 void PotatoModel::update(float d) {
 	updateLimb(0, XMMatrixIdentity(), d);
 	updateVertexes();
+	//std::cout << m_Skeleton[1].currentFrame << std::endl;
 }
 
 void PotatoModel::addVertex(Vertex vertex, int controlPointIndex) {
@@ -52,6 +53,12 @@ void PotatoModel::setGlobalBindposeInverse(unsigned int index, XMMATRIX matrix) 
 }
 
 void PotatoModel::addFrame(unsigned int index, float time, XMMATRIX matrix) {
+
+	//XMFLOAT4X4 asd;
+	//XMStoreFloat4x4(&asd, matrix);
+	//std::cout << index << ", time: " << time << std::endl;
+	//std::cout << "matrix: " << asd._11 << ", " << asd._12 << ", " << asd._13 << ", " << asd._14 << ", " << asd._21 << ", " << asd._22 << ", " << asd._23 << ", " << asd._24 << ", " << asd._31 << ", " << asd._32 << ", " << asd._33 << ", " << asd._34 << ", " << asd._41 << ", " << asd._42 << ", " << asd._43 << ", " << asd._44 << ", " << std::endl;
+
 	m_Skeleton[index].animation.push_back({ time,matrix });
 	m_Skeleton[index].animationTime = time;
 }
@@ -113,7 +120,7 @@ void PotatoModel::updateVertexes() {
 		XMMATRIX sum = XMMatrixIdentity();
 		for (int i = 0; i < m_ConnectionData[cpi].indexes.size(); i++) {
 			Limb&limb = m_Skeleton[m_ConnectionData[cpi].indexes[i]];
-			sum += limb.getCurrentTransform() *m_ConnectionData[cpi].weights[i];
+			sum += limb.getCurrentTransform() * m_ConnectionData[cpi].weights[i];
 		}
 
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {

@@ -36,15 +36,23 @@ public:
 		Interpolation interpolation = LINEAR;
 
 		void update(float t) {
+			if (t > 10.0f)
+				return;
+			//t = 0.04f;
+
+			//assert(currentFrame <= 50);
+
 			expiredTime += t;
 			if (expiredTime >= animationTime) {
 				expiredTime -= animationTime;
 				currentFrame = 0;
 			}
-			if(animation.size() > 0)
+			if (animation.size() > 0) {
 				if (expiredTime >= getTime(1)) {
 					currentFrame++;
 				}
+			}
+
 		}
 		XMMATRIX getCurrentTransform() {
 			if (animation.size() > 0)
@@ -59,7 +67,9 @@ public:
 			return animation[(currentFrame+step)%animation.size()].transform;
 		}
 		float getLinearWeight() {
-			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0)));
+			float w = ((expiredTime - getTime(0)) / (getTime(1) - getTime(0)));
+			//assert(w >= 0 && w <= 1);
+			return w;
 		}
 		float getQuadWeight() {
 			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0))*0.5f) + 0.25f;
@@ -71,7 +81,7 @@ public:
 		XMMATRIX interpolate() {
 			switch (interpolation) {
 				case LINEAR: {
-					return interpLinear(getFrame(0),getFrame(1),getLinearWeight());
+					return interpLinear(getFrame(0), getFrame(1), getLinearWeight());
 				}
 				case QUADRATIC: {
 					return interpQuad(getFrame(-1),getFrame(0),getFrame(1),getFrame(2),getQuadWeight());
@@ -83,7 +93,15 @@ public:
 			}
 		}
 		XMMATRIX interpLinear(XMMATRIX & m1, XMMATRIX & m2, float t) {
-			assert(t >= 0 && t <= 1);
+			/*if (uniqueID == 70) {
+				std::cout << t << std::endl;
+				XMFLOAT4X4 asd;
+				XMStoreFloat4x4(&asd, m1);
+				std::cout << "m1: " << asd._11 << ", " << asd._12 << ", " << asd._13 << ", " << asd._14 << ", " << asd._21 << ", " << asd._22 << ", " << asd._23 << ", " << asd._24 << ", " << asd._31 << ", " << asd._32 << ", " << asd._33 << ", " << asd._34 << ", " << asd._41 << ", " << asd._42 << ", " << asd._43 << ", " << asd._44 << ", " << std::endl;
+				XMStoreFloat4x4(&asd, m2);
+				std::cout << "m2: " << asd._11 << ", " << asd._12 << ", " << asd._13 << ", " << asd._14 << ", " << asd._21 << ", " << asd._22 << ", " << asd._23 << ", " << asd._24 << ", " << asd._31 << ", " << asd._32 << ", " << asd._33 << ", " << asd._34 << ", " << asd._41 << ", " << asd._42 << ", " << asd._43 << ", " << asd._44 << ", " << std::endl;
+			}*/
+
 			XMVECTOR scal1, scal2; //for scaling
 			XMVECTOR quat1, quat2; //for rotation
 			XMVECTOR tran1, tran2; //for translation
