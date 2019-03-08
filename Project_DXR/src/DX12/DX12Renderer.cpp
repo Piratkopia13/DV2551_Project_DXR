@@ -35,6 +35,7 @@ DX12Renderer::DX12Renderer()
 	, m_supportsDXR(false)
 	, m_DXREnabled(false)
 	, m_backBufferIndex(0)
+	, m_vsync(false)
 {
 	m_renderTargets.resize(NUM_SWAP_BUFFERS);
 	m_fenceValues.resize(NUM_SWAP_BUFFERS, 0);
@@ -987,11 +988,15 @@ void DX12Renderer::present() {
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = { };
-	m_swapChain->Present1(1, 0, &pp);
+	m_swapChain->Present1((UINT)m_vsync, 0, &pp);
 
 	//waitForGPU(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
 	nextFrame();
+}
+
+bool& DX12Renderer::getVsync() {
+	return m_vsync;
 }
 
 void DX12Renderer::executeNextOpenPreCommand(std::function<void()> func) {

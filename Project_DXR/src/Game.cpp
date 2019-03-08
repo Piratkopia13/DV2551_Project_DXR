@@ -413,24 +413,24 @@ void Game::imguiFunc() {
 
 			DX12Material* dxMaterial = ((DX12Material*)m_material.get());
 			MaterialProperties matProps = dxMaterial->getProperties();
-			static float fuzziness = 0.0f;
+			static float fuzziness = matProps.fuzziness;
 			if (ImGui::SliderFloat("Fuzziness", &fuzziness, 0.0f, 1.0f)) {
 				matProps.fuzziness = fuzziness;
 				dxMaterial->setProperties(matProps);
 			}
-			static float reflectionAttenuation = 1.0f;
+			static float reflectionAttenuation = matProps.reflectionAttenuation;
 			if (ImGui::SliderFloat("ReflectionAttenuation", &reflectionAttenuation, 0.0f, 1.0f)) {
 				matProps.reflectionAttenuation = reflectionAttenuation;
 				dxMaterial->setProperties(matProps);
 			}
-			static int recursionDepth = 3.0f;
+			static int recursionDepth = matProps.maxRecursionDepth;
 			if (ImGui::SliderInt("Recursion", &recursionDepth, 0, MAX_RAY_RECURSION_DEPTH)) {
 				matProps.maxRecursionDepth = recursionDepth;
 				dxMaterial->setProperties(matProps);
 				std::cout << recursionDepth << std::endl;
 			}
 
-			static ImVec4 color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+			static ImVec4 color = ImVec4(matProps.albedoColor.x, matProps.albedoColor.y, matProps.albedoColor.z, 1.0f);
 			if (ImGui::ColorEdit4("Albedo color##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha)) {
 				matProps.albedoColor = XMFLOAT3(color.x, color.y, color.z);
 				dxMaterial->setProperties(matProps);
@@ -465,6 +465,9 @@ void Game::imguiFunc() {
 			ImGui::Separator();
 		}
 		if (ImGui::TreeNode("Renderer")) {
+			static bool vsync = m_dxRenderer->getVsync();
+			if (ImGui::Checkbox("V-sync", &m_dxRenderer->getVsync()));
+			
 			if (!m_availableModels.empty()) {
 				static int currentModelIndex = -1; // If the selection isn't within 0..count, Combo won't display a preview
 				if (ImGui::Combo("Model", &currentModelIndex, m_availableModels.c_str())) {
