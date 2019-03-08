@@ -331,6 +331,48 @@ void Game::render(double dt) {
 }
 
 void Game::imguiFunc() {
+	if (ImGui::Begin("Scene")) {
+		if (ImGui::CollapsingHeader("Models")) {
+			unsigned int i = 0;
+			for (auto& mesh : m_meshes) {
+				if (ImGui::TreeNode(std::string("Mesh " + std::to_string(i)).c_str())) {
+					static int matIndex = 0;
+					if (ImGui::Combo("Material", &matIndex, m_availableModels.c_str())) {
+						//mesh->technique.
+					}
+
+					static XMVECTOR vec;
+					vec = mesh->getTransform().getTranslationVec();
+					if (ImGui::DragFloat3("Position", (float*)&vec, 0.1f)) {
+						mesh->getTransform().setTranslation(vec);
+					}
+					vec = mesh->getTransform().getRotationVec();
+					if (ImGui::DragFloat3("Rotation", (float*)&vec, 0.01f)) {
+						mesh->getTransform().setRotation(vec);
+					}
+					vec = mesh->getTransform().getScaleVec();
+					if (ImGui::DragFloat3("Scale", (float*)&vec, 0.01f)) {
+						mesh->getTransform().setScale(vec);
+					}
+
+					ImGui::TreePop();
+				}
+				i++;
+			}
+		}
+		if (ImGui::CollapsingHeader("Materials")) {
+			/*for (auto& mat : m_material) {
+				unsigned int i = 0;
+				if (ImGui::TreeNode("Material " + i)) {
+
+					ImGui::TreePop();
+				}
+				i++;
+			}*/
+		}
+
+	}
+	ImGui::End();
 
 	if (m_dxRenderer->isDXRSupported()) {
 		if (ImGui::Begin("Raytracer")) {

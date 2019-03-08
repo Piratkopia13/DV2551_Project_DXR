@@ -237,71 +237,57 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
 	float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
 
-	// psuedo
-	// payload.color = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation * scatter(bounceDir, payload));
+	if (RayGenSettings.flags & RT_DRAW_NORMALS) {
+		// Use normal as color
+		payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
+		return;
+	}
 
-	// if (material.reflectionAttenuation < 0.01 && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 2) { // -1 to allow for shadow ray
-	// 	// Shoot a recursive reflected ray
-	// 	float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
-	// 	dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
-	// 	scatter(dir, payload);
-	// } else {
+	float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb * material.albedoColor;
+	// float3 diffuseColor = float3(0.f, 0.8, 0.0);
+	float3 giColor = float3(1,1,1);
 
-		float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb * material.albedoColor;
-		// float3 diffuseColor = float3(0.f, 0.8, 0.0);
-		float3 giColor = float3(1,1,1);
+	// Global illumination
+	if (RayGenSettings.flags & RT_ENABLE_GI) {
+		giColor = globalIllumination(randSeed, payload, normalInWorldSpace);
+	}
 
-		// Global illumination
-		if (RayGenSettings.flags & RT_ENABLE_GI) {
-			giColor = globalIllumination(randSeed, payload, normalInWorldSpace);
-		}
+	bool towardsLight = dot(-g_lightDirection, normalInWorldSpace) > 0.0;
+	bool inShadow = true;
+	// Trace shadow ray if normal is within 90 degrees of the light
+	if (towardsLight) {
+		inShadow = traceHitRay();
+	}
+	float3 color = diffuseColor * 0.4f; // In shadow
+	if (!inShadow) {
+		color = phongShading(diffuseColor, normalInWorldSpace, texCoords);
+	}
+	// Apply global illumination
+	color *= giColor;
 
-		bool towardsLight = dot(-g_lightDirection, normalInWorldSpace) > 0.0;
-		bool inShadow = true;
-		// Trace shadow ray if normal is within 90 degrees of the light
-		if (towardsLight) {
-			inShadow = traceHitRay();
-		}
-		float3 color = diffuseColor * 0.4f; // In shadow
-		if (!inShadow) {
-			color = phongShading(diffuseColor, normalInWorldSpace, texCoords);
-		}
-		// Apply global illumination
-		color *= giColor;
+	// Ambient occlusion
+	if (RayGenSettings.flags & RT_ENABLE_AO) {
+		float ao = traceAmbientOcclusionRays(randSeed, normalInWorldSpace);
+		color *= ao;
+	}
 
-		// Ambient occlusion
-		if (RayGenSettings.flags & RT_ENABLE_AO) {
-			float ao = traceAmbientOcclusionRays(randSeed, normalInWorldSpace);
-			color *= ao;
-		}
+	if (RayGenSettings.flags & RT_ENABLE_GI) {
+		// Gamma correction
+		// color = sqrt(color);
+		float gamma = 2.0;
+		color = pow(color, 1.0 / gamma);
+	}
 
-		if (RayGenSettings.flags & RT_ENABLE_GI) {
-			// Gamma correction
-			// color = sqrt(color);
-			float gamma = 2.0;
-			color = pow(color, 1.0 / gamma);
-		}
+	float3 scatteredColor = color;
+	if (material.reflectionAttenuation < 1.0 && payload.recursionDepth < min(material.maxRecursionDepth+3, MAX_RAY_RECURSION_DEPTH) - 2) { // -1 to allow for shadow ray
+		// Shoot a recursive reflected ray
+		float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
+		dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
+		scatter(dir, payload);
+		scatteredColor = payload.color;
+	}
 
-		if (RayGenSettings.flags & RT_DRAW_NORMALS) {
-			// Use normal as color
-			color = normalInWorldSpace * 0.5f + 0.5f;
-		}
-
-		float3 scatteredColor = color;
-		if (material.reflectionAttenuation < 1.0 && payload.recursionDepth < min(material.maxRecursionDepth+3, MAX_RAY_RECURSION_DEPTH) - 2) { // -1 to allow for shadow ray
-			// Shoot a recursive reflected ray
-			float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
-			dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
-			scatter(dir, payload);
-			scatteredColor = payload.color;
-		}
-
-	 	payload.color.rgb = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation) * scatteredColor;
-	 	payload.color.a = 1.0f;
-
-
-		// payload.color = float4(color, 1.0f);
-	// }
-
+ 	payload.color.rgb = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation) * scatteredColor;
+ 	payload.color.a = 1.0f;
 
 }

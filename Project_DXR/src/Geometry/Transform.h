@@ -19,11 +19,15 @@ public:
 	void rotateAroundY(const float radians);
 	void rotateAroundZ(const float radians);
 	void setRotation(float x, float y, float z);
+	void setRotation(const DirectX::XMVECTOR& rotVec);
 	void setTransformMatrix(DirectX::XMMATRIX matrix);
 
 	const DirectX::XMFLOAT3 getTranslation() const;
+	const DirectX::XMVECTOR& getTranslationVec() const;
 	const DirectX::XMFLOAT3 getRotation() const;
+	const DirectX::XMVECTOR& getRotationVec() const;
 	const DirectX::XMFLOAT3 getScale() const;
+	const DirectX::XMVECTOR& getScaleVec() const;
 	const DirectX::XMMATRIX& getTransformMatrix();
 
 private:
