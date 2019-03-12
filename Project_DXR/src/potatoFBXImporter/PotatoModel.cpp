@@ -117,11 +117,27 @@ void PotatoModel::updateVertexes() {
 
 	for (unsigned int cpi = 0; cpi < m_ControlPointIndexes.size(); cpi++) {
 		
-		XMMATRIX sum = XMMatrixIdentity();
+		//XMMATRIX sum = XMMatrixIdentity();
+		XMVECTOR sumScale = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+		XMVECTOR sumTrans = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+		XMVECTOR sumRot = XMVectorSet(0.f, 0.f, 0.f, 0.f);
 		for (int i = 0; i < m_ConnectionData[cpi].indexes.size(); i++) {
 			Limb&limb = m_Skeleton[m_ConnectionData[cpi].indexes[i]];
-			sum += limb.getCurrentTransform() * m_ConnectionData[cpi].weights[i];
+			XMVECTOR trans;
+			XMVECTOR scale;
+			XMVECTOR rot;
+			XMMatrixDecompose(&scale, &rot, &trans, limb.getCurrentTransform());
+
+			//sum += limb.getCurrentTransform() * m_ConnectionData[cpi].weights[i];
+			sumScale += scale * m_ConnectionData[cpi].weights[i];
+			sumTrans += trans * m_ConnectionData[cpi].weights[i];
+			sumRot += rot * m_ConnectionData[cpi].weights[i];
 		}
+
+		XMMATRIX sum =
+			XMMatrixScalingFromVector(sumScale) *
+			XMMatrixRotationQuaternion(sumRot) *
+			XMMatrixTranslationFromVector(sumTrans);
 
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {
 			int dataIndex = m_ControlPointIndexes[cpi][index];
