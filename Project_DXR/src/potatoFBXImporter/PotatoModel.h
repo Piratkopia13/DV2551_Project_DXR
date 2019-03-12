@@ -58,7 +58,7 @@ public:
 			if (animation.size() > 0)
 				return globalBindposeInverse*interpolate();
 			else
-				return XMMatrixIdentity();
+				return globalBindposeInverse;
 		}
 
 	private: 
@@ -152,7 +152,7 @@ public:
 
 	PotatoModel::Limb* findLimb(fbxsdk::FbxUInt64 id);;
 	int findLimbIndex(fbxsdk::FbxUInt64 id);
-
+	void normalizeWeights();
 private:
 
 	std::vector<PotatoModel::Vertex> m_Data;

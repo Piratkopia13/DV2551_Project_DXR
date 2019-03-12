@@ -539,18 +539,18 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					}
 
 					model->addVertex({
-						DirectX::XMFLOAT3(-(float)cps[indices[vertexIndex]][0], (float)cps[indices[vertexIndex]][1],(float)cps[indices[vertexIndex]][2]),
-						DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
+						DirectX::XMFLOAT3((float)cps[indices[vertexIndex]][0], (float)cps[indices[vertexIndex]][1],(float)cps[indices[vertexIndex]][2]),
+						DirectX::XMFLOAT3((float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
 						}, polyIndex*3+vertIndex);
 					model->addVertex({
-						DirectX::XMFLOAT3(-(float)cps[indices[vertexIndex + 2]][0], (float)cps[indices[vertexIndex + 2]][1],(float)cps[indices[vertexIndex + 2]][2]),
+						DirectX::XMFLOAT3((float)cps[indices[vertexIndex + 2]][0], (float)cps[indices[vertexIndex + 2]][1],(float)cps[indices[vertexIndex + 2]][2]),
 						DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
 						}, polyIndex * 3 + vertIndex + 1);
 					model->addVertex({
-						DirectX::XMFLOAT3(-(float)cps[indices[vertexIndex + 1]][0], (float)cps[indices[vertexIndex + 1]][1],(float)cps[indices[vertexIndex + 1]][2]),
-						DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
+						DirectX::XMFLOAT3((float)cps[indices[vertexIndex + 1]][0], (float)cps[indices[vertexIndex + 1]][1],(float)cps[indices[vertexIndex + 1]][2]),
+						DirectX::XMFLOAT3((float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
 						}, polyIndex * 3 + vertIndex + 2);
 
@@ -560,7 +560,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 			/*CONTROLPOINTS*/
 			for (int i = 0; i < cpCount; i++) {
-				model->addControlPoint({ -(float)cps[i][0], (float)cps[i][1], (float)cps[i][2] }, i);
+				model->addControlPoint({ (float)cps[i][0], (float)cps[i][1], (float)cps[i][2] }, i);
 			}
 
 
@@ -594,7 +594,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					cluster->GetTransformMatrix(transformMatrix);	// The transformation of the mesh at binding time
 					cluster->GetTransformLinkMatrix(transformLinkMatrix);	// The transformation of the cluster(joint) at binding time from joint space to world space
 					globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * geometryTransform;
-
+					
 					// Update the information in mSkeleton 
 					model->setGlobalBindposeInverse(limbIndex, convertToXMMatrix(globalBindposeInverseMatrix));
 
@@ -602,16 +602,18 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					unsigned int indexCount = cluster->GetControlPointIndicesCount();
 					int* CPIndices = cluster->GetControlPointIndices();
 					double* CPWeights = cluster->GetControlPointWeights();
+
 					for (unsigned int index = 0; index < indexCount; ++index) {
 						if (CPIndices[index] > largestIndex)
 							largestIndex = CPIndices[index];
+
 						model->addConnection(CPIndices[index], limbIndex, (float)CPWeights[index]);
 
 					}
-
+					model->normalizeWeights();
 
 					//FbxAnimCurve* curve; node->LclRotation.GetCurve();
-				/*	FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(0);
+					FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(0);
 					FbxString animStackName = currAnimStack->GetName();
 					FbxTakeInfo* takeInfo = scene->GetTakeInfo(animStackName);
 					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
@@ -623,7 +625,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 						FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
 						model->addFrame(limbIndex, (float)frame*((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble() / end.GetFrameCount(FbxTime::eFrames24)), 
 							convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
-					}*/
+					}
 				}
 			}
 		}

@@ -14,7 +14,9 @@ PotatoModel::~PotatoModel() {
 }
 
 void PotatoModel::update(float d) {
-	updateLimb(0, XMMatrixIdentity(), d);
+	for (int i = 0; i < m_Skeleton.size(); i++) {
+		m_Skeleton[i].update(d); 
+	}
 	updateVertexes();
 	//std::cout << m_Skeleton[1].currentFrame << std::endl;
 }
@@ -66,6 +68,9 @@ void PotatoModel::addFrame(unsigned int index, float time, XMMATRIX matrix) {
 void PotatoModel::addConnection(int ControlPointIndex, int boneIndex, float weight) {
 	m_ConnectionData[ControlPointIndex].indexes.push_back(boneIndex);
 	m_ConnectionData[ControlPointIndex].weights.push_back(weight);
+	if (m_ConnectionData[ControlPointIndex].weights.size() > 4) {
+		//std::cout << "TOO MANY WEIGHTS :(" << std::endl;
+	}
 }
 
 void PotatoModel::reSizeControlPoints(int size) {
@@ -106,6 +111,19 @@ int PotatoModel::findLimbIndex(fbxsdk::FbxUInt64 id) {
 	return -1;
 }
 
+void PotatoModel::normalizeWeights() {
+	for (int i = 0; i < m_ConnectionData.size(); i++) {
+		float sum = 0.0f;
+		
+		for (int j = 0; j < m_ConnectionData[i].weights.size();j++) {
+			sum += m_ConnectionData[i].weights[j];
+		}
+		for (int j = 0; j < m_ConnectionData[i].weights.size(); j++) {
+			m_ConnectionData[i].weights[j] /= sum;
+		}
+	}
+}
+
 void PotatoModel::updateLimb(int index, XMMATRIX & matrix, float t) {
 	m_Skeleton[index].update(t);
 	
@@ -118,10 +136,20 @@ void PotatoModel::updateVertexes() {
 	for (unsigned int cpi = 0; cpi < m_ControlPointIndexes.size(); cpi++) {
 		
 		XMMATRIX sum = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+		float weight = 0.0f;
 		for (int i = 0; i < m_ConnectionData[cpi].indexes.size(); i++) {
 			Limb&limb = m_Skeleton[m_ConnectionData[cpi].indexes[i]];
 			sum += limb.getCurrentTransform() * m_ConnectionData[cpi].weights[i];
+			weight += m_ConnectionData[cpi].weights[i];
 		}
+	/*	if (weight >= 0.99f && weight <= 1.01f) {
+			float potato = weight;
+			std::cout << potato << std::endl;
+		}
+		else {
+			float potato = weight;
+			std::cout << potato << std::endl;
+		}*/
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {
 			int dataIndex = m_ControlPointIndexes[cpi][index];
 			
