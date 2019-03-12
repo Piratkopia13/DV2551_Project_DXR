@@ -3,6 +3,7 @@
 #include "../Core/Renderer.h"
 #include "DX12.h"
 #include "DXR.h"
+#include "D3D12Timer.h"
 
 #ifdef _DEBUG
 #include <initguid.h>
@@ -69,6 +70,7 @@ public:
 	bool& isDXREnabled();
 	bool& isDXRSupported();
 	DXR& getDXR();
+	D3D12::D3D12Timer& getTimer();
 
 	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
 	virtual void setWinTitle(const char* title) override;
@@ -128,6 +130,8 @@ private:
 
 	bool m_supportsDXR;
 	bool m_DXREnabled;
+
+	D3D12::D3D12Timer m_gpuTimer;
 
 	// DX12 stuff
 	std::unique_ptr<DXR> m_dxr;

@@ -173,6 +173,10 @@ DXR& DX12Renderer::getDXR() {
 	return *m_dxr;
 }
 
+D3D12::D3D12Timer& DX12Renderer::getTimer() {
+	return m_gpuTimer;
+}
+
 VertexBuffer* DX12Renderer::makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) {
 	return new DX12VertexBuffer(size, usage, this);
 };
@@ -224,6 +228,10 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	// Reset pre allocator and command list to prep for initialization commands
 	ThrowIfFailed(m_preCommand.allocators[getFrameIndex()]->Reset());
 	ThrowIfFailed(m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr));
+
+	// Timer
+	m_gpuTimer.init(m_device.Get(), 10);
+
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
