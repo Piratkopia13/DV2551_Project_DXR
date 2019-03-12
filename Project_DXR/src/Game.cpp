@@ -55,6 +55,7 @@ void Game::init() {
 	PotatoModel* dino;
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
 	
 	m_models.push_back(dino);
 
@@ -127,6 +128,8 @@ void Game::init() {
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		//m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform());
 		//delete dino;
 	}
 

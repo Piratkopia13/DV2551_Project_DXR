@@ -560,7 +560,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 			FbxVector4* cps = mesh->GetControlPoints();
 			model->reSizeControlPoints(cpCount);
 			for (int i = 0; i < cpCount; i++) {
-				model->addControlPoint({ (float)cps[i][0], (float)cps[i][1], (float)cps[i][2] }, i);
+				model->addControlPoint({ -(float)cps[i][0], (float)cps[i][1], (float)cps[i][2] }, i);
 			}
 
 
