@@ -482,6 +482,10 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 			FbxMesh* mesh = node->GetMesh();
 			FbxAMatrix geometryTransform(node->GetGeometricTranslation(FbxNode::eSourcePivot), node->GetGeometricRotation(FbxNode::eSourcePivot), node->GetGeometricScaling(FbxNode::eSourcePivot));
 
+			unsigned int cpCount = mesh->GetControlPointsCount();
+			FbxVector4* cps = mesh->GetControlPoints();
+			model->reSizeControlPoints(cpCount);
+
 			int polygonVertexCount= mesh->GetPolygonVertexCount();
 			int* indices = mesh->GetPolygonVertices();
 			if (int(polygonVertexCount / 3) != mesh->GetPolygonCount()) {
@@ -490,8 +494,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 			}
 
 			int vertexIndex = 0;
-			FbxVector4* cp = mesh->GetControlPoints();
-			if (cp == nullptr) {
+			if (cps == nullptr) {
 				cout << "Couldn't find any vertices in the mesh in the file " << filename << endl;
 				return;
 			}
@@ -536,17 +539,17 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					}
 
 					model->addVertex({
-						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex]][0], (float)cp[indices[vertexIndex]][1],(float)cp[indices[vertexIndex]][2]),
+						DirectX::XMFLOAT3(-(float)cps[indices[vertexIndex]][0], (float)cps[indices[vertexIndex]][1],(float)cps[indices[vertexIndex]][2]),
 						DirectX::XMFLOAT3(-(float)norm[0][0], (float)norm[0][1], (float)norm[0][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[0][0]),-static_cast<float>(texCoord[0][1]))
 						}, polyIndex*3+vertIndex);
 					model->addVertex({
-						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 2]][0], (float)cp[indices[vertexIndex + 2]][1],(float)cp[indices[vertexIndex + 2]][2]),
+						DirectX::XMFLOAT3(-(float)cps[indices[vertexIndex + 2]][0], (float)cps[indices[vertexIndex + 2]][1],(float)cps[indices[vertexIndex + 2]][2]),
 						DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
 						}, polyIndex * 3 + vertIndex + 1);
 					model->addVertex({
-						DirectX::XMFLOAT3(-(float)cp[indices[vertexIndex + 1]][0], (float)cp[indices[vertexIndex + 1]][1],(float)cp[indices[vertexIndex + 1]][2]),
+						DirectX::XMFLOAT3(-(float)cps[indices[vertexIndex + 1]][0], (float)cps[indices[vertexIndex + 1]][1],(float)cps[indices[vertexIndex + 1]][2]),
 						DirectX::XMFLOAT3(-(float)norm[1][0], (float)norm[1][1], (float)norm[1][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[2][0]),-static_cast<float>(texCoord[2][1]))
 						}, polyIndex * 3 + vertIndex + 2);
@@ -556,9 +559,6 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 			}
 
 			/*CONTROLPOINTS*/
-			unsigned int cpCount = mesh->GetControlPointsCount();
-			FbxVector4* cps = mesh->GetControlPoints();
-			model->reSizeControlPoints(cpCount);
 			for (int i = 0; i < cpCount; i++) {
 				model->addControlPoint({ -(float)cps[i][0], (float)cps[i][1], (float)cps[i][2] }, i);
 			}
@@ -819,6 +819,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 	for (int childIndex = 0; childIndex < node->GetChildCount(); ++childIndex) {
 		fetchGeometry(node->GetChild(childIndex), model, filename);
 	}
+	std::cout << std::endl;
 }
 void PotatoFBXImporter::fetchSkeleton(FbxNode * node, PotatoModel* model, const std::string & filename) {
 
