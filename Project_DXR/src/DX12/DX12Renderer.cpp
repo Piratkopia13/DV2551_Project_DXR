@@ -537,12 +537,6 @@ bool DX12Renderer::checkRayTracingSupport() {
 }
 
 HRESULT DX12Renderer::initImGui() {
-	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	desc.NumDescriptors = 1;
-	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	if (m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiSrvDescHeap)) != S_OK)
-		return E_FAIL;
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -559,8 +553,8 @@ HRESULT DX12Renderer::initImGui() {
 	ImGui_ImplDX12_Init(getDevice(),
 		getNumSwapBuffers(),
 		DXGI_FORMAT_R8G8B8A8_UNORM,
-		m_ImGuiSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
-		m_ImGuiSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+		m_generalDescHeap->GetCPUDescriptorHandleForHeapStart(),
+		m_generalDescHeap->GetGPUDescriptorHandleForHeapStart());
 
 	return S_OK;
 }
@@ -573,6 +567,14 @@ void DX12Renderer::createShaderResources() {
 	samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerDescriptorHeap)));
 	m_samplerDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+
+
+
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NumDescriptors = 1;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_generalDescHeap)));
 }
 
 void DX12Renderer::createDepthStencilResources() {
@@ -784,7 +786,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_postCommand.allocators[getFrameIndex()]->Reset();
 	m_postCommand.list->Reset(m_postCommand.allocators[getFrameIndex()].Get(), nullptr);
 
-
 	// DXR
 	if (m_DXREnabled) {
 		m_dxr->updateAS(m_postCommand.list.Get());
@@ -817,7 +818,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		ImGui::End();
 
 		// Set the descriptor heaps
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_generalDescHeap.Get() };
 		m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
