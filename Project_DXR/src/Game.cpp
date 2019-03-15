@@ -1,18 +1,19 @@
 #include "pch.h"
 #include "Game.h"
 #include "DX12/DX12Renderer.h"
+#include "DX12/DX12Material.h"
 #include "DX12/DX12Mesh.h"
 #include "Utils/Input.h"
 
 Game::Game() 
-	: Application(1280, 720, "DX12 DXR Raytracer thing with soon to come skinned animated models")
+	: Application(1700, 900, "DX12 DXR Raytracer thing with soon to come skinned animated models")
 {
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
 
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
-	m_persCamera->setPosition(XMVectorSet(0.f, 0.f, -2.f, 0.f));
-	m_persCamera->setDirection(XMVectorSet(0.f, 0.f, 1.0f, 1.0f));
-	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get());
+	m_persCamera->setPosition(XMVectorSet(7.37f, 12.44f, 13.5f, 0.f));
+	m_persCamera->setDirection(XMVectorSet(-0.07f, -0.1f, -0.99f, 1.0f));
+	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get(), m_persCamera->getDirectionVec());
 
 	getRenderer().setClearColor(0.2f, 0.4f, 0.2f, 1.0f);
 
@@ -46,31 +47,28 @@ Game::~Game() {
 
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
-	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 	
-
 	float floorHalfWidth = 50.0f;
 	float floorTiling = 5.0f;
 	const Vertex floorVertices[] = {
 		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
-		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 		{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
+		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 
 		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},
-		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
 		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
+		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
 	};
 	float mirrorHalfWidth = 5.0f;
 	float mirrorHalfHeight = 8.0f;
 	const Vertex mirrorVertices[] = {
 		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
-		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
 		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
+		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
 
 		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},
-		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
 		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
 	};
 
 	// load Materials.
@@ -83,8 +81,9 @@ void Game::init() {
 	m_material = std::unique_ptr<Material>(getRenderer().makeMaterial("material_0"));
 	m_material->setShader(shaderPath + "VertexShader" + shaderExtension, Material::ShaderType::VS);
 	m_material->setShader(shaderPath + "FragmentShader" + shaderExtension, Material::ShaderType::PS);
+	DX12Material* dxMaterial = ((DX12Material*)m_material.get());
 	std::string err;
-	m_material->compileMaterial(err);
+	dxMaterial->compileMaterial(err);
 
 	// add a constant buffer to the material, to tint every triangle using this material
 	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT, 4 * sizeof(float));
@@ -92,32 +91,55 @@ void Game::init() {
 	// when material is bound, this buffer should be also bound for access.
 	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
 
+	MaterialProperties matProps = dxMaterial->getProperties();
+	matProps.fuzziness = 0.0f;
+	dxMaterial->setProperties(matProps);
+
 	// basic technique
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
 
 	// create textures
 	m_texture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
-	m_texture->loadFromFile("../assets/textures/Dragon_ground_color.png");
+	m_texture->loadFromFile("../assets/textures/white.png");
 	m_sampler = std::unique_ptr<Sampler2D>(getRenderer().makeSampler2D()); // Sampler does not work in RT mode
 	m_sampler->setWrap(WRAPPING::REPEAT, WRAPPING::REPEAT);
 	m_texture->sampler = m_sampler.get();
 
 	m_floorTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
-	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
+	m_floorTexture->loadFromFile("../assets/textures/Dragon_ground_color.png");
 	m_floorTexture->sampler = m_sampler.get();
+
+	m_cornellTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+	m_cornellTexture->loadFromFile("../assets/textures/cornell.png");
+	m_cornellTexture->sampler = m_sampler.get();
 
 	size_t offset = 0;
 
 	{
 		// Set up mesh from FBX file
 		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
+		PotatoModel* dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cornell_box.fbx");
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
 		m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
 		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->addTexture(m_cornellTexture.get(), TEX_REG_DIFFUSE_SLOT);
 		delete dino;
+	}
+	{
+		// Box mesh
+		PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		/*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
+		m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
+		m_meshes.back()->getTransform().scaleUniformly(0.3f);
+		delete box;
 	}
 
 	{
@@ -141,15 +163,28 @@ void Game::init() {
 		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
 	}
 
+	//{
+	//	// Set up floor mesh
+	//	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+	//	constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
+	//	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
+	//	m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
+	//	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+	//	m_meshes.back()->technique = m_technique.get();
+	//	m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	//}
+
 	{
-		// Set up floor mesh
+		// Sphere
+		PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/sphere.fbx");
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
-		m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
-		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
+		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->getTransform().translate(XMVectorSet(-6.0f, 18.0f, 3.f, 0.0f));
+		delete box;
 	}
 
 
@@ -179,26 +214,6 @@ void Game::update(double dt) {
 	}
 
 	if (Input::IsKeyDown('F')) {
-		Transform& mirrorTransform = m_meshes[1]->getTransform();
-
-		XMVECTOR camPos = m_persCamera->getPositionVec();
-		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
-
-		XMVECTOR d = XMVector3Normalize(pos - camPos);
-		float dx = XMVectorGetX(d);
-		float dy = XMVectorGetY(d);
-		float dz = XMVectorGetZ(d);
-
-		float pitch = asin(-dy);
-		float yaw = atan2(dx, dz);
-
-		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
-		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
-
-		mirrorTransform.setTransformMatrix(mat);
-		m_meshes[1]->setTransform(mirrorTransform);
-	}
-	if (Input::IsKeyDown('G')) {
 		Transform& mirrorTransform = m_meshes[2]->getTransform();
 
 		XMVECTOR camPos = m_persCamera->getPositionVec();
@@ -216,7 +231,27 @@ void Game::update(double dt) {
 		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
 
 		mirrorTransform.setTransformMatrix(mat);
-		m_meshes[2]->setTransform(mirrorTransform);
+		//m_meshes[1]->setTransform(mirrorTransform);
+	}
+	if (Input::IsKeyDown('G')) {
+		Transform& mirrorTransform = m_meshes[3]->getTransform();
+
+		XMVECTOR camPos = m_persCamera->getPositionVec();
+		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
+
+		XMVECTOR d = XMVector3Normalize(pos - camPos);
+		float dx = XMVectorGetX(d);
+		float dy = XMVectorGetY(d);
+		float dz = XMVectorGetZ(d);
+
+		float pitch = asin(-dy);
+		float yaw = atan2(dx, dz);
+
+		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
+		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
+
+		mirrorTransform.setTransformMatrix(mat);
+		//m_meshes[2]->setTransform(mirrorTransform);
 	}
 
 	// Lock mouse
@@ -236,7 +271,7 @@ void Game::update(double dt) {
 
 	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
 	if (Input::IsKeyDown('H')) {
-		Transform& mainMeshTransform = m_meshes[0]->getTransform();
+		Transform& mainMeshTransform = m_meshes[1]->getTransform();
 
 		XMVECTOR camPos = m_persCamera->getPositionVec();
 		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
@@ -272,6 +307,12 @@ void Game::update(double dt) {
 			return m;
 		};
 		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform); // Updates transform matrix for raytracing
+
+		auto io = ImGui::GetIO();
+		if (io.MouseDown[0] || std::any_of(std::begin(io.KeysDown), std::end(io.KeysDown), [](bool k) { return k; })) {
+			// Reset temporal accumulation count when states affecting how the rendered image looks may have changed
+			m_dxRenderer->getDXR().getTemporalAccumulationCount() = 0;
+		}
 	}
 
 
@@ -290,6 +331,48 @@ void Game::render(double dt) {
 }
 
 void Game::imguiFunc() {
+	if (ImGui::Begin("Scene")) {
+		if (ImGui::CollapsingHeader("Models")) {
+			unsigned int i = 0;
+			for (auto& mesh : m_meshes) {
+				if (ImGui::TreeNode(std::string("Mesh " + std::to_string(i)).c_str())) {
+					static int matIndex = 0;
+					if (ImGui::Combo("Material", &matIndex, m_availableModels.c_str())) {
+						//mesh->technique.
+					}
+
+					static XMVECTOR vec;
+					vec = mesh->getTransform().getTranslationVec();
+					if (ImGui::DragFloat3("Position", (float*)&vec, 0.1f)) {
+						mesh->getTransform().setTranslation(vec);
+					}
+					vec = mesh->getTransform().getRotationVec();
+					if (ImGui::DragFloat3("Rotation", (float*)&vec, 0.01f)) {
+						mesh->getTransform().setRotation(vec);
+					}
+					vec = mesh->getTransform().getScaleVec();
+					if (ImGui::DragFloat3("Scale", (float*)&vec, 0.01f)) {
+						mesh->getTransform().setScale(vec);
+					}
+
+					ImGui::TreePop();
+				}
+				i++;
+			}
+		}
+		if (ImGui::CollapsingHeader("Materials")) {
+			/*for (auto& mat : m_material) {
+				unsigned int i = 0;
+				if (ImGui::TreeNode("Material " + i)) {
+
+					ImGui::TreePop();
+				}
+				i++;
+			}*/
+		}
+
+	}
+	ImGui::End();
 
 	if (m_dxRenderer->isDXRSupported()) {
 		if (ImGui::Begin("Raytracer")) {
@@ -309,6 +392,9 @@ void Game::imguiFunc() {
 			}
 			ImGui::PopStyleColor(3);
 			ImGui::PopID();
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
 
 			static bool enableAO = dxr.getRTFlags() & RT_ENABLE_AO;
 			if (ImGui::Checkbox("Enable AO", &enableAO)) {
@@ -327,9 +413,75 @@ void Game::imguiFunc() {
 			}
 			ImGui::SliderFloat("AO radius", &dxr.getAORadius(), 0.1f, 10.0f);
 			ImGui::SliderInt("AO rays", (int*)&dxr.getNumAORays(), 1, 100);
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
 
-			ImGui::End();
+			static bool enableGI = dxr.getRTFlags() & RT_ENABLE_GI;
+			if (ImGui::Checkbox("Enable GI", &enableGI)) {
+				if (enableGI)
+					dxr.getRTFlags() |= RT_ENABLE_GI;
+				else
+					dxr.getRTFlags() &= ~RT_ENABLE_GI;
+			}
+			ImGui::SliderInt("GI samples", (int*)&dxr.getNumGISamples(), 1, 10);
+			ImGui::SliderInt("GI bounces", (int*)&dxr.getNumGIBounces(), 1, 5);
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			static bool enableTA = dxr.getRTFlags() & RT_ENABLE_TA;
+			if (ImGui::Checkbox("Enable TA", &enableTA)) {
+				if (enableTA)
+					dxr.getRTFlags() |= RT_ENABLE_TA;
+				else
+					dxr.getRTFlags() &= ~RT_ENABLE_TA;
+			}
+			ImGui::Text("Accumulation count: %i", dxr.getTemporalAccumulationCount());
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			static bool enableAA = dxr.getRTFlags() & RT_ENABLE_JITTER_AA;
+			if (ImGui::Checkbox("Enable camera jitter AA", &enableAA)) {
+				if (enableAA)
+					dxr.getRTFlags() |= RT_ENABLE_JITTER_AA;
+				else
+					dxr.getRTFlags() &= ~RT_ENABLE_JITTER_AA;
+			}
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			DX12Material* dxMaterial = ((DX12Material*)m_material.get());
+			MaterialProperties matProps = dxMaterial->getProperties();
+			static float fuzziness = matProps.fuzziness;
+			if (ImGui::SliderFloat("Fuzziness", &fuzziness, 0.0f, 1.0f)) {
+				matProps.fuzziness = fuzziness;
+				dxMaterial->setProperties(matProps);
+			}
+			static float reflectionAttenuation = matProps.reflectionAttenuation;
+			if (ImGui::SliderFloat("ReflectionAttenuation", &reflectionAttenuation, 0.0f, 1.0f)) {
+				matProps.reflectionAttenuation = reflectionAttenuation;
+				dxMaterial->setProperties(matProps);
+			}
+			static int recursionDepth = matProps.maxRecursionDepth;
+			if (ImGui::SliderInt("Recursion", &recursionDepth, 0, MAX_RAY_RECURSION_DEPTH)) {
+				matProps.maxRecursionDepth = recursionDepth;
+				dxMaterial->setProperties(matProps);
+				std::cout << recursionDepth << std::endl;
+			}
+
+			static ImVec4 color = ImVec4(matProps.albedoColor.x, matProps.albedoColor.y, matProps.albedoColor.z, 1.0f);
+			if (ImGui::ColorEdit4("Albedo color##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha)) {
+				matProps.albedoColor = XMFLOAT3(color.x, color.y, color.z);
+				dxMaterial->setProperties(matProps);
+			}
+			ImGui::SameLine();
+			ImGui::Text("Albedo color");
+
 		}
+		ImGui::End();
 	}
 
 	// Only display options if the window isn't collapsed
@@ -355,6 +507,9 @@ void Game::imguiFunc() {
 			ImGui::Separator();
 		}
 		if (ImGui::TreeNode("Renderer")) {
+			static bool vsync = m_dxRenderer->getVsync();
+			if (ImGui::Checkbox("V-sync", &m_dxRenderer->getVsync()));
+			
 			if (!m_availableModels.empty()) {
 				static int currentModelIndex = -1; // If the selection isn't within 0..count, Combo won't display a preview
 				if (ImGui::Combo("Model", &currentModelIndex, m_availableModels.c_str())) {
@@ -436,5 +591,5 @@ void Game::imguiFunc() {
 
 	}
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 }

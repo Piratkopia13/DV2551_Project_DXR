@@ -83,6 +83,7 @@ public:
 	virtual void submit(Mesh* mesh) override;
 	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
+	bool& getVsync();
 
 	void useCamera(Camera* camera);
 	
@@ -124,6 +125,7 @@ private:
 	float m_clearColor[4];
 	bool m_firstFrame;
 	UINT m_backBufferIndex;
+	bool m_vsync;
 	
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;

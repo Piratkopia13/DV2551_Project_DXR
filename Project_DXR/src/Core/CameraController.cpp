@@ -4,12 +4,16 @@
 
 using namespace DirectX;
 
-CameraController::CameraController(Camera * cam) 
+CameraController::CameraController(Camera * cam, const DirectX::XMVECTOR& startDirection)
 	: m_cam(cam) 
 {
-	m_yaw = 90.f;
-	m_pitch = 0.f;
+
+	XMFLOAT3 d;
+	XMStoreFloat3(&d, XMVector3Normalize(startDirection));
+	m_yaw = XMConvertToDegrees(atan2f(d.x, d.z)) + 90.0f;
+	m_pitch = -XMConvertToDegrees(asinf(-d.y));
 	m_roll = 0.f;
+
 	m_speed = 10.0f;
 };
 

@@ -7,7 +7,7 @@
 class CameraController {
 public:
 
-	CameraController(Camera* cam);
+	CameraController(Camera* cam, const DirectX::XMVECTOR& startDirection);
 
 	void update(float dt);
 	float& getMovementSpeed();

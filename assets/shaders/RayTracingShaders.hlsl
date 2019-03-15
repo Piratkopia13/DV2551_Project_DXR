@@ -1,6 +1,31 @@
 #define HLSL
 #include "CommonRT.hlsl"
 
+RaytracingAccelerationStructure gRtScene : register(t0);
+RWTexture2D<float4> lOutput : register(u0);
+
+StructuredBuffer<Vertex> Vertices : register(t1, space0);
+
+Texture2D<float4> diffuseTexture : register(t2, space0);
+SamplerState ss : register(s0);
+
+Texture2D<float4> skyboxTexture : register(t3, space0);
+
+cbuffer CB_Global : register(b0, space0) {
+	float RedChannel;
+}
+
+cbuffer CB_RayGen : register(b0, space1) {
+	RayGenSettings RayGenSettings;
+}
+
+cbuffer CB_Material : register(b1, space0) {
+	MaterialProperties material;
+}
+
+ConstantBuffer<SceneConstantBuffer> CB_SceneData : register(b0, space2);
+
+
 // Retrieve hit world position.
 float3 HitWorldPosition() {
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
@@ -59,27 +84,77 @@ float3 getCosHemisphereSample(inout uint randSeed, float3 hitNorm) {
 	return tangent * (r * cos(phi).x) + bitangent * (r * sin(phi)) + hitNorm.xyz * sqrt(1 - randVal.x);
 }
 
+void scatter(float3 direction, inout RayPayload payload, int flags = 0) {
+	RayDesc ray;
+	ray.Origin = HitWorldPosition();
+	ray.Direction = direction;
+	ray.TMin = 0.0001;
+	ray.TMax = 100000;
 
-
-RaytracingAccelerationStructure gRtScene : register(t0);
-RWTexture2D<float4> lOutput : register(u0);
-
-StructuredBuffer<Vertex> Vertices : register(t1, space0);
-
-Texture2D<float4> diffuseTexture : register(t2, space0);
-SamplerState ss : register(s0);
-
-Texture2D<float4> skyboxTexture : register(t3, space0);
-
-cbuffer CB_Global : register(b0, space0) {
-	float RedChannel;
+	TraceRay(gRtScene, flags | RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 0, 0, ray, payload);
 }
 
-cbuffer CB_RayGen : register(b0, space1) {
-	RayGenSettings RayGenSettings;
+bool traceHitRay() {
+	// Trace hit ray
+	RayPayload payload;
+	payload.hit = 1;
+	scatter(-g_lightDirection, payload, RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER);
+
+	return payload.hit == 1;
 }
 
-ConstantBuffer<SceneConstantBuffer> CB_SceneData : register(b0, space2);
+float traceAmbientOcclusionRays(inout uint seed, float3 normal) {
+	float ao = 0.0;
+	for (int i = 0; i < RayGenSettings.numAORays; i++) {
+		float3 aoDir = getCosHemisphereSample(seed, normal);
+		// Trace Ambient Occlusion ray
+		RayPayload payload;
+		payload.hit = 1;
+		RayDesc ray;
+		ray.Origin = HitWorldPosition();
+		ray.Direction = aoDir;
+		ray.TMin = 0.0001;
+		ray.TMax = RayGenSettings.AORadius;
+		TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, 0xFF, 0, 0, 0, ray, payload);
+		ao += 1 - payload.hit;
+	}
+	ao /= RayGenSettings.numAORays;
+	return ao;
+}
+
+float3 globalIllumination(inout uint seed, inout RayPayload payload, float3 normal) {
+	if (payload.hit != 10 + RayGenSettings.GIBounces) { // Check if recursive GI shoud be done
+		if (payload.hit < 10)
+			payload.hit = 10;
+		else
+			payload.hit++;
+
+		float3 giColor = float3(0,0,0);
+		for (uint i = 0; i < RayGenSettings.GISamples; i++) {
+			float3 dir = getCosHemisphereSample(seed, normal);
+			scatter(dir, payload, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
+
+			giColor += payload.color.rgb * 1.0; // 100% of the light from global sources is applied
+		}
+		return giColor / RayGenSettings.GISamples;
+	}
+	return float3(1.0, 1.0, 1.0);
+}
+
+float3 phongShading(float3 diffuseColor, float3 normal, float2 texCoords) {
+	float shininess = 5.0f;
+	float spec = 1.0f;
+	float ambient = 0.4f;
+
+	float diffuseFactor = max(dot(-g_lightDirection, normal), ambient) * 3.0;
+	float3 r = reflect(g_lightDirection, normal);
+	r = normalize(r);
+	float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
+
+	float3 color = diffuseColor * diffuseFactor + diffuseColor * specularFactor;
+	return color;
+}
+
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
 inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction) {
@@ -112,12 +187,14 @@ void rayGen() {
 
 	// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
 	// TMin should be kept small to prevent missing geometry at close contact areas.
-	ray.TMin = 0.001;
+	ray.TMin = 0.00001;
 	ray.TMax = 10000.0;
 
 	RayPayload payload;
 	payload.recursionDepth = 0;
-	TraceRay(gRtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
+	payload.hit = 0;
+	payload.color = float4(0,0,0,0);
+	TraceRay(gRtScene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
 	lOutput[launchIndex] = payload.color;
 
 	// if (RayGenSettings.frameCount == 0)
@@ -126,20 +203,16 @@ void rayGen() {
 
 [shader("miss")]
 void miss(inout RayPayload payload) {
+	if (payload.hit == 1) {
+		payload.hit = 0;
+		return;
+	}
 	//payload.color = float4(0.4f, 0.6f, 0.3f, 1.0f);
 	float2 dims;
 	skyboxTexture.GetDimensions(dims.x, dims.y);
 	float2 uv = wsVectorToLatLong(WorldRayDirection());
 	payload.color = skyboxTexture[uint2(uv * dims)];
 
-	if (payload.inShadow == -1) {
-		payload.inShadow = 0;
-	}
-	// If ray is AO ray
-	if (payload.aoVal == -1) {
-		payload.aoVal = 1;
-		return;
-	}
 }
 
 [shader("closesthit")]
@@ -151,17 +224,9 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	uint instanceID = InstanceID();
 	uint primitiveID = PrimitiveIndex();
 
-	// If ray is shadow ray
-	if (payload.inShadow == -1) {
-		payload.inShadow = 1;
-		return;
-	}
-	// If ray is AO ray
-	if (payload.aoVal == -1) {
-		payload.aoVal = 0;
-		return;
-	}
-
+	// Initialize a random seed, per-pixel and per-frame
+	uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, RayGenSettings.frameCount );
+	// uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, 1 );
 
 	uint verticesPerPrimitive = 3;
 	Vertex vertex1 = Vertices[primitiveID * verticesPerPrimitive];
@@ -169,76 +234,60 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	Vertex vertex3 = Vertices[primitiveID * verticesPerPrimitive + 2];
 
 	float3 normalInLocalSpace = barrypolation(barycentrics, vertex1.normal, vertex2.normal, vertex3.normal);
-	// float3 normalInWorldSpace = inverse(transpose(ObjectToWorld3x4())) * normalInLocalSpace;
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));
+	float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
 
-	if ( (instanceID == 1 || instanceID == 2)  && payload.recursionDepth < MAX_RAY_RECURSION_DEPTH - 1) { // -1 to allow for shadow ray
-		RayDesc ray;
-		ray.Origin = HitWorldPosition();
-		ray.Direction = reflect(WorldRayDirection(), normalInWorldSpace);
-		ray.TMin = 0.0001;
-		ray.TMax = 100000;
-
-		TraceRay(gRtScene, 0/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/, 0xFF, 0 /* ray index*/, 0, 0, ray, payload);
-	} else {
-
-
-		// Trace shadow ray
-		payload.inShadow = -1;
-		RayDesc ray;
-		ray.Origin = HitWorldPosition();
-		ray.Direction = -g_lightDirection;
-		ray.TMin = 0.01;
-		ray.TMax = 100000;
-		TraceRay(gRtScene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, 0, 0, 0, ray, payload);
-
-
-		float2 texCoords = barrypolation(barycentrics, vertex1.texCoord, vertex2.texCoord, vertex3.texCoord);
-
-		float diffuseFactor = max(dot(-g_lightDirection, normalInWorldSpace), 0.4f); // 0.4 ambient
-		float3 r = reflect(g_lightDirection, normalInWorldSpace);
-		r = normalize(r);
-		float shininess = 5.0f;
-		float spec = 1.0f;
-		float specularFactor = pow(saturate(dot(-WorldRayDirection(), r)), shininess) * spec;
-
-		float3 clr = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb;
-		float3 color = clr * diffuseFactor + clr * specularFactor; // Not in shadow
-		if (payload.inShadow == 1) {
-			color = clr * 0.5f; // In shadow
-		}
-
-		if (RayGenSettings.flags & RT_ENABLE_AO) {
-
-			// Initialize a random seed, per-pixel and per-frame
-			uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, RayGenSettings.frameCount );
-
-			float ao = 0.0;
-			for (int i = 0; i < RayGenSettings.numAORays; i++) {
-
-				float3 aoDir = getCosHemisphereSample(randSeed, normalInWorldSpace);
-				// Trace Ambient Occlusion ray
-				payload.aoVal = -1;
-				RayDesc ray;
-				ray.Origin = HitWorldPosition();
-				ray.Direction = aoDir;
-				ray.TMin = 0.01;
-				ray.TMax = RayGenSettings.AORadius;
-				TraceRay(gRtScene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xFF, 0, 0, 0, ray, payload);
-				ao += payload.aoVal;
-			}
-			ao /= RayGenSettings.numAORays;
-			color *= ao;
-
-		}
-
-		if (RayGenSettings.flags & RT_DRAW_NORMALS) {
-			// Use normal as color
-			payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
-		} else {
-			payload.color = float4(color, 1.0f);
-		}
+	if (RayGenSettings.flags & RT_DRAW_NORMALS) {
+		// Use normal as color
+		payload.color = float4(normalInWorldSpace * 0.5f + 0.5f, 1.0f);
+		return;
 	}
 
+	float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb * material.albedoColor;
+	// float3 diffuseColor = float3(0.f, 0.8, 0.0);
+	float3 giColor = float3(1,1,1);
+
+	// Global illumination
+	if (RayGenSettings.flags & RT_ENABLE_GI) {
+		giColor = globalIllumination(randSeed, payload, normalInWorldSpace);
+	}
+
+	bool towardsLight = dot(-g_lightDirection, normalInWorldSpace) > 0.0;
+	bool inShadow = true;
+	// Trace shadow ray if normal is within 90 degrees of the light
+	if (towardsLight) {
+		inShadow = traceHitRay();
+	}
+	float3 color = diffuseColor * 0.4f; // In shadow
+	if (!inShadow) {
+		color = phongShading(diffuseColor, normalInWorldSpace, texCoords);
+	}
+	// Apply global illumination
+	color *= giColor;
+
+	// Ambient occlusion
+	if (RayGenSettings.flags & RT_ENABLE_AO) {
+		float ao = traceAmbientOcclusionRays(randSeed, normalInWorldSpace);
+		color *= ao;
+	}
+
+	if (RayGenSettings.flags & RT_ENABLE_GI) {
+		// Gamma correction
+		// color = sqrt(color);
+		float gamma = 2.0;
+		color = pow(color, 1.0 / gamma);
+	}
+
+	float3 scatteredColor = color;
+	if (material.reflectionAttenuation < 1.0 && payload.recursionDepth < min(material.maxRecursionDepth+3, MAX_RAY_RECURSION_DEPTH) - 2) { // -1 to allow for shadow ray
+		// Shoot a recursive reflected ray
+		float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
+		dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
+		scatter(dir, payload);
+		scatteredColor = payload.color;
+	}
+
+ 	payload.color.rgb = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation) * scatteredColor;
+ 	payload.color.a = 1.0f;
 
 }
