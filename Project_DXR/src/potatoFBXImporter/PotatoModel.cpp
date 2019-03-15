@@ -61,7 +61,7 @@ void PotatoModel::addFrame(unsigned int index, float time, XMMATRIX matrix) {
 	//std::cout << index << ", time: " << time << std::endl;
 	//std::cout << "matrix: " << asd._11 << ", " << asd._12 << ", " << asd._13 << ", " << asd._14 << ", " << asd._21 << ", " << asd._22 << ", " << asd._23 << ", " << asd._24 << ", " << asd._31 << ", " << asd._32 << ", " << asd._33 << ", " << asd._34 << ", " << asd._41 << ", " << asd._42 << ", " << asd._43 << ", " << asd._44 << ", " << std::endl;
 
-	m_Skeleton[index].animation.push_back({ time,matrix });
+	m_Skeleton[index].animationStack[0].push_back({ time,matrix });
 	m_Skeleton[index].animationTime = time;
 }
 
@@ -153,7 +153,8 @@ void PotatoModel::updateVertexes() {
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {
 			int dataIndex = m_ControlPointIndexes[cpi][index];
 			
-			XMStoreFloat3(&m_currentData[dataIndex].position, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].position),sum));
+			XMStoreFloat3(&m_currentData[dataIndex].position, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].position), sum));
+			XMStoreFloat3(&m_currentData[dataIndex].normal, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].normal), sum));
 		}
 	}
 

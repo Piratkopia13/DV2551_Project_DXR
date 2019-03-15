@@ -31,10 +31,18 @@ public:
 		float expiredTime = 0.0f;
 		float animationTime = 1.0f;
 		int currentFrame = 0;
-		std::vector<PotatoFrame> animation;
+		std::vector<std::vector<PotatoFrame>> animationStack = {{}};
+		std::vector<float> animationDuration;
 		DirectX::XMMATRIX globalBindposeInverse;
 		Interpolation interpolation = LINEAR;
+		XMMATRIX getTransform(size_t index, float t) {
+			if (index < animationStack.size()) {
+				if (t <= animationDuration[index]) {
 
+				}
+			}
+			return XMMatrixIdentity();
+		}
 		void update(float t) {
 			if (t > 10.0f)
 				return;
@@ -47,7 +55,7 @@ public:
 				expiredTime -= animationTime;
 				currentFrame = 0;
 			}
-			if (animation.size() > 0) {
+			if (animationStack[0].size() > 0) {
 				if (expiredTime >= getTime(1)) {
 					currentFrame++;
 				}
@@ -55,7 +63,7 @@ public:
 
 		}
 		XMMATRIX getCurrentTransform() {
-			if (animation.size() > 0)
+			if (animationStack[0].size() > 0)
 				return globalBindposeInverse*interpolate();
 			else
 				return globalBindposeInverse;
@@ -64,7 +72,7 @@ public:
 	private: 
 
 		XMMATRIX& getFrame(int step) {
-			return animation[(currentFrame+step)%animation.size()].transform;
+			return animationStack[0][(currentFrame + step) % animationStack[0].size()].transform;
 		}
 		float getLinearWeight() {
 			float w = ((expiredTime - getTime(0)) / (getTime(1) - getTime(0)));
@@ -75,7 +83,7 @@ public:
 			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0))*0.5f) + 0.25f;
 		}
 		float getTime(int step) {
-			return animation[(currentFrame + step) % animation.size()].time;
+			return animationStack[0][(currentFrame + step) % animationStack[0].size()].time;
 		}
 
 		XMMATRIX interpolate() {
@@ -170,4 +178,29 @@ private:
 	XMMATRIX interpM(XMMATRIX& m1, XMMATRIX& m2, float t);
 	XMMATRIX interpQuad(XMMATRIX& m1, XMMATRIX& m2, XMMATRIX& m3, XMMATRIX& m4, float t);
 	int exists(PotatoModel::Vertex _vert);
+
+
+
+public:
+
+	class Animation {
+	public:
+
+
+	private:
+
+
+
+	};
+
+
+
+
+
+
+
+
+
+
+
 };
