@@ -34,6 +34,7 @@ private:
 	std::unique_ptr<Technique> m_technique;
 	std::unique_ptr<Texture2D> m_texture;
 	std::unique_ptr<Texture2D> m_floorTexture;
+	std::unique_ptr<Texture2D> m_ballBotTexture;
 	std::unique_ptr<Sampler2D> m_sampler;
 	std::unique_ptr<Material> m_material;
 	//std::unique_ptr<VertexBuffer> m_vertexBuffer;

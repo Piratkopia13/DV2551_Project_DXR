@@ -153,7 +153,8 @@ void PotatoModel::updateVertexes() {
 		for (unsigned int index = 0; index < m_ControlPointIndexes[cpi].size(); index++) {
 			int dataIndex = m_ControlPointIndexes[cpi][index];
 			
-			XMStoreFloat3(&m_currentData[dataIndex].position, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].position),sum));
+			XMStoreFloat3(&m_currentData[dataIndex].position, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].position), sum));
+			XMStoreFloat3(&m_currentData[dataIndex].normal, XMVector3Transform(XMLoadFloat3(&m_Data[dataIndex].normal), XMMatrixInverse(nullptr, XMMatrixTranspose(sum))));
 		}
 	}
 

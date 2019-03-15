@@ -545,7 +545,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 						}, polyIndex*3+vertIndex);
 					model->addVertex({
 						DirectX::XMFLOAT3((float)cps[indices[vertexIndex + 2]][0], (float)cps[indices[vertexIndex + 2]][1],(float)cps[indices[vertexIndex + 2]][2]),
-						DirectX::XMFLOAT3(-(float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
+						DirectX::XMFLOAT3((float)norm[2][0], (float)norm[2][1], (float)norm[2][2]),
 						DirectX::XMFLOAT2(static_cast<float>(texCoord[1][0]),-static_cast<float>(texCoord[1][1]))
 						}, polyIndex * 3 + vertIndex + 1);
 					model->addVertex({
@@ -612,8 +612,14 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					}
 					model->normalizeWeights();
 
-					//FbxAnimCurve* curve; node->LclRotation.GetCurve();
+					int sss = scene->GetSrcObjectCount<FbxAnimStack>();
 					FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(0);
+					cout << filename << " StackSize: " << to_string(sss) << endl;
+					int memberCount = currAnimStack->GetMemberCount();
+					cout << "MemberCount: " << to_string(memberCount) << endl;
+					for (int currentMember = 0; currentMember < memberCount; currentMember++) {
+						cout << currAnimStack->GetMember(currentMember)->GetName() << endl;
+					}
 					FbxString animStackName = currAnimStack->GetName();
 					FbxTakeInfo* takeInfo = scene->GetTakeInfo(animStackName);
 					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
@@ -623,7 +629,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 						FbxTime currTime;
 						currTime.SetFrame(frame, FbxTime::eFrames24);
 						FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
-						model->addFrame(limbIndex, (float)frame*((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble() / end.GetFrameCount(FbxTime::eFrames24)), 
+						model->addFrame(limbIndex, currTime.GetSecondDouble(),
 							convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
 					}
 				}
