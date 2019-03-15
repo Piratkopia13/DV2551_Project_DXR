@@ -53,7 +53,10 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
 	
@@ -115,6 +118,10 @@ void Game::init() {
 	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
 	m_floorTexture->sampler = m_sampler.get();
 
+	m_ballBotTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+	m_ballBotTexture->loadFromFile("../assets/textures/ballbot.png");
+	m_ballBotTexture->sampler = m_sampler.get();
+
 	size_t offset = 0;
 
 	{
@@ -127,8 +134,8 @@ void Game::init() {
 		m_indexBuffers.back()->setData(&dino->getModelIndices()[0], sizeof(unsigned int) * dino->getModelIndices().size(), offset);
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-		//m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
+		m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
 		m_meshes.back()->setTransform(m_meshes.back()->getTransform());
 		//delete dino;
 	}
@@ -285,6 +292,8 @@ void Game::update(double dt) {
 	for (int i = 0; i < m_models.size(); i++) {
 		PotatoModel* pModel = m_models[i];
 		pModel->update(dt);
+		if (m_dxRenderer->isDXRSupported())
+			m_dxRenderer->getDXR().updateBLASnextFrame(true); 
 
 		m_dxRenderer->executeNextOpenPreCommand([&, pModel] {
 			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(pModel->getModelVertices().data(), sizeof(Vertex) * pModel->getModelVertices().size());
