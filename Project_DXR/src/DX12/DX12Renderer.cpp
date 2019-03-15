@@ -561,8 +561,8 @@ HRESULT DX12Renderer::initImGui() {
 	ImGui_ImplDX12_Init(getDevice(),
 		getNumSwapBuffers(),
 		DXGI_FORMAT_R8G8B8A8_UNORM,
-		m_generalDescHeap->GetCPUDescriptorHandleForHeapStart(),
-		m_generalDescHeap->GetGPUDescriptorHandleForHeapStart());
+		m_ImGuiDescHeap->GetCPUDescriptorHandleForHeapStart(),
+		m_ImGuiDescHeap->GetGPUDescriptorHandleForHeapStart());
 
 	return S_OK;
 }
@@ -582,7 +582,7 @@ void DX12Renderer::createShaderResources() {
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.NumDescriptors = 1;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_generalDescHeap)));
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiDescHeap)));
 }
 
 void DX12Renderer::createDepthStencilResources() {
@@ -826,7 +826,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		ImGui::End();
 
 		// Set the descriptor heaps
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_generalDescHeap.Get() };
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiDescHeap.Get() };
 		m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());

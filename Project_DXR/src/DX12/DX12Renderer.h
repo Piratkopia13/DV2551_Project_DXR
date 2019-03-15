@@ -154,7 +154,7 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvDescHandle;
 
 	// ImGui
-	wComPtr<ID3D12DescriptorHeap> m_generalDescHeap;
+	wComPtr<ID3D12DescriptorHeap> m_ImGuiDescHeap;
 
 	wComPtr<IDXGIFactory2> m_dxgiFactory;
 
