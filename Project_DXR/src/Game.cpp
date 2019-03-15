@@ -139,6 +139,7 @@ void Game::init() {
 		/*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
 		m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
 		m_meshes.back()->getTransform().scaleUniformly(0.3f);
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
 		delete box;
 	}
 
@@ -184,6 +185,7 @@ void Game::init() {
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
 		m_meshes.back()->getTransform().translate(XMVectorSet(-6.0f, 18.0f, 3.f, 0.0f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
 		delete box;
 	}
 
@@ -231,7 +233,7 @@ void Game::update(double dt) {
 		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
 
 		mirrorTransform.setTransformMatrix(mat);
-		//m_meshes[1]->setTransform(mirrorTransform);
+		m_meshes[2]->setTransform(mirrorTransform);
 	}
 	if (Input::IsKeyDown('G')) {
 		Transform& mirrorTransform = m_meshes[3]->getTransform();
@@ -251,7 +253,7 @@ void Game::update(double dt) {
 		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
 
 		mirrorTransform.setTransformMatrix(mat);
-		//m_meshes[2]->setTransform(mirrorTransform);
+		m_meshes[3]->setTransform(mirrorTransform);
 	}
 
 	// Lock mouse
@@ -345,14 +347,17 @@ void Game::imguiFunc() {
 					vec = mesh->getTransform().getTranslationVec();
 					if (ImGui::DragFloat3("Position", (float*)&vec, 0.1f)) {
 						mesh->getTransform().setTranslation(vec);
+						mesh->setTransform(mesh->getTransform()); // To update rasterisation CB
 					}
 					vec = mesh->getTransform().getRotationVec();
 					if (ImGui::DragFloat3("Rotation", (float*)&vec, 0.01f)) {
 						mesh->getTransform().setRotation(vec);
+						mesh->setTransform(mesh->getTransform()); // To update rasterisation CB
 					}
 					vec = mesh->getTransform().getScaleVec();
 					if (ImGui::DragFloat3("Scale", (float*)&vec, 0.01f)) {
 						mesh->getTransform().setScale(vec);
+						mesh->setTransform(mesh->getTransform()); // To update rasterisation CB
 					}
 
 					ImGui::TreePop();
