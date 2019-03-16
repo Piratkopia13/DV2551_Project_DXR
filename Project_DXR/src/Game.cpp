@@ -565,7 +565,7 @@ void Game::imguiFunc() {
 		}
 		if (ImGui::TreeNode("Renderer")) {
 			static bool vsync = m_dxRenderer->getVsync();
-			if (ImGui::Checkbox("V-sync", &m_dxRenderer->getVsync()));
+			ImGui::Checkbox("V-sync", &m_dxRenderer->getVsync());
 			
 			if (!m_availableModels.empty()) {
 				static int currentModelIndex = -1; // If the selection isn't within 0..count, Combo won't display a preview
