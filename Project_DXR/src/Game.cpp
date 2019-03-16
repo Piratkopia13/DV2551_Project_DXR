@@ -52,15 +52,21 @@ Game::~Game() {
 
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
-	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
+	PotatoModel* _robo;
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
 	
-	m_models.push_back(dino);
+	m_models.push_back(_robo);
+	//for (int i = 0; i < _robo->getStackSize(); i++) {
+	//	m_gameObjects.push_back(GameObject(m_models.back(), i, {(i)*10.0f, 0, 0}));
+	//}
+	for (int i = 0; i < 4; i++) {
+		m_gameObjects.push_back(GameObject(m_models.back(), 0, { (i)*10.0f, 0, 0 }));
+	}
 
 	float floorHalfWidth = 50.0f;
 	float floorTiling = 5.0f;
@@ -124,20 +130,20 @@ void Game::init() {
 
 	size_t offset = 0;
 
-	{
+	for (int i = 0; i < m_gameObjects.size(); i++) {
 		// Set up mesh from FBX file
 		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelVertices().size(), VertexBuffer::STATIC));
-		m_vertexBuffers.back()->setData(&dino->getModelVertices()[0], sizeof(Vertex) * dino->getModelVertices().size(), offset);
-		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * dino->getModelIndices().size(), IndexBuffer::STATIC));
-		m_indexBuffers.back()->setData(&dino->getModelIndices()[0], sizeof(unsigned int) * dino->getModelIndices().size(), offset);
-		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), VertexBuffer::STATIC));
+		m_vertexBuffers.back()->setData(&m_gameObjects[i].getModel()->getModelVertices()[0], sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * m_gameObjects[i].getModel()->getModelIndices().size(), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(&m_gameObjects[i].getModel()->getModelIndices()[0], sizeof(unsigned int) * m_gameObjects[i].getModel()->getModelIndices().size(), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, m_gameObjects[i].getModel()->getModelVertices().size(), m_gameObjects[i].getModel()->getModelIndices().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
+		//m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
 		m_meshes.back()->setTransform(m_meshes.back()->getTransform());
-		//delete dino;
+		//delete _robo;
 	}
 
 	{
@@ -220,9 +226,9 @@ void Game::update(double dt) {
 
 		float pitch = asin(-dy);
 		float yaw = atan2(dx, dz);
-
+		XMMATRIX scale = XMMatrixScalingFromVector(XMLoadFloat3(&mirrorTransform.getScale()));
 		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
-		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
+		XMMATRIX mat = scale * rotMat * XMMatrixTranslationFromVector(pos);
 
 		mirrorTransform.setTransformMatrix(mat);
 		m_meshes[1]->setTransform(mirrorTransform);
@@ -241,14 +247,15 @@ void Game::update(double dt) {
 		float pitch = asin(-dy);
 		float yaw = atan2(dx, dz);
 
+		XMMATRIX scale = XMMatrixScalingFromVector(XMLoadFloat3(&mirrorTransform.getScale()));
 		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
-		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
+		XMMATRIX mat = scale * rotMat * XMMatrixTranslationFromVector(pos);
 
 		mirrorTransform.setTransformMatrix(mat);
 		m_meshes[2]->setTransform(mirrorTransform);
 	}
 
-	// Lock mouse
+	// Lock mouseaaw
 	if (Input::IsCursorHidden()) {
 		POINT p;
 		p.x = reinterpret_cast<DX12Renderer*>(&getRenderer())->getWindow()->getWindowWidth() / 2;
@@ -289,14 +296,19 @@ void Game::update(double dt) {
 	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
 
-	for (int i = 0; i < m_models.size(); i++) {
-		PotatoModel* pModel = m_models[i];
-		pModel->update(dt);
+	for (int i = 0; i < m_gameObjects.size(); i++) {
+		PotatoModel* pModel = m_gameObjects[i].getModel();
+		m_gameObjects[i].update(dt);
+		m_meshes[i].get()->getTransform().setTransformMatrix(m_gameObjects[i].getTransform());
+
+		
 		if (m_dxRenderer->isDXRSupported())
 			m_dxRenderer->getDXR().updateBLASnextFrame(true); 
 
-		m_dxRenderer->executeNextOpenPreCommand([&, pModel] {
-			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(pModel->getModelVertices().data(), sizeof(Vertex) * pModel->getModelVertices().size());
+		m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
+			static_cast<DX12VertexBuffer*>(m_vertexBuffers[i].get())->updateData(
+				pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), 
+				sizeof(Vertex) * pModel->getModelVertices().size());
 		});
 
 	}

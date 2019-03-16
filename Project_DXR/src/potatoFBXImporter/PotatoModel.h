@@ -20,80 +20,74 @@ public:
 		std::vector<float> weights;
 	};
 	struct Limb {
-		enum Interpolation {LINEAR, QUADRATIC};
-		struct PotatoFrame {
-			float time = 0.0;
-			XMMATRIX transform;
+		struct AnimationStack {
+			enum Interpolation {LINEAR, QUADRATIC};
+			struct PotatoFrame {
+				float time = 0.0f;
+				XMMATRIX transform;
+			};
+			std::vector<PotatoFrame> animation;
+			Interpolation interpolation = LINEAR;
+			float duration = 0.0f;
 		};
+		struct Cache {
+			XMMATRIX transform = XMMatrixIdentity();
+			int index = 0;
+			float time = 0;
+		}cache;
 		fbxsdk::FbxUInt64 uniqueID;
 		int parentIndex;
 		std::vector<int> childIndexes;
-		float expiredTime = 0.0f;
-		float animationTime = 1.0f;
-		int currentFrame = 0;
-		std::vector<std::vector<PotatoFrame>> animationStack = {{}};
-		std::vector<float> animationDuration;
+		std::vector<AnimationStack> animationStack;
 		DirectX::XMMATRIX globalBindposeInverse;
-		Interpolation interpolation = LINEAR;
-		XMMATRIX getTransform(size_t index, float t) {
-			if (index < animationStack.size()) {
-				if (t <= animationDuration[index]) {
-
-				}
-			}
-			return XMMatrixIdentity();
+		
+		XMMATRIX getTransform(int index, float t) {
+			if (index >= animationStack.size() || index < 0)
+				return XMMatrixIdentity();
+			if (animationStack[index].duration == 0.0f)
+				return XMMatrixIdentity();
+			if (t >= animationStack[index].duration)
+				return XMMatrixIdentity();
+			if (animationStack[index].animation.size() == 0)
+				return XMMatrixIdentity();
+			if (t == cache.time && index == cache.index)
+				return cache.transform;
+			int frame0 = getFrameFromTime(index, t);
+			if (frame0 == -1)
+				return XMMatrixIdentity();
+			int frame1 = (frame0 + 1) % animationStack[index].animation.size();
+			//std::cout << index << " " << t << " " << frame0 << " " << frame1 << std::endl;
+			XMMATRIX transform = interpolate(index, frame0, frame1, getWeight(index, frame0, frame1, t));
+			cache.transform = globalBindposeInverse*transform;
+			cache.index = index;
+			cache.time = t;
+			return globalBindposeInverse * transform;
 		}
-		void update(float t) {
-			if (t > 10.0f)
-				return;
-			//t = 0.04f;
-
-			//assert(currentFrame <= 50);
-
-			expiredTime += t;
-			if (expiredTime >= animationTime) {
-				expiredTime -= animationTime;
-				currentFrame = 0;
-			}
-			if (animationStack[0].size() > 0) {
-				if (expiredTime >= getTime(1)) {
-					currentFrame++;
-				}
-			}
-
-		}
-		XMMATRIX getCurrentTransform() {
-			if (animationStack[0].size() > 0)
-				return globalBindposeInverse*interpolate();
-			else
-				return globalBindposeInverse;
-		}
-
 	private: 
-
-		XMMATRIX& getFrame(int step) {
-			return animationStack[0][(currentFrame + step) % animationStack[0].size()].transform;
-		}
-		float getLinearWeight() {
-			float w = ((expiredTime - getTime(0)) / (getTime(1) - getTime(0)));
-			//assert(w >= 0 && w <= 1);
-			return w;
-		}
-		float getQuadWeight() {
-			return ((expiredTime - getTime(0)) / (getTime(1) - getTime(0))*0.5f) + 0.25f;
-		}
-		float getTime(int step) {
-			return animationStack[0][(currentFrame + step) % animationStack[0].size()].time;
-		}
-
-		XMMATRIX interpolate() {
-			switch (interpolation) {
-				case LINEAR: {
-					return interpLinear(getFrame(0), getFrame(1), getLinearWeight());
+		int getFrameFromTime(size_t index, float t) {
+			for (int i = 0; i < animationStack[index].animation.size(); i++) {
+				if (animationStack[index].animation[i].time <= t && 
+					animationStack[index].animation[(i + 1)%animationStack[index].animation.size()].time >= t) {
+					return i;
 				}
-				case QUADRATIC: {
-					return interpQuad(getFrame(-1),getFrame(0),getFrame(1),getFrame(2),getQuadWeight());
+			}
+			return -1;
+		}
+		float getWeight(size_t index, int f0, int f1, float time) {
+			if (animationStack[index].interpolation == AnimationStack::Interpolation::LINEAR) {
+				//float w = ((expiredTime - getTime(0)) / (getTime(1) - getTime(0)));
+				return ((time - animationStack[index].animation[f0].time) / (animationStack[index].animation[f1].time - animationStack[index].animation[f0].time));
+			}
+			return -1.0f;
+		}
+		XMMATRIX interpolate(size_t index, int f0, int f1, float weight) {
+			switch (animationStack[index].interpolation) {
+				case AnimationStack::Interpolation::LINEAR: {
+					return interpLinear(animationStack[index].animation[f0].transform, animationStack[index].animation[f1].transform, weight);
 				}
+				/*case AnimationStack::Interpolation::QUADRATIC: {
+					return interpQuad(getFrame(-1),getFrame(0), getFrame(1), getFrame(2), getWeight(index, f0, f1));
+				}*/
 				default: {
 
 					return XMMatrixIdentity();
@@ -101,15 +95,9 @@ public:
 			}
 		}
 		XMMATRIX interpLinear(XMMATRIX & m1, XMMATRIX & m2, float t) {
-			/*if (uniqueID == 70) {
+			if (t > 1.0f || t < 0.0) {
 				std::cout << t << std::endl;
-				XMFLOAT4X4 asd;
-				XMStoreFloat4x4(&asd, m1);
-				std::cout << "m1: " << asd._11 << ", " << asd._12 << ", " << asd._13 << ", " << asd._14 << ", " << asd._21 << ", " << asd._22 << ", " << asd._23 << ", " << asd._24 << ", " << asd._31 << ", " << asd._32 << ", " << asd._33 << ", " << asd._34 << ", " << asd._41 << ", " << asd._42 << ", " << asd._43 << ", " << asd._44 << ", " << std::endl;
-				XMStoreFloat4x4(&asd, m2);
-				std::cout << "m2: " << asd._11 << ", " << asd._12 << ", " << asd._13 << ", " << asd._14 << ", " << asd._21 << ", " << asd._22 << ", " << asd._23 << ", " << asd._24 << ", " << asd._31 << ", " << asd._32 << ", " << asd._33 << ", " << asd._34 << ", " << asd._41 << ", " << asd._42 << ", " << asd._43 << ", " << asd._44 << ", " << std::endl;
-			}*/
-
+			}
 			XMVECTOR scal1, scal2; //for scaling
 			XMVECTOR quat1, quat2; //for rotation
 			XMVECTOR tran1, tran2; //for translation
@@ -120,35 +108,34 @@ public:
 				XMMatrixRotationQuaternion(XMQuaternionSlerp(quat1, quat2, t))*
 				XMMatrixTranslationFromVector(XMVectorLerp(tran1, tran2, t));
 		}
-		XMMATRIX interpQuad(XMMATRIX & m1, XMMATRIX & m2, XMMATRIX & m3, XMMATRIX & m4, float t)
-		{
-			XMVECTOR scal1, scal2, scal3, scal4; //for scaling
-			XMVECTOR quat1, quat2, quat3, quat4; //for rotation
-			XMVECTOR tran1, tran2, tran3, tran4; //for translation
-			XMMatrixDecompose(&scal1, &quat1, &tran1, m1);
-			XMMatrixDecompose(&scal2, &quat2, &tran2, m2);
-			XMMatrixDecompose(&scal3, &quat3, &tran3, m3);
-			XMMatrixDecompose(&scal4, &quat4, &tran4, m4);
-			return XMMatrixIdentity()*
-				XMMatrixScalingFromVector(XMVectorCatmullRom(scal1, scal2, scal3, scal3, t))*
-				XMMatrixRotationQuaternion(XMQuaternionSquad(quat1, quat2, quat3, quat4, t))*
-				XMMatrixTranslationFromVector(XMVectorCatmullRom(tran1, tran2, tran3, tran4, t));
-		}
+		//XMMATRIX interpQuad(XMMATRIX & m1, XMMATRIX & m2, XMMATRIX & m3, XMMATRIX & m4, float t) {
+		//	XMVECTOR scal1, scal2, scal3, scal4; //for scaling
+		//	XMVECTOR quat1, quat2, quat3, quat4; //for rotation
+		//	XMVECTOR tran1, tran2, tran3, tran4; //for translation
+		//	XMMatrixDecompose(&scal1, &quat1, &tran1, m1);
+		//	XMMatrixDecompose(&scal2, &quat2, &tran2, m2);
+		//	XMMatrixDecompose(&scal3, &quat3, &tran3, m3);
+		//	XMMatrixDecompose(&scal4, &quat4, &tran4, m4);
+		//	return XMMatrixIdentity()*
+		//		XMMatrixScalingFromVector(XMVectorCatmullRom(scal1, scal2, scal3, scal3, t))*
+		//		XMMatrixRotationQuaternion(XMQuaternionSquad(quat1, quat2, quat3, quat4, t))*
+		//		XMMatrixTranslationFromVector(XMVectorCatmullRom(tran1, tran2, tran3, tran4, t));
+		//}
 	};
 
 	PotatoModel();
 	PotatoModel(std::vector<PotatoModel::Vertex> _data);
 	~PotatoModel();
 
-	void update(float d);
-
+	const std::vector<PotatoModel::Vertex>& getMesh(int animation = -1, float t = 0.0f);
 	void addVertex(Vertex vertex, int controlPointIndex);
 	void addControlPoint(DirectX::XMFLOAT3 position, unsigned int index);
 	void addBone(Limb limb);
-	void setGlobalBindposeInverse(unsigned int index, XMMATRIX matrix);
-	void addFrame(unsigned int index, float time, XMMATRIX matrix);
+	void setGlobalBindposeInverse(unsigned int limbIndex, XMMATRIX matrix);
+	void addFrame(unsigned int animationIndex, unsigned int limbIndex, float time, XMMATRIX matrix);
 	void addConnection(int ControlPointIndex, int boneIndex, float weight);
-	void reSizeControlPoints(int size);
+	void reSizeControlPoints(size_t size);
+	void reSizeAnimationStack(size_t size);
 
 
 
@@ -156,13 +143,14 @@ public:
 	const std::vector<PotatoModel::Vertex>& getModelVertices();
 	std::vector<PotatoModel::Limb>& getSkeleton();
 	const std::vector<unsigned int>& getModelIndices();
+	size_t getStackSize();
+	float getMaxTime(size_t index);
 
-
-	PotatoModel::Limb* findLimb(fbxsdk::FbxUInt64 id);;
+	PotatoModel::Limb* findLimb(fbxsdk::FbxUInt64 id);
 	int findLimbIndex(fbxsdk::FbxUInt64 id);
 	void normalizeWeights();
 private:
-
+	std::vector<float> m_maxTime;
 	std::vector<PotatoModel::Vertex> m_Data;
 	std::vector<PotatoModel::Vertex> m_currentData;
 	std::vector<PotatoModel::Limb> m_Skeleton;
@@ -170,37 +158,12 @@ private:
 	std::vector<std::vector<unsigned int>> m_ControlPointIndexes;
 	std::vector<unsigned int> indexes;
 
-	float m_FrameTime;
+	struct Cache {
+		int index = -1;
+		float time = 0.0f;
+	}cache;
 	
-	void updateLimb(int index, XMMATRIX& matrix, float t);
-	void updateVertexes();
+	void updateVertexes(int animation, float t);
 
-	XMMATRIX interpM(XMMATRIX& m1, XMMATRIX& m2, float t);
-	XMMATRIX interpQuad(XMMATRIX& m1, XMMATRIX& m2, XMMATRIX& m3, XMMATRIX& m4, float t);
 	int exists(PotatoModel::Vertex _vert);
-
-
-
-public:
-
-	class Animation {
-	public:
-
-
-	private:
-
-
-
-	};
-
-
-
-
-
-
-
-
-
-
-
 };
