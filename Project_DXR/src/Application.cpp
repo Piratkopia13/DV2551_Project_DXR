@@ -30,9 +30,9 @@ int Application::startGameLoop() {
 			if (dtSeconds > 1.0) // If frame-time is greater than 1 second, cap it to 1 second.
 				dtSeconds = 1.0;
 			m_timeSinceLastUpdate += dtSeconds;
-			while (m_timeSinceLastUpdate > 0.166) { // Update 60 times per second
-				fixedUpdate(0.166);
-				m_timeSinceLastUpdate -= 0.166;
+			while (m_timeSinceLastUpdate > 0.01667) { // Update 60 times per second
+				fixedUpdate(0.01667);
+				m_timeSinceLastUpdate -= 0.01667;
 			}
 			update(dtSeconds);
 			render(dtSeconds);

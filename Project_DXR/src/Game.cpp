@@ -327,11 +327,11 @@ void Game::update(double dt) {
 }
 
 void Game::fixedUpdate(double dt) {
+	for (int i = 0; i < m_gameObjects.size(); i++) {
+		PotatoModel* pModel = m_gameObjects[i].getModel();
+		m_gameObjects[i].update(dt * m_animationSpeed);
+		m_meshes[i]->setTransform(m_gameObjects[i].getTransform());
 
-	// TODO: Check if weird animations is fixed after H3nx has pushed the updated animations
-	for (int i = 0; i < m_models.size(); i++) {
-		PotatoModel* pModel = m_models[i];
-		pModel->update(dt * m_animationSpeed);
 		if (m_dxRenderer->isDXRSupported())
 			m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
