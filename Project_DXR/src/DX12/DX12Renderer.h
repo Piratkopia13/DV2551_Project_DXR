@@ -206,5 +206,8 @@ private:
 
 	std::unordered_map<DX12Technique*, std::vector<DX12Mesh*>> drawList;
 
+	// Number of frames that has been rendered during application execution
+	UINT64 m_numFrames;
+
 };
 

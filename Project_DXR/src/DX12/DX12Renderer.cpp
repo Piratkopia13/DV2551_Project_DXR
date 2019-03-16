@@ -284,6 +284,8 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	// ImGui
 	initImGui();
 
+	m_numFrames = 0;
+
 	return 0;
 }
 
@@ -717,7 +719,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// TODO: check if drawList differs from last frame, if so rebuild DXR acceleration structures
 
-
 	if (m_firstFrame) {
 		//Execute the initialization command list
 		ThrowIfFailed(m_preCommand.list->Close());
@@ -811,16 +812,9 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// DXR
 	if (m_DXREnabled) {
+		if (!m_firstFrame)
+			m_computeCommandQueue->Wait(m_directQueueFence.Get(), m_numFrames);
 
-		// TODO: Fix 
-		/*
-			Non-simultaneous-access Texture Resource (0x0000025B88C92FC0:'RTOutputUAV') 
-			is still referenced by write|transition_barrier GPU operations in-flight on another Command Queue 
-			(0x0000025B84577360:'Compute Command Queue'). It is not safe to start read|write|transition_barrier GPU operations 
-			now on this Command Queue (0x0000025B842EF040:'Direct Command Queue'). 
-			This can result in race conditions and application instability. 
-			[ EXECUTION ERROR #1047: OBJECT_ACCESSED_WHILE_STILL_IN_USE]
-		*/
 		m_computeCommand.allocators[getFrameIndex()]->Reset();
 		m_computeCommand.list->Reset(m_computeCommand.allocators[getFrameIndex()].Get(), nullptr);
 		m_dxr->updateAS(m_computeCommand.list.Get());
@@ -833,8 +827,8 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		//m_computeCommandQueue->Wait(m_directQueueFence.Get(), getFrameIndex());
 		m_computeCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
 		// Add a wait for the copy queue
-		m_directCommandQueue->Wait(m_computeQueueFence.Get(), getFrameIndex());
-		m_computeCommandQueue->Signal(m_computeQueueFence.Get(), getFrameIndex());
+		m_directCommandQueue->Wait(m_computeQueueFence.Get(), m_numFrames);
+		m_computeCommandQueue->Signal(m_computeQueueFence.Get(), m_numFrames);
 
 
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
@@ -881,9 +875,10 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_postCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_postCommand.list.Get() };
 		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
-		m_directCommandQueue->Signal(m_directQueueFence.Get(), getFrameIndex() + 1);
+		m_directCommandQueue->Signal(m_directQueueFence.Get(), m_numFrames + 1);
 	}
 
+	m_numFrames++;
 };
 #else
 void DX12Renderer::frame(std::function<void()> imguiFunc) {
