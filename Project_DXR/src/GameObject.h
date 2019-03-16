@@ -7,6 +7,7 @@ class GameObject
 public:
 	GameObject();
 	GameObject(PotatoModel*model, size_t _animationIndex = 0, XMFLOAT3 position = {0, 0, 0}, XMFLOAT3 rotation = {0, 0, 0}, XMFLOAT3 scale = {1, 1, 1});
+	GameObject(PotatoModel*model, size_t _animationIndex, Transform & transform);
 	~GameObject();
 
 	void update(float d);
@@ -17,8 +18,8 @@ public:
 	
 	void setAnimationIndex(size_t index);
 
-
-	const XMMATRIX& getTransform();
+	Transform& getTransform();
+	const XMMATRIX& getTransformMatrix();
 private:
 
 	Transform m_transform;

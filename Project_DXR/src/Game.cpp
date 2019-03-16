@@ -65,7 +65,10 @@ void Game::init() {
 	//	m_gameObjects.push_back(GameObject(m_models.back(), i, {(i)*10.0f, 0, 0}));
 	//}
 	for (int i = 0; i < 4; i++) {
-		m_gameObjects.push_back(GameObject(m_models.back(), 0, { (i)*10.0f, 0, 0 }));
+		XMFLOAT3 position = { (i)*10.0f, 15, 36};
+		XMFLOAT3 rotation{ 0,0,0 };
+		XMFLOAT3 scale = {0.01f, 0.01f, 0.01f};
+		m_gameObjects.push_back(GameObject(m_models.back(), 0, position, rotation, scale));
 	}
 
 	float floorHalfWidth = 50.0f;
@@ -299,7 +302,8 @@ void Game::update(double dt) {
 	for (int i = 0; i < m_gameObjects.size(); i++) {
 		PotatoModel* pModel = m_gameObjects[i].getModel();
 		m_gameObjects[i].update(dt);
-		m_meshes[i].get()->getTransform().setTransformMatrix(m_gameObjects[i].getTransform());
+		m_meshes[i].get()->setTransform(m_gameObjects[i].getTransform());
+			//getTransform().setTransformMatrix();
 
 		
 		if (m_dxRenderer->isDXRSupported())
@@ -310,7 +314,6 @@ void Game::update(double dt) {
 				pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), 
 				sizeof(Vertex) * pModel->getModelVertices().size());
 		});
-
 	}
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
