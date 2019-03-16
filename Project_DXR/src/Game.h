@@ -38,15 +38,21 @@ private:
 	std::unique_ptr<Technique> m_technique;
 	std::unique_ptr<Texture2D> m_texture;
 	std::unique_ptr<Texture2D> m_floorTexture;
+	std::unique_ptr<Texture2D> m_ballBotTexture;
+	std::unique_ptr<Texture2D> m_cornellTexture;
 	std::unique_ptr<Sampler2D> m_sampler;
 	std::unique_ptr<Material> m_material;
 	//std::unique_ptr<VertexBuffer> m_vertexBuffer;
 	//std::unique_ptr<Mesh> m_mesh;
 
 	std::vector<std::unique_ptr<VertexBuffer>> m_vertexBuffers;
+	std::vector<std::unique_ptr<IndexBuffer>> m_indexBuffers;
 	std::vector<std::unique_ptr<DX12Mesh>> m_meshes;
 
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
+	std::vector<PotatoModel*> m_models;
+	float m_animationSpeed;
+
 
 	// ImGui
 	std::string m_availableModels;

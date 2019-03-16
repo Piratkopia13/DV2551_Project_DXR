@@ -7,6 +7,7 @@
 #include "Technique.h"
 #include "ConstantBuffer.h"
 #include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 class Mesh;
 class Texture2D;
@@ -33,6 +34,7 @@ public:
 	virtual Material* makeMaterial(const std::string& name) = 0;
 	virtual Mesh* makeMesh() = 0;
 	virtual VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) = 0;
+	virtual IndexBuffer* makeIndexBuffer(size_t size, IndexBuffer::DATA_USAGE usage) = 0;
 	virtual Texture2D* makeTexture2D() = 0;
 	virtual Sampler2D* makeSampler2D() = 0;
 	virtual RenderState* makeRenderState() = 0;

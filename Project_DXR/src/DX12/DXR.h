@@ -3,10 +3,15 @@
 #include "DX12.h"
 #include <d3d12.h>
 #include "D3DUtils.h"
+#include <random>
 #include <DirectXMath.h>
 
 class DX12Renderer;
 class DX12VertexBuffer;
+class DX12IndexBuffer;
+class DX12Material;
+class DX12Technique;
+class DX12RenderState;
 class DX12ConstantBuffer;
 class DX12Mesh;
 class DX12Texture2D;
@@ -19,6 +24,7 @@ namespace DXRGlobalRootParam {
 		FLOAT_RED_CHANNEL = 0,
 		SRV_ACCELERATION_STRUCTURE,
 		CBV_SCENE_BUFFER,
+		CBV_SETTINGS,
 		SIZE
 	};
 }
@@ -31,8 +37,9 @@ namespace DXRRayGenRootParam {
 namespace DXRHitGroupRootParam {
 	enum Slot {
 		SRV_VERTEX_BUFFER = 0,
+		SRV_INDEX_BUFFER,
 		DT_TEXTURES,
-		CBV_SETTINGS,
+		CBV_MATERIAL,
 		SIZE
 	};
 }
@@ -51,6 +58,7 @@ public:
 	void init(ID3D12GraphicsCommandList4* cmdList);
 	void updateAS(ID3D12GraphicsCommandList4* cmdList);
 	void doTheRays(ID3D12GraphicsCommandList4* cmdList);
+	void doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* renderTarget);
 	void copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target);
 
 	void setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes);
@@ -63,6 +71,9 @@ public:
 	int& getRTFlags();
 	float& getAORadius();
 	UINT& getNumAORays();
+	UINT& getNumGISamples();
+	UINT& getNumGIBounces();
+	UINT& getTemporalAccumulationCount();
 
 private:
 	void createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList);
@@ -75,6 +86,7 @@ private:
 	ID3D12RootSignature* createRayGenLocalRootSignature();
 	ID3D12RootSignature* createHitGroupLocalRootSignature();
 	ID3D12RootSignature* createMissLocalRootSignature();
+	void createTemporalAccumulationResources(ID3D12GraphicsCommandList4* cmdList);
 
 private:
 	bool m_updateBLAS;
@@ -89,8 +101,8 @@ private:
 
 	const std::vector<std::unique_ptr<DX12Mesh>>* m_meshes;
 	//DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
-	DX12ConstantBuffer* m_sceneCB; // Temporary constant buffer
-	DX12ConstantBuffer* m_rayGenSettingsCB; // Temporary constant buffer
+	std::unique_ptr<DX12ConstantBuffer> m_sceneCB; // Temporary constant buffer
+	std::unique_ptr<DX12ConstantBuffer> m_rayGenSettingsCB; // Temporary constant buffer
 
 	Camera* m_camera;
 	
@@ -123,10 +135,15 @@ private:
 	};
 	struct MeshHandles {
 		D3D12_GPU_VIRTUAL_ADDRESS vertexBufferHandle;
+		D3D12_GPU_VIRTUAL_ADDRESS indexBufferHandle;
 		D3D12_GPU_DESCRIPTOR_HANDLE textureHandle;
+		D3D12_GPU_VIRTUAL_ADDRESS materialHandle;
 	};
 
 	wComPtr<ID3D12DescriptorHeap> m_rtDescriptorHeap = {};
+	D3D12_CPU_DESCRIPTOR_HANDLE m_rtHeapCPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE m_rtHeapGPUHandle;
+	UINT m_heapIncr;
 	ResourceWithDescriptor m_rtOutputUAV;
 
 	std::vector<MeshHandles> m_rtMeshHandles;
@@ -145,4 +162,23 @@ private:
 
 	DX12Texture2D* m_skyboxTexture;
 	D3D12_GPU_DESCRIPTOR_HANDLE m_skyboxGPUDescHandle;
+
+	// Temporal Accumulation
+	std::unique_ptr<DX12VertexBuffer> m_taVb;
+	std::unique_ptr<DX12IndexBuffer> m_taIb;
+	std::unique_ptr<DX12Mesh> m_taMesh;
+	std::unique_ptr<DX12Material> m_taMaterial;
+	std::unique_ptr<DX12Technique> m_taTechnique;
+	//std::vector<wComPtr<ID3D12Resource1>> m_taLastFrames;
+	wComPtr<ID3D12Resource1> m_taLastFrameBuffer;
+	wComPtr<ID3D12DescriptorHeap> m_taSrvDescriptorHeap = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE m_taSrvGPUHandle;
+	struct TAConstantBufferData {
+		UINT accumCount;
+	};
+	TAConstantBufferData m_taCBData;
+	DirectX::XMMATRIX m_camViewMat; // Copy of the camera view matrix
+	std::random_device m_rd;  //Will be used to obtain a seed for the random number engine
+	std::mt19937 m_gen; //Standard mersenne_twister_engine seeded with rd()
+	std::uniform_real_distribution<> m_dis;
 };

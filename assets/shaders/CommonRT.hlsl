@@ -13,7 +13,7 @@ typedef uint UINT;
 #define MERGE(a, b) a##b
 
 // Shader only globals
-static float3 g_lightDirection = float3(-0.513861f, -0.596225f, -0.616817f);
+static float3 g_lightDirection = float3(0.513861f, -0.596225f, -0.616817f);
 #define M_1_PI 0.318309886183790671538
 
 // Shader only functions
@@ -35,8 +35,11 @@ using namespace DirectX;
 
 #define MAX_RAY_RECURSION_DEPTH 30
 
-static const int RT_ENABLE_AO = 1 << 0;
-static const int RT_DRAW_NORMALS = 1 << 1;
+static const int RT_DRAW_NORMALS 		= 	1 << 0;
+static const int RT_ENABLE_AO 	 		= 	1 << 1;
+static const int RT_ENABLE_GI 	 		= 	1 << 2;
+static const int RT_ENABLE_TA 	 		= 	1 << 3;
+static const int RT_ENABLE_JITTER_AA	= 	1 << 4;
 
 struct Vertex {
     XMFLOAT3 position;
@@ -47,8 +50,7 @@ struct Vertex {
 struct RayPayload {
 	XMFLOAT4 color;
 	UINT recursionDepth;
-	int inShadow;
-	int aoVal;
+	int hit;
 };
 
 struct RayGenSettings {
@@ -56,6 +58,16 @@ struct RayGenSettings {
 	float AORadius;
 	UINT frameCount;
 	UINT numAORays;
+	UINT GISamples;
+	UINT GIBounces;
+};
+
+struct MaterialProperties {
+	float reflectionAttenuation;
+	float fuzziness;
+	float refractiveIndex;
+	UINT maxRecursionDepth;
+	XMFLOAT3 albedoColor;
 };
 
 struct SceneConstantBuffer {
@@ -67,3 +79,5 @@ struct CameraData {
 	XMMATRIX VP;
 	XMFLOAT3 cameraPosition;
 };
+
+// potoat

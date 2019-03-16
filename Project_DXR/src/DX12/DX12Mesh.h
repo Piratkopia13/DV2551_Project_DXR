@@ -9,9 +9,9 @@ class DX12Mesh : public Mesh {
 public:
 	DX12Mesh(DX12Renderer* renderer);
 	~DX12Mesh();
-	virtual void setIAVertexBufferBinding(VertexBuffer* buffer, size_t offset, size_t numElements, size_t sizeElement) override;
-	virtual void bindIAVertexBuffer(unsigned int location) override;
-	void bindIAVertexBuffer(ID3D12GraphicsCommandList3* cmdList);
+	virtual void setIABinding(VertexBuffer* vBuffer, IndexBuffer* iBuffer, size_t offset, size_t numVertices, size_t numIndices, size_t sizeElement) override;
+	virtual void bindIA(unsigned int location) override;
+	void bindIA(ID3D12GraphicsCommandList3* cmdList);
 
 };
 

@@ -16,7 +16,7 @@ public:
 
 	virtual void setShader(const std::string& shaderFileName, ShaderType type) override;
 	virtual void removeShader(ShaderType type) override;
-	virtual int compileMaterial(std::string& errString) override;
+	int compileMaterial(std::string& errString, D3D12_INPUT_ELEMENT_DESC* inputLayout = nullptr, UINT numElements = 0);
 	virtual int enable() override;
 	int enable(ID3D12GraphicsCommandList3* cmdList);
 	void disable();
@@ -28,6 +28,9 @@ public:
 	virtual void addConstantBuffer(std::string name, unsigned int location, size_t size) override;
 
 	std::vector<DX12ConstantBuffer*> getConstantBuffers() const;
+	const DX12ConstantBuffer* getMaterialCB() const;
+	const MaterialProperties& getProperties() const;
+	void setProperties(const MaterialProperties& props);
 
 	// DX12 specifics
 	ID3DBlob* getShaderBlob(Material::ShaderType type);
@@ -41,6 +44,8 @@ private:
 	std::string m_materialName;
 	DX12Renderer* m_renderer;
 	std::map<unsigned int, DX12ConstantBuffer*> m_constantBuffers;
+	DX12ConstantBuffer m_materialCB;
+	MaterialProperties m_matProps; // MaterialProperties is a shader-common struct
 
 	Material::ShaderType m_shaderTypes[4];
 	std::string m_shaderNames[4];

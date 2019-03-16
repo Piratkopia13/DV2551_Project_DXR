@@ -48,6 +48,7 @@ public:
 	virtual Material* makeMaterial(const std::string& name) override;
 	virtual Mesh* makeMesh() override;
 	virtual VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) override;
+	virtual IndexBuffer* makeIndexBuffer(size_t size, IndexBuffer::DATA_USAGE usage) override;
 	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, size_t size) override;
 	virtual RenderState* makeRenderState() override;
 	virtual Technique* makeTechnique(Material* m, RenderState* r) override;
@@ -83,6 +84,7 @@ public:
 	virtual void submit(Mesh* mesh) override;
 	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
+	bool& getVsync();
 
 	void useCamera(Camera* camera);
 	
@@ -124,6 +126,7 @@ private:
 	float m_clearColor[4];
 	bool m_firstFrame;
 	UINT m_backBufferIndex;
+	bool m_vsync;
 	
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;
