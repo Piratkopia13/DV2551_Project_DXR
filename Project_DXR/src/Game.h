@@ -9,6 +9,7 @@
 #include "Core/Camera.h"
 #include "Core/CameraController.h"
 #include "potatoFBXImporter/PotatoFBXImporter.h"
+#include "GameObject.h"
 
 class DX12Renderer;
 class DX12Mesh;
@@ -52,6 +53,7 @@ private:
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 	std::vector<PotatoModel*> m_models;
 	float m_animationSpeed;
+	std::vector<GameObject> m_gameObjects;
 
 
 	// ImGui

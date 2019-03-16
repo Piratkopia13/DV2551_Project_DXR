@@ -568,6 +568,9 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 			int largestIndex = -1;
 			unsigned int deformerCount = mesh->GetDeformerCount();
 			cout << "deformers: " << to_string(deformerCount) << endl;
+
+
+
 			for (unsigned int deformerIndex = 0; deformerIndex < deformerCount; deformerIndex++) {
 				FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
 				if (!skin) {
@@ -576,11 +579,14 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 				}
 
 				unsigned int clusterCount = skin->GetClusterCount();
-				cout << "  clusters: " << to_string(clusterCount) << endl;
+				//cout << "  clusters: " << to_string(clusterCount) << endl;
+
+
+
 				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
 
 					FbxCluster * cluster = skin->GetCluster(clusterIndex);
-					cout <<"    " <<PrintAttribute(cluster->GetLink()->GetNodeAttribute()) << endl;
+					//cout <<"    " <<PrintAttribute(cluster->GetLink()->GetNodeAttribute()) << endl;
 					int limbIndex = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
 					if (limbIndex == -1) {
 						cout << "Could not find limb at clusterIndex: " << to_string(clusterIndex) << endl;
@@ -612,25 +618,28 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 					}
 					model->normalizeWeights();
 
-					int sss = scene->GetSrcObjectCount<FbxAnimStack>();
-					FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(0);
-					cout << filename << " StackSize: " << to_string(sss) << endl;
-					int memberCount = currAnimStack->GetMemberCount();
-					cout << "MemberCount: " << to_string(memberCount) << endl;
-					for (int currentMember = 0; currentMember < memberCount; currentMember++) {
-						cout << currAnimStack->GetMember(currentMember)->GetName() << endl;
-					}
-					FbxString animStackName = currAnimStack->GetName();
-					FbxTakeInfo* takeInfo = scene->GetTakeInfo(animStackName);
-					FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
-					FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
-					cout << "Animation Time: " << to_string((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble()) << " Frame Count: " << to_string((int)end.GetFrameCount(FbxTime::eFrames24)) << endl;
-					for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames24); frame <= end.GetFrameCount(FbxTime::eFrames24); frame++) {
-						FbxTime currTime;
-						currTime.SetFrame(frame, FbxTime::eFrames24);
-						FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
-						model->addFrame(limbIndex, currTime.GetSecondDouble(),
-							convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime))) ;
+					int stackCount = scene->GetSrcObjectCount<FbxAnimStack>();
+					//cout << filename << " StackSize: " << to_string(stackCount) << endl;
+					model->reSizeAnimationStack(1);
+					for (int currentStack = 0; currentStack < 1; currentStack++) {
+						FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(currentStack);
+						FbxTakeInfo* takeInfo = scene->GetTakeInfo(currAnimStack->GetName());
+						
+						FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
+						FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
+						//cout << "Animation Time: " << to_string((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble()) << " Frame Count: " << to_string((int)end.GetFrameCount(FbxTime::eFrames24)) << endl;
+						float firstFrameTime = 0.0f;
+						for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames24); frame <= end.GetFrameCount(FbxTime::eFrames24); frame++) {
+							FbxTime currTime;
+							currTime.SetFrame(frame, FbxTime::eFrames24);
+							if (firstFrameTime == 0.0f)
+								firstFrameTime = currTime.GetSecondDouble();
+							FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
+							//cout << (currTime.GetSecondDouble() - firstFrameTime) << endl;
+							model->addFrame(currentStack, limbIndex, currTime.GetSecondDouble()-firstFrameTime,
+								convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime)));
+						}
+
 					}
 				}
 			}

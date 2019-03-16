@@ -169,6 +169,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\GameObject.h" />
     <ClInclude Include="src\Core\CameraController.h" />
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\Core\IndexBuffer.h" />
@@ -215,6 +216,7 @@
     <ClInclude Include="src\Core\VertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\GameObject.cpp" />
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\Core\IndexBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12IndexBuffer.cpp" />
