@@ -309,26 +309,31 @@ void Game::update(double dt) {
 	m_persCameraController->update(dt);
 
 	m_persCamera->updateConstantBuffer();
+	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
+	
 
+
+	
+
+}
+
+void Game::fixedUpdate(double dt) {
+
+	// TODO: Check if weird animations is fixed after H3nx has pushed the updated animations
 	for (int i = 0; i < m_models.size(); i++) {
 		PotatoModel* pModel = m_models[i];
 		pModel->update(dt * m_animationSpeed);
 		if (m_dxRenderer->isDXRSupported())
-			m_dxRenderer->getDXR().updateBLASnextFrame(true); 
+			m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
 		m_dxRenderer->executeNextOpenPreCommand([&, pModel] {
 			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(pModel->getModelVertices().data(), sizeof(Vertex) * pModel->getModelVertices().size());
 		});
 
 	}
-	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
-	
 
 
 
-}
-
-void Game::fixedUpdate(double dt) {
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
 		mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
@@ -635,5 +640,6 @@ void Game::imguiFunc() {
 
 	}
 
-	ImGui::ShowDemoWindow();
+	// No likey the demo window
+	//ImGui::ShowDemoWindow();
 }
