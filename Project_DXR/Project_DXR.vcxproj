@@ -171,6 +171,8 @@
   <ItemGroup>
     <ClInclude Include="src\Core\CameraController.h" />
     <ClInclude Include="src\Application.h" />
+    <ClInclude Include="src\Core\IndexBuffer.h" />
+    <ClInclude Include="src\DX12\DX12IndexBuffer.h" />
     <ClInclude Include="src\DX12\D3D12Timer.h" />
     <ClInclude Include="src\DX12\DX12Skybox.h" />
     <ClInclude Include="src\Game.h" />
@@ -182,6 +184,7 @@
     <ClInclude Include="src\ImGui\imgui_internal.h" />
     <ClInclude Include="src\ImGui\imstb_textedit.h" />
     <ClInclude Include="src\potatoFBXImporter\PotatoFBXImporter.h" />
+    <ClInclude Include="src\potatoFBXImporter\PotatoModel.h" />
     <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
     <ClInclude Include="src\DX12\DX12Mesh.h" />
@@ -213,6 +216,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Application.cpp" />
+    <ClCompile Include="src\Core\IndexBuffer.cpp" />
+    <ClCompile Include="src\DX12\DX12IndexBuffer.cpp" />
     <ClCompile Include="src\DX12\D3D12Timer.cpp" />
     <ClCompile Include="src\DX12\DX12Skybox.cpp" />
     <ClCompile Include="src\Game.cpp" />
@@ -248,6 +253,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\potatoFBXImporter\PotatoFBXImporter.cpp" />
+    <ClCompile Include="src\potatoFBXImporter\PotatoModel.cpp" />
     <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />

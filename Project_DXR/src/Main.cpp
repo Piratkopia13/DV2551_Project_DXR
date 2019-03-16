@@ -28,6 +28,11 @@ int main(int argc, char *argv[])
 
 	Game game;
 	int status = game.startGameLoop();
-
+	/*dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
+	auto m_fbxImporter = std::make_unique<PotatoFBXImporter>();
+	PotatoModel* dino;
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
+	delete dino;
+	int status = 0;*/
 	return status;
 };

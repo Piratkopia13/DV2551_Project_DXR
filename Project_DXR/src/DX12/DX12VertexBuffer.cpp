@@ -38,6 +38,26 @@ void DX12VertexBuffer::setData(const void * data, size_t size, size_t offset) {
 	m_uploadBuffers.emplace_back(uploadBuffer);
 }
 
+void DX12VertexBuffer::updateData(const void* data, size_t size) {
+	auto cmdList = m_renderer->getCmdList();
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
+
+	auto& uploadBuffer = m_uploadBuffers.at(0);
+	UINT offset = 0;
+
+	// Prepare the data to be uploaded to the GPU
+	BYTE* pData;
+	ThrowIfFailed(uploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pData)));
+	memcpy(pData, data, size);
+	uploadBuffer->Unmap(0, nullptr);
+
+	// Copy the data from the uploadBuffer to the defaultBuffer
+	cmdList->CopyBufferRegion(m_vertexBuffer.Get(), offset, uploadBuffer, 0, size);
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
 void DX12VertexBuffer::bind(size_t offset, size_t size, unsigned int location) {
 	throw std::exception("The vertex buffer must be bound using the other bind method taking four parameters");
 }

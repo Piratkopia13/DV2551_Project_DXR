@@ -9,6 +9,7 @@
 #include "DX12ConstantBuffer.h"
 #include "DX12Texture2D.h"
 #include "DX12VertexBuffer.h"
+#include "DX12IndexBuffer.h"
 #include "DX12Skybox.h"
 #include "D3DUtils.h"
 
@@ -180,7 +181,11 @@ D3D12::D3D12Timer& DX12Renderer::getTimer() {
 
 VertexBuffer* DX12Renderer::makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) {
 	return new DX12VertexBuffer(size, usage, this);
-};
+}
+IndexBuffer* DX12Renderer::makeIndexBuffer(size_t size, IndexBuffer::DATA_USAGE usage) {
+	return new DX12IndexBuffer(size, usage, this);
+}
+;
 
 Material* DX12Renderer::makeMaterial(const std::string& name) {
 	return new DX12Material(name, this);
@@ -678,20 +683,23 @@ void DX12Renderer::workerThread(unsigned int id) {
 			list->RSSetScissorRects(1, &m_scissorRect);
 
 			for (auto mesh : work->second) {
-				size_t numberElements = mesh->geometryBuffer.numElements;
+				size_t numVertices = mesh->geometryBuffer.numVertices;
+				size_t numIndices = mesh->geometryBuffer.numIndices;
 				for (auto t : mesh->textures) {
 					static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
 				}
 
-				// Bind vertices, normals and UVs
-				mesh->bindIAVertexBuffer(list.Get());
+				// Bind indices, vertices, normals and UVs
+				mesh->bindIA(list.Get());
+				//list->IASetIndexBuffer();
 
 				// Bind translation constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
 				// Bind camera data constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 				// Draw
-				list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
+				//list->DrawInstanced(static_cast<UINT>(numVertices), 1, 0, 0);
+				list->DrawIndexedInstanced(static_cast<UINT>(numIndices), 1, 0, 0, 0);
 			}
 		}
 		list->Close();

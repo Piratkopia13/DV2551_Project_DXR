@@ -3,6 +3,7 @@
 #include "DX12/DX12Renderer.h"
 #include "DX12/DX12Material.h"
 #include "DX12/DX12Mesh.h"
+#include "DX12/DX12VertexBuffer.h"
 #include "Utils/Input.h"
 
 Game::Game() 
@@ -43,21 +44,34 @@ Game::Game()
 }
 
 Game::~Game() {
+
+	for (int i = 0; i < m_models.size(); i++) {
+		if (m_models[i])
+			delete m_models[i];
+	}
 }
 
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
+	PotatoModel* dino;
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
 	
+	m_models.push_back(dino);
+
 	float floorHalfWidth = 50.0f;
 	float floorTiling = 5.0f;
 	const Vertex floorVertices[] = {
 		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
 		{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
-		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
-
-		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},
-		{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
+	};
+	const unsigned int floorIndices[] {
+		0, 1, 2, 0, 3, 1
 	};
 	float mirrorHalfWidth = 5.0f;
 	float mirrorHalfHeight = 8.0f;
@@ -65,10 +79,11 @@ void Game::init() {
 		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
 		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
 		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
-
-		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},
-		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
 		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
+	};
+	const unsigned int mirrorIndices[]{
+		0, 1, 2, 0, 3, 1
 	};
 
 	// load Materials.
@@ -109,6 +124,10 @@ void Game::init() {
 	m_floorTexture->loadFromFile("../assets/textures/Dragon_ground_color.png");
 	m_floorTexture->sampler = m_sampler.get();
 
+	m_ballBotTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+	m_ballBotTexture->loadFromFile("../assets/textures/ballbot.png");
+	m_ballBotTexture->sampler = m_sampler.get();
+
 	m_cornellTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 	m_cornellTexture->loadFromFile("../assets/textures/cornell.png");
 	m_cornellTexture->sampler = m_sampler.get();
@@ -118,14 +137,17 @@ void Game::init() {
 	{
 		// Set up mesh from FBX file
 		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
-		PotatoModel* dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cornell_box.fbx");
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-		m_vertexBuffers.back()->setData(&dino->getModelData()[0], sizeof(Vertex) * dino->getModelData().size(), offset);
-		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, dino->getModelData().size(), sizeof(Vertex));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * dino->getModelVertices().size(), VertexBuffer::STATIC));
+		m_vertexBuffers.back()->setData(&dino->getModelVertices()[0], sizeof(Vertex) * dino->getModelVertices().size(), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * dino->getModelIndices().size(), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(&dino->getModelIndices()[0], sizeof(unsigned int) * dino->getModelIndices().size(), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_cornellTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		delete dino;
+		m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform());
+		//delete dino;
 	}
 	{
 		// Box mesh
@@ -147,9 +169,12 @@ void Game::init() {
 		// Set up mirrror 1 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
+		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
 		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
-		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(mirrorIndices), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(mirrorIndices, sizeof(mirrorIndices), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
 	}
@@ -157,36 +182,28 @@ void Game::init() {
 		// Set up mirrror 2 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
+		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
 		m_vertexBuffers.back()->setData(mirrorVertices, sizeof(mirrorVertices), offset);
-		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(mirrorIndices), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(mirrorIndices, sizeof(mirrorIndices), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
 	}
 
-	//{
-	//	// Set up floor mesh
-	//	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-	//	constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
-	//	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
-	//	m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
-	//	m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, numVertices, sizeof(Vertex));
-	//	m_meshes.back()->technique = m_technique.get();
-	//	m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-	//}
-
 	{
-		// Sphere
-		PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/sphere.fbx");
+		// Set up floor mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-		m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
-		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
+		constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
+		constexpr auto numIndices = std::extent<decltype(floorIndices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(floorIndices), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(floorIndices, sizeof(floorIndices), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_texture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->getTransform().translate(XMVectorSet(-6.0f, 18.0f, 3.f, 0.0f));
-		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
-		delete box;
+		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
 	}
 
 
@@ -297,6 +314,17 @@ void Game::update(double dt) {
 	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
 	m_persCamera->updateConstantBuffer();
 
+	for (int i = 0; i < m_models.size(); i++) {
+		PotatoModel* pModel = m_models[i];
+		pModel->update(dt);
+		if (m_dxRenderer->isDXRSupported())
+			m_dxRenderer->getDXR().updateBLASnextFrame(true); 
+
+		m_dxRenderer->executeNextOpenPreCommand([&, pModel] {
+			static_cast<DX12VertexBuffer*>(m_vertexBuffers[0].get())->updateData(pModel->getModelVertices().data(), sizeof(Vertex) * pModel->getModelVertices().size());
+		});
+
+	}
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
@@ -319,6 +347,8 @@ void Game::update(double dt) {
 
 
 }
+
+
 
 void Game::render(double dt) {
 	//getRenderer().clearBuffer(CLEAR_BUFFER_FLAGS::COLOR | CLEAR_BUFFER_FLAGS::DEPTH); // Doesnt do anything
@@ -523,9 +553,11 @@ void Game::imguiFunc() {
 					auto updateVB = [&]() {
 						try {
 							PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/" + m_availableModelsList[currentModelIndex]);
-							m_vertexBuffers[0] = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-							m_vertexBuffers[0]->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), 0);
-							m_meshes[0]->setIAVertexBufferBinding(m_vertexBuffers[0].get(), 0, model->getModelData().size(), sizeof(float) * 8); // 3 positions, 3 normals and 2 UVs
+							m_vertexBuffers[0] = std::unique_ptr<VertexBuffer>(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelVertices().size(), VertexBuffer::DATA_USAGE::STATIC));
+							m_vertexBuffers[0]->setData(&model->getModelVertices()[0], sizeof(Vertex) * model->getModelVertices().size(), 0);
+							m_indexBuffers[0] = std::unique_ptr<IndexBuffer>(getRenderer().makeIndexBuffer(sizeof(unsigned int) * model->getModelIndices().size(), IndexBuffer::STATIC));
+							m_indexBuffers[0]->setData(&model->getModelIndices()[0], sizeof(unsigned int) * model->getModelIndices().size(), 0);
+							m_meshes[0]->setIABinding(m_vertexBuffers[0].get(), m_indexBuffers[0].get(), 0, model->getModelVertices().size(), model->getModelIndices().size(), sizeof(Vertex)); // 3 positions, 3 normals and 2 UVs
 
 							if (m_dxRenderer->isDXRSupported()) {
 								m_dxRenderer->getDXR().setMeshes(m_meshes);
