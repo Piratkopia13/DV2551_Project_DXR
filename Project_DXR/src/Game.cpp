@@ -166,8 +166,6 @@ void Game::init() {
 
 void Game::update(double dt) {
 
-	// Camera movement
-	m_persCameraController->update(dt);
 
 	if (Input::IsKeyPressed(VK_RETURN)) {
 		auto& r = static_cast<DX12Renderer&>(getRenderer());
@@ -228,13 +226,8 @@ void Game::update(double dt) {
 		SetCursorPos(p.x, p.y);
 	}
 
-	static float shift = 0.0f;
-	if (dt < 10.0) {
-		shift += dt * 1.f;
-	}
-	if (shift >= XM_PI * 2.0f) shift -= XM_PI * 2.0f;
 
-	XMVECTOR translation = XMVectorSet(cosf(shift), sinf(shift), 0.0f, 0.0f);
+
 	if (Input::IsKeyDown('H')) {
 		Transform& mainMeshTransform = m_meshes[0]->getTransform();
 
@@ -254,13 +247,20 @@ void Game::update(double dt) {
 
 		mainMeshTransform.setTransformMatrix(mat);
 	}
-	//Transform& t = m_meshes[0]->getTransform();
-	//t.setTranslation(translation);
-	//std::cout << t.getTranslation().x << std::endl;
-	//m_mesh->setTransform(t); // Updates transform matrix for rasterisation
-	m_persCamera->updateConstantBuffer();
 
-	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
+
+
+	// Camera movement
+	m_persCameraController->update(dt);
+
+	m_persCamera->updateConstantBuffer();
+	
+
+
+
+}
+
+void Game::fixedUpdate(double dt) {
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
 		mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
@@ -273,8 +273,6 @@ void Game::update(double dt) {
 		};
 		m_dxRenderer->getDXR().updateTLASnextFrame(instanceTransform); // Updates transform matrix for raytracing
 	}
-
-
 }
 
 void Game::render(double dt) {

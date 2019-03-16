@@ -19,7 +19,11 @@ public:
 	~Game();
 
 	virtual void init() override;
+	// Updates every frame
 	virtual void update(double dt) override;
+	// Tries to update 60 times per second
+	virtual void fixedUpdate(double dt) override;
+	// Renders every frame
 	virtual void render(double dt) override;
 
 private:

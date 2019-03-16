@@ -27,6 +27,13 @@ int Application::startGameLoop() {
 			// do the stuff
 			Input::NewFrame();
 			double dtSeconds = m_lastDelta / 1000.0;
+			if (dtSeconds > 1.0) // If frame-time is greater than 1 second, cap it to 1 second.
+				dtSeconds = 1.0;
+			m_timeSinceLastUpdate += dtSeconds;
+			while (m_timeSinceLastUpdate > 0.166) { // Update 60 times per second
+				fixedUpdate(0.166);
+				m_timeSinceLastUpdate -= 0.166;
+			}
 			update(dtSeconds);
 			render(dtSeconds);
 			Input::EndFrame();
