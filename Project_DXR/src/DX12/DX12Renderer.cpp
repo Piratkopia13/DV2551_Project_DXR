@@ -241,6 +241,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
+	m_supportsDXR = false;
 	if (m_supportsDXR) {
 		m_dxr = std::make_unique<DXR>(this);
 		m_dxr->init(m_preCommand.list.Get());

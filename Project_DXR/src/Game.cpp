@@ -54,11 +54,11 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
 	
 	m_models.push_back(dino);
@@ -66,9 +66,10 @@ void Game::init() {
 	float floorHalfWidth = 50.0f;
 	float floorTiling = 5.0f;
 	const Vertex floorVertices[] = {
-		{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
-		{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
-		{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
+			{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
+			{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
+			{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
+			{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
 	};
 	const unsigned int floorIndices[] {
 		0, 1, 2, 0, 3, 1
@@ -76,11 +77,10 @@ void Game::init() {
 	float mirrorHalfWidth = 5.0f;
 	float mirrorHalfHeight = 8.0f;
 	const Vertex mirrorVertices[] = {
-		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
-		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
-		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
-		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
-		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f ), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
+		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
+		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
+		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
+		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
 	};
 	const unsigned int mirrorIndices[]{
 		0, 1, 2, 0, 3, 1
@@ -150,19 +150,19 @@ void Game::init() {
 		//delete dino;
 	}
 	{
-		// Box mesh
-		PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
-		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-		m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
-		m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
-		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		/*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
-		m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
-		m_meshes.back()->getTransform().scaleUniformly(0.3f);
-		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
-		delete box;
+		//// Box mesh
+		//PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
+		//m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		//m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		//m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
+		//m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
+		//m_meshes.back()->technique = m_technique.get();
+		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		///*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
+		//m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
+		//m_meshes.back()->getTransform().scaleUniformly(0.3f);
+		//m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
+		//delete box;
 	}
 
 	{

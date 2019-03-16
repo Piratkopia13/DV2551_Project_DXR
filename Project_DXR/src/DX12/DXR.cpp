@@ -142,20 +142,20 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 	// Set topology
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	
-	size_t numberElements = m_taMesh->geometryBuffer.numElements;
+	size_t numIndices = m_taMesh->geometryBuffer.numIndices;
 	/*for (auto t : mesh->textures) {
 		static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
 	}*/
 
-	// Bind vertices, normals and UVs
-	m_taMesh->bindIAVertexBuffer(cmdList);
+	// Bind vertices, indices, normals and UVs
+	m_taMesh->bindIA(cmdList);
 
 	//// Bind translation constant buffer
 	//static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
 	//// Bind camera data constant buffer
 	//static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 	// Draw
-	cmdList->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
+	cmdList->DrawIndexedInstanced(static_cast<UINT>(numIndices), 1, 0, 0, 0);
 
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
@@ -337,7 +337,7 @@ void DXR::createShaderResources() {
 			m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 			MeshHandles handles;
-			handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress();
+			handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.vBuffer)->getBuffer()->GetGPUVirtualAddress();
 			handles.indexBufferHandle = static_cast<DX12IndexBuffer*>(mesh->geometryBuffer.iBuffer)->getBuffer()->GetGPUVirtualAddress();
 			handles.textureHandle = gpuHandle;
 
@@ -809,17 +809,20 @@ void DXR::createTemporalAccumulationResources(ID3D12GraphicsCommandList4* cmdLis
 		-1.0f, -1.0f, 0.f,
 		-1.0f,  1.0f, 0.f,
 		1.0f,   1.0f, 0.f,
-
-		-1.0f, -1.0f, 0.f,
-		1.0f,   1.0f, 0.f,
 		1.0f,  -1.0f, 0.f,
+	};
+	const unsigned int indices[] = {
+		0, 2, 1, 0, 3, 2
 	};
 
 	m_taVb = std::unique_ptr<DX12VertexBuffer>((DX12VertexBuffer*)m_renderer->makeVertexBuffer(sizeof(vertices), VertexBuffer::STATIC));
 	m_taVb->setData(vertices, sizeof(vertices), 0);
 
+	m_taIb = std::unique_ptr<DX12IndexBuffer>((DX12IndexBuffer*)m_renderer->makeIndexBuffer(sizeof(indices), IndexBuffer::STATIC));
+	m_taIb->setData(indices, sizeof(indices), 0);
+
 	m_taMesh = std::unique_ptr<DX12Mesh>((DX12Mesh*)m_renderer->makeMesh());
-	m_taMesh->setIAVertexBufferBinding(m_taVb.get(), 0, 6, sizeof(float) * 3);
+	m_taMesh->setIABinding(m_taVb.get(), m_taIb.get(), 0, 4, 6, sizeof(float) * 3);
 	m_taMesh->technique = (Technique*)m_taTechnique.get();
 
 	m_taMaterial = std::unique_ptr<DX12Material>((DX12Material*)m_renderer->makeMaterial("mat_accumulation"));

@@ -8,6 +8,7 @@
 
 class DX12Renderer;
 class DX12VertexBuffer;
+class DX12IndexBuffer;
 class DX12Material;
 class DX12Technique;
 class DX12RenderState;
@@ -164,6 +165,7 @@ private:
 
 	// Temporal Accumulation
 	std::unique_ptr<DX12VertexBuffer> m_taVb;
+	std::unique_ptr<DX12IndexBuffer> m_taIb;
 	std::unique_ptr<DX12Mesh> m_taMesh;
 	std::unique_ptr<DX12Material> m_taMaterial;
 	std::unique_ptr<DX12Technique> m_taTechnique;
