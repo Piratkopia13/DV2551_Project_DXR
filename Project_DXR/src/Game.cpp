@@ -54,12 +54,13 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* dino;
-	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 	//dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
+	m_animationSpeed = 1.0f;
 	
 	m_models.push_back(dino);
 
@@ -67,23 +68,23 @@ void Game::init() {
 	float floorTiling = 5.0f;
 	const Vertex floorVertices[] = {
 			{XMFLOAT3(-floorHalfWidth, 0.f, -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, floorTiling)},	// position, normal and UV
-			{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 			{XMFLOAT3(-floorHalfWidth, 0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(0.0f, 0.0f)},
+			{XMFLOAT3(floorHalfWidth,  0.f,  floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, 0.0f)},
 			{XMFLOAT3(floorHalfWidth, 0.f,  -floorHalfWidth), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT2(floorTiling, floorTiling)},
 	};
 	const unsigned int floorIndices[] {
-		0, 1, 2, 0, 3, 1
+		0, 1, 2, 0, 2, 3
 	};
 	float mirrorHalfWidth = 5.0f;
 	float mirrorHalfHeight = 8.0f;
 	const Vertex mirrorVertices[] = {
 		{XMFLOAT3(-mirrorHalfWidth, -mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 1.0f)},	// position, normal and UV
-		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
 		{XMFLOAT3(-mirrorHalfWidth,  mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(0.0f, 0.0f)},
+		{XMFLOAT3(mirrorHalfWidth,   mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 0.0f)},
 		{XMFLOAT3(mirrorHalfWidth,  -mirrorHalfHeight, 0.f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT2(1.0f, 1.0f)},
 	};
 	const unsigned int mirrorIndices[]{
-		0, 1, 2, 0, 3, 1
+		0, 1, 2, 0, 2, 3
 	};
 
 	// load Materials.
@@ -145,8 +146,8 @@ void Game::init() {
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, dino->getModelVertices().size(), dino->getModelIndices().size(), sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
-		m_meshes.back()->setTransform(m_meshes.back()->getTransform());
+		/*m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform());*/
 		//delete dino;
 	}
 	{
@@ -316,7 +317,7 @@ void Game::update(double dt) {
 
 	for (int i = 0; i < m_models.size(); i++) {
 		PotatoModel* pModel = m_models[i];
-		pModel->update(dt);
+		pModel->update(dt * m_animationSpeed);
 		if (m_dxRenderer->isDXRSupported())
 			m_dxRenderer->getDXR().updateBLASnextFrame(true); 
 
@@ -363,6 +364,12 @@ void Game::render(double dt) {
 }
 
 void Game::imguiFunc() {
+
+	if (ImGui::Begin("Animation")) {
+		ImGui::SliderFloat("Speed", &m_animationSpeed, 0.0f, 1.0f);
+		ImGui::End();
+	}
+
 	if (ImGui::Begin("Scene")) {
 		if (ImGui::CollapsingHeader("Models")) {
 			unsigned int i = 0;

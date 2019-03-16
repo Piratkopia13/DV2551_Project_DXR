@@ -5,6 +5,7 @@ RaytracingAccelerationStructure gRtScene : register(t0);
 RWTexture2D<float4> lOutput : register(u0);
 
 StructuredBuffer<Vertex> Vertices : register(t1, space0);
+StructuredBuffer<uint> Indices : register(t1, space1);
 
 Texture2D<float4> diffuseTexture : register(t2, space0);
 SamplerState ss : register(s0);
@@ -229,9 +230,9 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	// uint randSeed = initRand( DispatchRaysIndex().x + DispatchRaysIndex().y * DispatchRaysDimensions().x, 1 );
 
 	uint verticesPerPrimitive = 3;
-	Vertex vertex1 = Vertices[primitiveID * verticesPerPrimitive];
-	Vertex vertex2 = Vertices[primitiveID * verticesPerPrimitive + 1];
-	Vertex vertex3 = Vertices[primitiveID * verticesPerPrimitive + 2];
+	Vertex vertex1 = Vertices[Indices[primitiveID * verticesPerPrimitive]];
+	Vertex vertex2 = Vertices[Indices[primitiveID * verticesPerPrimitive + 1]];
+	Vertex vertex3 = Vertices[Indices[primitiveID * verticesPerPrimitive + 2]];
 
 	float3 normalInLocalSpace = barrypolation(barycentrics, vertex1.normal, vertex2.normal, vertex3.normal);
 	float3 normalInWorldSpace = normalize(mul(ObjectToWorld3x4(), normalInLocalSpace));

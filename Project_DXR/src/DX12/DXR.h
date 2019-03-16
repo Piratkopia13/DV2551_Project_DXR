@@ -24,6 +24,7 @@ namespace DXRGlobalRootParam {
 		FLOAT_RED_CHANNEL = 0,
 		SRV_ACCELERATION_STRUCTURE,
 		CBV_SCENE_BUFFER,
+		CBV_SETTINGS,
 		SIZE
 	};
 }
@@ -39,7 +40,6 @@ namespace DXRHitGroupRootParam {
 		SRV_INDEX_BUFFER,
 		DT_TEXTURES,
 		CBV_MATERIAL,
-		CBV_SETTINGS,
 		SIZE
 	};
 }

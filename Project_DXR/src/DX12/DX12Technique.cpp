@@ -30,7 +30,7 @@ DX12Technique::DX12Technique(DX12Material* m, DX12RenderState* r, DX12Renderer* 
 
 	//Specify rasterizer behaviour.
 	gpsd.RasterizerState.FillMode = (r->wireframeEnabled()) ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
-	gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 
 	//Specify blend descriptions.
 	D3D12_RENDER_TARGET_BLEND_DESC defaultRTdesc = {

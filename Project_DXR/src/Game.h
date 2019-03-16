@@ -46,9 +46,8 @@ private:
 	std::vector<std::unique_ptr<DX12Mesh>> m_meshes;
 
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
-
 	std::vector<PotatoModel*> m_models;
-
+	float m_animationSpeed;
 
 
 	// ImGui
