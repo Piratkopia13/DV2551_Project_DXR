@@ -836,7 +836,6 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 	for (int childIndex = 0; childIndex < node->GetChildCount(); ++childIndex) {
 		fetchGeometry(node->GetChild(childIndex), model, filename);
 	}
-	std::cout << std::endl;
 }
 void PotatoFBXImporter::fetchSkeleton(FbxNode * node, PotatoModel* model, const std::string & filename) {
 

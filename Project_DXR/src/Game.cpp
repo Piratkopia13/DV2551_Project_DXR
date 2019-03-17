@@ -13,7 +13,7 @@ Game::Game()
 
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
 	m_persCamera->setPosition(XMVectorSet(7.37f, 12.44f, 13.5f, 0.f));
-	m_persCamera->setDirection(XMVectorSet(-0.07f, -0.1f, -0.99f, 1.0f));
+	m_persCamera->setDirection(XMVectorSet(0.17f, -0.2f, -0.96f, 1.0f));
 	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get(), m_persCamera->getDirectionVec());
 
 	getRenderer().setClearColor(0.2f, 0.4f, 0.2f, 1.0f);
@@ -52,9 +52,11 @@ Game::~Game() {
 }
 
 void Game::init() {
+	m_animationSpeed = 1.0f;
+
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* _robo;
-#ifdef DEBUG
+#ifdef _DEBUG
 	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 #else
 	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
@@ -66,12 +68,12 @@ void Game::init() {
 	
 	m_models.push_back(_robo);
 	for (int i = 0; i < 4; i++) {
-		XMFLOAT3 position = { (i)*10.0f, 15, 36};
+		XMFLOAT3 position = { (i)*10.0f, 3.0f, 36.0f};
 		XMFLOAT3 rotation{ 0,0,0 };
-#ifdef DEBUG
+#ifdef _DEBUG
 		XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
 #else
-		XMFLOAT3 scale = { 0.01f, 0.01f, 0.01f };
+		XMFLOAT3 scale = { 0.03f, 0.03f, 0.03f };
 #endif
 		m_gameObjects.push_back(GameObject(m_models.back(), 0, position, rotation, scale));
 	}
@@ -134,8 +136,12 @@ void Game::init() {
 	m_texture->sampler = m_sampler.get();
 
 	m_floorTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
-	m_floorTexture->loadFromFile("../assets/textures/Dragon_ground_color.png");
+	m_floorTexture->loadFromFile("../assets/textures/floortilediffuse.png");
 	m_floorTexture->sampler = m_sampler.get();
+
+	m_dragonTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
+	m_dragonTexture->loadFromFile("../assets/textures/Dragon_ground_color.png");
+	m_dragonTexture->sampler = m_sampler.get();
 
 	m_ballBotTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
 	m_ballBotTexture->loadFromFile("../assets/textures/ballbot_lowres.png");
@@ -146,38 +152,6 @@ void Game::init() {
 	m_cornellTexture->sampler = m_sampler.get();
 
 	size_t offset = 0;
-
-	for (int i = 0; i < m_gameObjects.size(); i++) {
-		// Set up mesh from FBX file
-		// This is the first mesh and vertex buffer in the lists and therefor the ones modifiable via imgui
-		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), VertexBuffer::STATIC));
-		m_vertexBuffers.back()->setData(&m_gameObjects[i].getModel()->getModelVertices()[0], sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), offset);
-		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * m_gameObjects[i].getModel()->getModelIndices().size(), IndexBuffer::STATIC));
-		m_indexBuffers.back()->setData(&m_gameObjects[i].getModel()->getModelIndices()[0], sizeof(unsigned int) * m_gameObjects[i].getModel()->getModelIndices().size(), offset);
-		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, m_gameObjects[i].getModel()->getModelVertices().size(), m_gameObjects[i].getModel()->getModelIndices().size(), sizeof(Vertex));
-		m_meshes.back()->technique = m_technique.get();
-		m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		//m_meshes.back()->getTransform().setScale(DirectX::XMVectorSet(0.01f, 0.01f, 0.01f, 1.0f));
-		m_meshes.back()->setTransform(m_meshes.back()->getTransform());
-		//delete _robo;
-	}
-	{
-		//// Box mesh
-		//PotatoModel* box = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
-		//m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		//m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * box->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
-		//m_vertexBuffers.back()->setData(&box->getModelData()[0], sizeof(Vertex) * box->getModelData().size(), offset);
-		//m_meshes.back()->setIAVertexBufferBinding(m_vertexBuffers.back().get(), offset, box->getModelData().size(), sizeof(Vertex));
-		//m_meshes.back()->technique = m_technique.get();
-		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		///*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
-		//m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
-		//m_meshes.back()->getTransform().scaleUniformly(0.3f);
-		//m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
-		//delete box;
-	}
-
 	{
 		// Set up mirrror 1 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
@@ -190,6 +164,8 @@ void Game::init() {
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->getTransform().translate(XMVectorSet(0.0f, -1000.0f, 0.f, 0.0f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
 	}
 	{
 		// Set up mirrror 2 mesh
@@ -203,8 +179,9 @@ void Game::init() {
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->getTransform().translate(XMVectorSet(0.0f, -1000.0f, 0.f, 0.0f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
 	}
-
 	{
 		// Set up floor mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
@@ -217,6 +194,64 @@ void Game::init() {
 		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	}
+#ifndef _DEBUG
+	{
+		// Dragon mesh
+		PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * model->getModelIndices().size(), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(&model->getModelIndices()[0], sizeof(unsigned int) * model->getModelIndices().size(), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, model->getModelVertices().size(), model->getModelIndices().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_dragonTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		/*m_meshes.back()->getTransform().translate(XMVectorSet(7.0f, 7.0f, 1.f, 0.0f));
+		m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);*/
+		m_meshes.back()->getTransform().scaleUniformly(0.3f);
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
+		delete model;
+	}
+	{
+		// Cornell box
+		PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cornell_box.fbx");
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * model->getModelIndices().size(), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(&model->getModelIndices()[0], sizeof(unsigned int) * model->getModelIndices().size(), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, model->getModelVertices().size(), model->getModelIndices().size(), sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		m_meshes.back()->addTexture(m_cornellTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->getTransform().translate(XMVectorSet(0.0f, 0.01f, 0.f, 0.0f));
+		//m_meshes.back()->getTransform().setRotation(1.f, 1.f, 0.f);
+		m_meshes.back()->getTransform().setScale(XMVectorSet(1.7f, 1.f, 1.f, 1.f));
+		m_meshes.back()->setTransform(m_meshes.back()->getTransform()); // To update rasterisation CB
+		delete model;
+	}
+#endif
+
+	m_animatedModelsStartIndex = m_meshes.size();
+
+	for (int i = 0; i < m_gameObjects.size(); i++) {
+		// Set up multiple meshes from a single fbx model
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+
+		// Vertex buffer
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), VertexBuffer::STATIC));
+		m_vertexBuffers.back()->setData(m_gameObjects[i].getModel()->getModelVertices().data(), sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), offset);
+		// Index buffer
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * m_gameObjects[i].getModel()->getModelIndices().size(), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(m_gameObjects[i].getModel()->getModelIndices().data(), sizeof(unsigned int) * m_gameObjects[i].getModel()->getModelIndices().size(), offset);
+		// Binding
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, m_gameObjects[i].getModel()->getModelVertices().size(), m_gameObjects[i].getModel()->getModelIndices().size(), sizeof(Vertex));
+
+		// Technique
+		m_meshes.back()->technique = m_technique.get();
+		// Texture
+		m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		//delete _robo;
 	}
 
 
@@ -238,53 +273,9 @@ void Game::update(double dt) {
 		auto& r = static_cast<DX12Renderer&>(getRenderer());
 		r.enableDXR(!r.isDXREnabled());
 	}
-
 	if (Input::IsMouseButtonPressed(Input::MouseButton::RIGHT)) {
 		Input::showCursor(Input::IsCursorHidden());
 	}
-
-	if (Input::IsKeyDown('F')) {
-		Transform& mirrorTransform = m_meshes[2]->getTransform();
-
-		XMVECTOR camPos = m_persCamera->getPositionVec();
-		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
-
-		XMVECTOR d = XMVector3Normalize(pos - camPos);
-		float dx = XMVectorGetX(d);
-		float dy = XMVectorGetY(d);
-		float dz = XMVectorGetZ(d);
-
-		float pitch = asin(-dy);
-		float yaw = atan2(dx, dz);
-		XMMATRIX scale = XMMatrixScalingFromVector(XMLoadFloat3(&mirrorTransform.getScale()));
-		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
-		XMMATRIX mat = scale * rotMat * XMMatrixTranslationFromVector(pos);
-
-		mirrorTransform.setTransformMatrix(mat);
-		m_meshes[2]->setTransform(mirrorTransform);
-	}
-	if (Input::IsKeyDown('G')) {
-		Transform& mirrorTransform = m_meshes[3]->getTransform();
-
-		XMVECTOR camPos = m_persCamera->getPositionVec();
-		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
-
-		XMVECTOR d = XMVector3Normalize(pos - camPos);
-		float dx = XMVectorGetX(d);
-		float dy = XMVectorGetY(d);
-		float dz = XMVectorGetZ(d);
-
-		float pitch = asin(-dy);
-		float yaw = atan2(dx, dz);
-
-		XMMATRIX scale = XMMatrixScalingFromVector(XMLoadFloat3(&mirrorTransform.getScale()));
-		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
-		XMMATRIX mat = scale * rotMat * XMMatrixTranslationFromVector(pos);
-
-		mirrorTransform.setTransformMatrix(mat);
-		m_meshes[3]->setTransform(mirrorTransform);
-	}
-
 	// Lock mouseaaw
 	if (Input::IsCursorHidden()) {
 		POINT p;
@@ -295,9 +286,50 @@ void Game::update(double dt) {
 	}
 
 
+	if (Input::IsKeyDown('F')) {
+		Transform& mirrorTransform = m_meshes[0]->getTransform();
 
+		XMVECTOR camPos = m_persCamera->getPositionVec();
+		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
+
+		XMVECTOR d = XMVector3Normalize(pos - camPos);
+		float dx = XMVectorGetX(d);
+		float dy = XMVectorGetY(d);
+		float dz = XMVectorGetZ(d);
+
+		float pitch = asin(-dy);
+		float yaw = atan2(dx, dz);
+		XMMATRIX scale = XMMatrixScalingFromVector(XMLoadFloat3(&mirrorTransform.getScale()));
+		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
+		XMMATRIX mat = scale * rotMat * XMMatrixTranslationFromVector(pos);
+
+		mirrorTransform.setTransformMatrix(mat);
+		m_meshes[0]->setTransform(mirrorTransform);
+	}
+	if (Input::IsKeyDown('G')) {
+		Transform& mirrorTransform = m_meshes[1]->getTransform();
+
+		XMVECTOR camPos = m_persCamera->getPositionVec();
+		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
+
+		XMVECTOR d = XMVector3Normalize(pos - camPos);
+		float dx = XMVectorGetX(d);
+		float dy = XMVectorGetY(d);
+		float dz = XMVectorGetZ(d);
+
+		float pitch = asin(-dy);
+		float yaw = atan2(dx, dz);
+
+		XMMATRIX scale = XMMatrixScalingFromVector(XMLoadFloat3(&mirrorTransform.getScale()));
+		XMMATRIX rotMat = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYawFromVector(XMVectorSet(pitch, yaw, 0.f, 0.f)));
+		XMMATRIX mat = scale * rotMat * XMMatrixTranslationFromVector(pos);
+
+		mirrorTransform.setTransformMatrix(mat);
+		m_meshes[1]->setTransform(mirrorTransform);
+	}
+	
 	if (Input::IsKeyDown('H')) {
-		Transform& mainMeshTransform = m_meshes[1]->getTransform();
+		Transform& mainMeshTransform = m_meshes[3]->getTransform();
 
 		XMVECTOR camPos = m_persCamera->getPositionVec();
 		XMVECTOR pos = m_persCamera->getPositionVec() + m_persCamera->getDirectionVec() * 10.f;
@@ -314,6 +346,7 @@ void Game::update(double dt) {
 		XMMATRIX mat = rotMat * XMMatrixTranslationFromVector(pos);
 
 		mainMeshTransform.setTransformMatrix(mat);
+		m_meshes[3]->setTransform(mainMeshTransform);
 	}
 
 
@@ -350,13 +383,13 @@ void Game::fixedUpdate(double dt) {
 	for (int i = 0; i < m_gameObjects.size(); i++) {
 		PotatoModel* pModel = m_gameObjects[i].getModel();
 		m_gameObjects[i].update(dt * m_animationSpeed);
-		m_meshes[i]->setTransform(m_gameObjects[i].getTransform());
+		m_meshes[m_animatedModelsStartIndex + i]->setTransform(m_gameObjects[i].getTransform());
 
 		if (m_dxRenderer->isDXRSupported())
 			m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
 		m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
-			static_cast<DX12VertexBuffer*>(m_vertexBuffers[i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
+			static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
 		});
 	}
 }

@@ -30,7 +30,8 @@ DX12Material::DX12Material(const std::string& name, DX12Renderer* renderer)
 	isValid = false;
 
 	m_matProps.maxRecursionDepth = 3;
-	m_matProps.reflectionAttenuation = 1.0f;
+	m_matProps.reflectionAttenuation = 0.6f;
+	m_matProps.fuzziness = 0.03f;
 	m_matProps.albedoColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
 };
 

@@ -39,6 +39,7 @@ private:
 	std::unique_ptr<Technique> m_technique;
 	std::unique_ptr<Texture2D> m_texture;
 	std::unique_ptr<Texture2D> m_floorTexture;
+	std::unique_ptr<Texture2D> m_dragonTexture;
 	std::unique_ptr<Texture2D> m_ballBotTexture;
 	std::unique_ptr<Texture2D> m_cornellTexture;
 	std::unique_ptr<Sampler2D> m_sampler;
@@ -53,6 +54,7 @@ private:
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 	std::vector<PotatoModel*> m_models;
 	float m_animationSpeed;
+	int m_animatedModelsStartIndex;
 	std::vector<GameObject> m_gameObjects;
 
 
