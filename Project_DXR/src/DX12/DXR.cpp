@@ -37,14 +37,14 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 	createRaytracingPSO();
 	createShaderResources();
 	createTemporalAccumulationResources(cmdList);
-	/*createShaderResources();
-	createShaderTables();*/
 }
 
 void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 	if (m_updateBLAS) {
-		createShaderResources();
-		createShaderTables();
+		if (!m_newInPlace) {
+			createShaderResources();
+			createShaderTables();
+		}
 		createBLAS(cmdList, m_newInPlace);
 		m_updateBLAS = false;
 	}
@@ -143,20 +143,12 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 	
 	// Set topology
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	
-	size_t numIndices = m_taMesh->geometryBuffer.numIndices;
-	/*for (auto t : mesh->textures) {
-		static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
-	}*/
 
 	// Bind vertices, indices, normals and UVs
 	m_taMesh->bindIA(cmdList);
 
-	//// Bind translation constant buffer
-	//static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
-	//// Bind camera data constant buffer
-	//static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 	// Draw
+	size_t numIndices = m_taMesh->geometryBuffer.numIndices;
 	cmdList->DrawIndexedInstanced(static_cast<UINT>(numIndices), 1, 0, 0, 0);
 
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
@@ -356,12 +348,13 @@ void DXR::createShaderResources() {
 
 void DXR::createShaderTables() {
 
-	// TODO: possibly store vertex buffer in local signatures/shader table
-	//		 "Shader tables can be modified freely by the application (with appropriate state barriers)"
+	// 	 "Shader tables can be modified freely by the application (with appropriate state barriers)"
 
 	// Ray gen
 	{
-		m_rayGenShaderTable.Resource.Reset();
+		if (m_rayGenShaderTable.Resource) {
+			m_rayGenShaderTable.Resource->Release();
+		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_rayGenName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_rtOutputUAV.gpuHandle.ptr);
 		m_rayGenShaderTable = tableBuilder.build(m_renderer->getDevice());
@@ -369,7 +362,9 @@ void DXR::createShaderTables() {
 
 	// Miss
 	{
-		m_missShaderTable.Resource.Reset();
+		if (m_missShaderTable.Resource) {
+			m_missShaderTable.Resource->Release();
+		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr); // TODO: Check if correct
 		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
@@ -377,8 +372,9 @@ void DXR::createShaderTables() {
 
 	// Hit group
 	{
-		//auto rayGenHandle = m_rayGenSettingsCB->getBuffer(0)->GetGPUVirtualAddress();
-		m_hitGroupShaderTable.Resource.Reset();
+		if (m_hitGroupShaderTable.Resource) {
+			m_hitGroupShaderTable.Resource->Release();
+		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i);

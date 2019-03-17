@@ -54,11 +54,11 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* _robo;
-	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
-	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
 	
 	m_models.push_back(_robo);
@@ -68,7 +68,8 @@ void Game::init() {
 	for (int i = 0; i < 4; i++) {
 		XMFLOAT3 position = { (i)*10.0f, 15, 36};
 		XMFLOAT3 rotation{ 0,0,0 };
-		XMFLOAT3 scale = {0.01f, 0.01f, 0.01f};
+		//XMFLOAT3 scale = { 0.01f, 0.01f, 0.01f };
+		XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
 		m_gameObjects.push_back(GameObject(m_models.back(), 0, position, rotation, scale));
 	}
 
@@ -319,30 +320,6 @@ void Game::update(double dt) {
 
 	m_persCamera->updateConstantBuffer();
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
-	
-
-
-	
-
-}
-
-void Game::fixedUpdate(double dt) {
-	for (int i = 0; i < m_gameObjects.size(); i++) {
-		PotatoModel* pModel = m_gameObjects[i].getModel();
-		m_gameObjects[i].update(dt * m_animationSpeed);
-		m_meshes[i]->setTransform(m_gameObjects[i].getTransform());
-
-		if (m_dxRenderer->isDXRSupported())
-			m_dxRenderer->getDXR().updateBLASnextFrame(true);
-
-		m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
-			static_cast<DX12VertexBuffer*>(m_vertexBuffers[i].get())->updateData(
-				pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), 
-				sizeof(Vertex) * pModel->getModelVertices().size());
-		});
-	}
-
-
 
 	// Update camera constant buffer for rasterisation
 	for (auto& mesh : m_meshes)
@@ -361,6 +338,23 @@ void Game::fixedUpdate(double dt) {
 			// Reset temporal accumulation count when states affecting how the rendered image looks may have changed
 			m_dxRenderer->getDXR().getTemporalAccumulationCount() = 0;
 		}
+	}
+	
+
+}
+
+void Game::fixedUpdate(double dt) {
+	for (int i = 0; i < m_gameObjects.size(); i++) {
+		PotatoModel* pModel = m_gameObjects[i].getModel();
+		m_gameObjects[i].update(dt * m_animationSpeed);
+		m_meshes[i]->setTransform(m_gameObjects[i].getTransform());
+
+		if (m_dxRenderer->isDXRSupported())
+			m_dxRenderer->getDXR().updateBLASnextFrame(true);
+
+		m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
+			static_cast<DX12VertexBuffer*>(m_vertexBuffers[i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
+		});
 	}
 }
 
