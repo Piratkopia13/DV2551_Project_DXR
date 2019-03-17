@@ -744,7 +744,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// Execute stored functions that needs an open preCommand list
 	for (auto& func : m_preCommandFuncsToExecute) {
-		waitForGPU();
+		//waitForGPU();
 		func();
 	}
 	m_preCommandFuncsToExecute.clear();

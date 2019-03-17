@@ -54,22 +54,25 @@ Game::~Game() {
 void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* _robo;
-	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
+#ifdef DEBUG
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+#else
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot2.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions_2.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/shuttle.fbx");
-	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cubes_root.fbx");
+#endif
 	
 	m_models.push_back(_robo);
-	//for (int i = 0; i < _robo->getStackSize(); i++) {
-	//	m_gameObjects.push_back(GameObject(m_models.back(), i, {(i)*10.0f, 0, 0}));
-	//}
 	for (int i = 0; i < 4; i++) {
 		XMFLOAT3 position = { (i)*10.0f, 15, 36};
 		XMFLOAT3 rotation{ 0,0,0 };
-		//XMFLOAT3 scale = { 0.01f, 0.01f, 0.01f };
+#ifdef DEBUG
 		XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
+#else
+		XMFLOAT3 scale = { 0.01f, 0.01f, 0.01f };
+#endif
 		m_gameObjects.push_back(GameObject(m_models.back(), 0, position, rotation, scale));
 	}
 
@@ -135,7 +138,7 @@ void Game::init() {
 	m_floorTexture->sampler = m_sampler.get();
 
 	m_ballBotTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
-	m_ballBotTexture->loadFromFile("../assets/textures/ballbot.png");
+	m_ballBotTexture->loadFromFile("../assets/textures/ballbot_lowres.png");
 	m_ballBotTexture->sampler = m_sampler.get();
 
 	m_cornellTexture = std::unique_ptr<Texture2D>(getRenderer().makeTexture2D());
