@@ -122,7 +122,6 @@ void Game::init() {
 	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
 
 	MaterialProperties matProps = dxMaterial->getProperties();
-	matProps.fuzziness = 0.0f;
 	dxMaterial->setProperties(matProps);
 
 	// basic technique
@@ -474,11 +473,20 @@ void Game::imguiFunc() {
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(1 / 7.0f, 0.8f, 0.8f));
 			if (ImGui::Button("Reload DXR shaders")) {
 				std::cout << "Reloading DXR shaders.." << std::endl;
-				m_dxRenderer->waitForGPU();
-				m_dxRenderer->getDXR().reloadShaders();
+				m_dxRenderer->executeNextOpenPreCommand([&] {
+					m_dxRenderer->waitForGPU();
+					m_dxRenderer->getDXR().reloadShaders();
+				});
 			}
 			ImGui::PopStyleColor(3);
 			ImGui::PopID();
+			static bool drawNormals = dxr.getRTFlags() & RT_DRAW_NORMALS;
+			if (ImGui::Checkbox("Draw normals only", &drawNormals)) {
+				if (drawNormals)
+					dxr.getRTFlags() |= RT_DRAW_NORMALS;
+				else
+					dxr.getRTFlags() &= ~RT_DRAW_NORMALS;
+			}
 			ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::Spacing();
@@ -489,14 +497,6 @@ void Game::imguiFunc() {
 					dxr.getRTFlags() |= RT_ENABLE_AO;
 				else
 					dxr.getRTFlags() &= ~RT_ENABLE_AO;
-			}
-			ImGui::SameLine();
-			static bool drawNormals = dxr.getRTFlags() & RT_DRAW_NORMALS;
-			if (ImGui::Checkbox("Draw normals", &drawNormals)) {
-				if (drawNormals)
-					dxr.getRTFlags() |= RT_DRAW_NORMALS;
-				else
-					dxr.getRTFlags() &= ~RT_DRAW_NORMALS;
 			}
 			ImGui::SliderFloat("AO radius", &dxr.getAORadius(), 0.1f, 10.0f);
 			ImGui::SliderInt("AO rays", (int*)&dxr.getNumAORays(), 1, 100);
@@ -518,18 +518,19 @@ void Game::imguiFunc() {
 			ImGui::Spacing();
 
 			static bool enableTA = dxr.getRTFlags() & RT_ENABLE_TA;
+			static bool enableAA = dxr.getRTFlags() & RT_ENABLE_JITTER_AA;
 			if (ImGui::Checkbox("Enable TA", &enableTA)) {
-				if (enableTA)
+				if (enableTA) {
 					dxr.getRTFlags() |= RT_ENABLE_TA;
-				else
+					dxr.getRTFlags() |= RT_ENABLE_JITTER_AA;
+					enableAA = true;
+				} else {
 					dxr.getRTFlags() &= ~RT_ENABLE_TA;
+					dxr.getRTFlags() &= ~RT_ENABLE_JITTER_AA;
+					enableAA = false;
+				}
 			}
 			ImGui::Text("Accumulation count: %i", dxr.getTemporalAccumulationCount());
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
-
-			static bool enableAA = dxr.getRTFlags() & RT_ENABLE_JITTER_AA;
 			if (ImGui::Checkbox("Enable camera jitter AA", &enableAA)) {
 				if (enableAA)
 					dxr.getRTFlags() |= RT_ENABLE_JITTER_AA;
@@ -539,6 +540,7 @@ void Game::imguiFunc() {
 			ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::Spacing();
+
 
 			DX12Material* dxMaterial = ((DX12Material*)m_material.get());
 			MaterialProperties matProps = dxMaterial->getProperties();

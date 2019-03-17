@@ -13,7 +13,7 @@ typedef uint UINT;
 #define MERGE(a, b) a##b
 
 // Shader only globals
-static float3 g_lightDirection = float3(0.513861f, -0.596225f, -0.616817f);
+static float3 g_lightDirection = float3(-1.113861f, -0.596225f, -0.616817f);
 #define M_1_PI 0.318309886183790671538
 
 // Shader only functions

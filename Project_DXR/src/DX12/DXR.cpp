@@ -354,6 +354,7 @@ void DXR::createShaderTables() {
 	{
 		if (m_rayGenShaderTable.Resource) {
 			m_rayGenShaderTable.Resource->Release();
+			m_rayGenShaderTable.Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_rayGenName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_rtOutputUAV.gpuHandle.ptr);
@@ -364,6 +365,7 @@ void DXR::createShaderTables() {
 	{
 		if (m_missShaderTable.Resource) {
 			m_missShaderTable.Resource->Release();
+			m_missShaderTable.Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr); // TODO: Check if correct
@@ -374,6 +376,7 @@ void DXR::createShaderTables() {
 	{
 		if (m_hitGroupShaderTable.Resource) {
 			m_hitGroupShaderTable.Resource->Release();
+			m_hitGroupShaderTable.Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
