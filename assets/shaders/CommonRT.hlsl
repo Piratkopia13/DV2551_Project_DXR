@@ -15,6 +15,8 @@ typedef uint UINT;
 // Shader only globals
 static float3 g_lightDirection = float3(-1.113861f, -0.596225f, -0.616817f);
 #define M_1_PI 0.318309886183790671538
+#define DIFFUSE_TEXTURE_INDEX 0
+#define MATERIAL_TEXTURE_INDEX 1
 
 // Shader only functions
 float2 wsVectorToLatLong(float3 dir) {
