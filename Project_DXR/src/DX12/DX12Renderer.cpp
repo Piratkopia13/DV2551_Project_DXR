@@ -856,9 +856,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_directCommandQueue->Wait(m_computeQueueFence.Get(), m_numFrames);
 		m_computeCommandQueue->Signal(m_computeQueueFence.Get(), m_numFrames);
 
-
-		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
-
 		// Do post process temporal accumulation from the dxr output
 		// Bind pipeline state set up with the correct shaders
 		m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
