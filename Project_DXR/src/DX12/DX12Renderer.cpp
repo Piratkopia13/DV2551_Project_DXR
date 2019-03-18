@@ -290,6 +290,8 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	// ImGui
 	initImGui();
 
+	m_numFrames = 0;
+
 	return 0;
 }
 
@@ -365,31 +367,42 @@ void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_directCommandQueue)));
+	m_directCommandQueue->SetName(L"Direct Command Queue");
 
 	// Create compute command queue
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_computeCommandQueue)));
+	m_computeCommandQueue->SetName(L"Compute Command Queue");
 
 	// Create copy command queue
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_copyCommandQueue)));
+	m_copyCommandQueue->SetName(L"Copy Command Queue");
 
 	// Create allocators
 	m_preCommand.allocators.resize(NUM_SWAP_BUFFERS);
 	m_postCommand.allocators.resize(NUM_SWAP_BUFFERS);
+	m_computeCommand.allocators.resize(NUM_SWAP_BUFFERS);
+	m_copyCommand.allocators.resize(NUM_SWAP_BUFFERS);
 	for (UINT i = 0; i < NUM_SWAP_BUFFERS; i++) {
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_preCommand.allocators[i])));
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_postCommand.allocators[i])));
+		// TODO: Is this required?
+		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeCommand.allocators[i])));
+		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&m_copyCommand.allocators[i])));
 	}
 	// Create command lists
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_preCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_preCommand.list)));
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_postCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_postCommand.list)));
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_computeCommand.list)));
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, m_copyCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_copyCommand.list)));
 
 	// Command lists are created in the recording state. Since there is nothing to
 	// record right now and the main loop expects it to be closed, we close them
 	m_preCommand.list->Close();
 	m_postCommand.list->Close();
-
+	m_computeCommand.list->Close();
+	m_copyCommand.list->Close();
 
 	// 5. Create swap chain
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
@@ -424,6 +437,12 @@ void DX12Renderer::createFenceAndEventHandle() {
 		m_fenceValues[i] = 1;
 	// Create an event handle to use for GPU synchronization
 	m_eventHandle = CreateEvent(0, false, false, 0);
+
+
+
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_computeQueueFence)));
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_copyQueueFence)));
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_directQueueFence)));
 }
 
 void DX12Renderer::createRenderTargets() {
@@ -562,6 +581,12 @@ bool DX12Renderer::checkRayTracingSupport() {
 }
 
 HRESULT DX12Renderer::initImGui() {
+	// Create the ImGui-specific descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NumDescriptors = 1;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiDescHeap)));
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -592,14 +617,6 @@ void DX12Renderer::createShaderResources() {
 	samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerDescriptorHeap)));
 	m_samplerDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-
-
-
-	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	desc.NumDescriptors = 1;
-	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiDescHeap)));
 }
 
 void DX12Renderer::createDepthStencilResources() {
@@ -722,7 +739,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// TODO: check if drawList differs from last frame, if so rebuild DXR acceleration structures
 
-
 	if (m_firstFrame) {
 		//Execute the initialization command list
 		ThrowIfFailed(m_preCommand.list->Close());
@@ -768,7 +784,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 	m_preCommand.list->ClearRenderTargetView(m_cdh, m_clearColor, 0, nullptr);
 	m_preCommand.list->ClearDepthStencilView(m_dsvDescHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
+	
 	if (!m_DXREnabled) {
 		m_preCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 		// Set topology
@@ -816,8 +832,26 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// DXR
 	if (m_DXREnabled) {
-		m_dxr->updateAS(m_postCommand.list.Get());
-		m_dxr->doTheRays(m_postCommand.list.Get());
+		if (!m_firstFrame)
+			m_computeCommandQueue->Wait(m_directQueueFence.Get(), m_numFrames);
+
+		m_computeCommand.allocators[getFrameIndex()]->Reset();
+		m_computeCommand.list->Reset(m_computeCommand.allocators[getFrameIndex()].Get(), nullptr);
+		m_dxr->updateAS(m_computeCommand.list.Get());
+		m_dxr->doTheRays(m_computeCommand.list.Get());
+
+		/* Dispatch compute queue for AS and rays here */
+		m_computeCommand.list->Close();
+		ID3D12CommandList* listsToExecute[] = { m_computeCommand.list.Get() };
+		// Wait for last frame to finish rendering
+		//m_computeCommandQueue->Wait(m_directQueueFence.Get(), getFrameIndex());
+		m_computeCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		// Add a wait for the copy queue
+		m_directCommandQueue->Wait(m_computeQueueFence.Get(), m_numFrames);
+		m_computeCommandQueue->Signal(m_computeQueueFence.Get(), m_numFrames);
+
+
+		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 
 		// Do post process temporal accumulation from the dxr output
 		// Bind pipeline state set up with the correct shaders
@@ -827,7 +861,8 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 		if (m_dxr->getRTFlags() & RT_ENABLE_TA) {
 			m_dxr->doTemporalAccumulation(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
-		} else {
+		}
+		else {
 			m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 		}
 
@@ -874,8 +909,10 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_postCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_postCommand.list.Get() };
 		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->Signal(m_directQueueFence.Get(), m_numFrames + 1);
 	}
 
+	m_numFrames++;
 };
 #else
 void DX12Renderer::frame(std::function<void()> imguiFunc) {

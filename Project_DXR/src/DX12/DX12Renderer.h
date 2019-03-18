@@ -140,11 +140,23 @@ private:
 	std::unique_ptr<DXR> m_dxr;
 
 	wComPtr<ID3D12Device5> m_device;
+
+	// Queues
 	wComPtr<ID3D12CommandQueue> m_directCommandQueue;
 	wComPtr<ID3D12CommandQueue> m_computeCommandQueue;
 	wComPtr<ID3D12CommandQueue> m_copyCommandQueue;
+
+	// Commands
 	Command m_preCommand;
 	Command m_postCommand;
+	Command m_copyCommand;
+	Command m_computeCommand;
+
+	/* DXR Fence */
+	wComPtr<ID3D12Fence1> m_computeQueueFence;
+	wComPtr<ID3D12Fence1> m_copyQueueFence;
+	wComPtr<ID3D12Fence1> m_directQueueFence;
+
 	wComPtr<ID3D12Fence1> m_fence;
 	wComPtr<ID3D12DescriptorHeap> m_renderTargetsHeap;
 	wComPtr<IDXGISwapChain4> m_swapChain;
@@ -196,6 +208,9 @@ private:
 	//UINT8* m_pDataEnd = nullptr; // End position of upload buffer
 
 	std::unordered_map<DX12Technique*, std::vector<DX12Mesh*>> drawList;
+
+	// Number of frames that has been rendered during application execution
+	UINT64 m_numFrames;
 
 };
 
