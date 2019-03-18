@@ -9,6 +9,7 @@ Application::Application(int windowWidth, int windowHeight, const char* windowTi
 
 	ZeroMemory(frameTimeHistory, FRAME_HISTORY_COUNT * sizeof(float));
 
+	m_timeSinceLastUpdate = 0;
 }
 
 Application::~Application() {
