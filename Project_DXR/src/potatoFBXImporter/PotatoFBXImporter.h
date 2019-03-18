@@ -49,7 +49,7 @@ private:
 
 
 
-
+	void printAnimationStack(FbxNode* node);
 
 
 

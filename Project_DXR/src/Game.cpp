@@ -67,7 +67,7 @@ void Game::init() {
 #endif
 	
 	m_models.push_back(_robo);
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < _robo->getStackSize(); i++) {
 		XMFLOAT3 position = { (i)*10.0f, 3.0f, 36.0f};
 		XMFLOAT3 rotation{ 0,0,0 };
 #ifdef _DEBUG
@@ -75,7 +75,7 @@ void Game::init() {
 #else
 		XMFLOAT3 scale = { 0.03f, 0.03f, 0.03f };
 #endif
-		m_gameObjects.push_back(GameObject(m_models.back(), 0, position, rotation, scale));
+		m_gameObjects.push_back(GameObject(m_models.back(), i, position, rotation, scale));
 	}
 
 	float floorHalfWidth = 50.0f;

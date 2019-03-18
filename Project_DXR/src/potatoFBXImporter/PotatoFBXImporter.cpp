@@ -103,6 +103,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	PotatoModel* model = new PotatoModel();
 	
 	FbxNode * root = scene->GetRootNode();
+	printAnimationStack(root);
 	if (root) {
 		fetchSkeleton(root, model, objName);
 		fetchGeometry(root, model, objName);
@@ -620,11 +621,11 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 					int stackCount = scene->GetSrcObjectCount<FbxAnimStack>();
 					//cout << filename << " StackSize: " << to_string(stackCount) << endl;
-					model->reSizeAnimationStack(1);
-					for (int currentStack = 0; currentStack < 1; currentStack++) {
+					model->reSizeAnimationStack(stackCount);
+					for (int currentStack = 0; currentStack < stackCount; currentStack++) {
 						FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(currentStack);
 						FbxTakeInfo* takeInfo = scene->GetTakeInfo(currAnimStack->GetName());
-						
+						node->GetScene()->SetCurrentAnimationStack(currAnimStack);
 						FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
 						FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
 						//cout << "Animation Time: " << to_string((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble()) << " Frame Count: " << to_string((int)end.GetFrameCount(FbxTime::eFrames24)) << endl;
@@ -635,6 +636,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 							if (firstFrameTime == 0.0f)
 								firstFrameTime = currTime.GetSecondDouble();
 							FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
+							//node->GetScene()->GetAnimationEvaluator()->GetNodeGlobalTransform(node, currTime);
 							//cout << (currTime.GetSecondDouble() - firstFrameTime) << endl;
 							model->addFrame(currentStack, limbIndex, currTime.GetSecondDouble()-firstFrameTime,
 								convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime)));
@@ -876,3 +878,12 @@ void PotatoFBXImporter::fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* mod
 }
 
 
+void PotatoFBXImporter::printAnimationStack(FbxNode* node) {
+
+	int stackCount = node->GetScene()->GetSrcObjectCount<FbxAnimStack>();
+	cout << " StackSize: " << to_string(stackCount) << endl;
+	for (int currentStack = 0; currentStack < stackCount; currentStack++) {
+		FbxAnimStack* currAnimStack = node->GetScene()->GetSrcObject<FbxAnimStack>(currentStack);
+		std::cout << currAnimStack->GetName() << std::endl;
+	}
+}
