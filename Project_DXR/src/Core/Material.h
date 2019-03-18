@@ -47,7 +47,7 @@ public:
 	 * In principle, it should only be necessary to re-compile if the defines set 
 	 * has changed.
 	*/
-	virtual int compileMaterial(std::string& errString) = 0;
+	virtual int compileMaterial(std::string& errString) { assert(false); /*DONT USE THIS METHOD, USE THE ONE IN DX12MATERIAL*/ return -1; };
 
 	// this constant buffer will be bound every time we bind the material
 	virtual void addConstantBuffer(std::string name, unsigned int location, size_t size) = 0;

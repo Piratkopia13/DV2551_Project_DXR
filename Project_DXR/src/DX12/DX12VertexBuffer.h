@@ -14,6 +14,7 @@ public:
 	DX12VertexBuffer(size_t byteSize, VertexBuffer::DATA_USAGE usage, DX12Renderer* renderer);
 	virtual ~DX12VertexBuffer();
 	virtual void setData(const void* data, size_t size, size_t offset) override;
+	void updateData(const void* data, size_t size);
 	virtual void bind(size_t offset, size_t size, unsigned int location) override;
 	void bind(size_t offset, size_t size, unsigned int location, ID3D12GraphicsCommandList3* cmdList);
 	virtual void unbind() override;

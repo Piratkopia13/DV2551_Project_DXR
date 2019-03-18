@@ -14,6 +14,7 @@ public:
 	virtual void init() = 0;
 	virtual void update(double dt) = 0;
 	virtual void render(double dt) = 0;
+	virtual void fixedUpdate(double dt) = 0;
 
 	Renderer& getRenderer();
 	const UINT getFPS() const;
@@ -28,6 +29,7 @@ private:
 private:
 	std::unique_ptr<Renderer> m_renderer;
 	double m_lastDelta;
+	double m_timeSinceLastUpdate;
 	char m_titleBuff[256];
 
 };

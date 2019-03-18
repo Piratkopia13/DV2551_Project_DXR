@@ -3,6 +3,7 @@
 #include "DX12.h"
 #include "DXILShaderCompiler.h"
 #include <d3d12.h>
+#include <DirectXMath.h>
 
 class D3DUtils {
 public:
@@ -20,22 +21,27 @@ public:
 		ID3D12Resource1** uploadBuffer
 	);
 
-	static ID3D12Resource1* createBuffer(ID3D12Device5* device, UINT64 size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps) {
-		D3D12_RESOURCE_DESC bufDesc = {};
-		bufDesc.Alignment = 0;
-		bufDesc.DepthOrArraySize = 1;
-		bufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		bufDesc.Flags = flags;
-		bufDesc.Format = DXGI_FORMAT_UNKNOWN;
-		bufDesc.Height = 1;
-		bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		bufDesc.MipLevels = 1;
-		bufDesc.SampleDesc.Count = 1;
-		bufDesc.SampleDesc.Quality = 0;
-		bufDesc.Width = size;
+	static ID3D12Resource1* createBuffer(ID3D12Device5* device, UINT64 size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps, D3D12_RESOURCE_DESC* bufDesc = nullptr) {
+
+		D3D12_RESOURCE_DESC newBufDesc = {};
+		if (!bufDesc) {
+			newBufDesc.Alignment = 0;
+			newBufDesc.DepthOrArraySize = 1;
+			newBufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+			newBufDesc.Flags = flags;
+			newBufDesc.Format = DXGI_FORMAT_UNKNOWN;
+			newBufDesc.Height = 1;
+			newBufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+			newBufDesc.MipLevels = 1;
+			newBufDesc.SampleDesc.Count = 1;
+			newBufDesc.SampleDesc.Quality = 0;
+			newBufDesc.Width = size;
+
+			bufDesc = &newBufDesc;
+		}
 
 		ID3D12Resource1* pBuffer = nullptr;
-		device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, initState, nullptr, IID_PPV_ARGS(&pBuffer));
+		device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, bufDesc, initState, nullptr, IID_PPV_ARGS(&pBuffer));
 		return pBuffer;
 	}
 
@@ -51,7 +57,9 @@ public:
 		commandList->ResourceBarrier(1, &barrierDesc);
 	}
 
-
+	static bool xmMatrixEqual(const DirectX::XMMATRIX& mat1, const DirectX::XMMATRIX& mat2) {
+		return DirectX::XMVector4Equal(mat1.r[0], mat2.r[0]) && DirectX::XMVector4Equal(mat1.r[1], mat2.r[1]) && DirectX::XMVector4Equal(mat1.r[2], mat2.r[2]) && DirectX::XMVector4Equal(mat1.r[3], mat2.r[3]);
+	}
 
 	class PSOBuilder {
 	public:

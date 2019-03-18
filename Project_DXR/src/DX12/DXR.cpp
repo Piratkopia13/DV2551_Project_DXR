@@ -2,8 +2,11 @@
 #include "DXR.h"
 #include "DX12Renderer.h"
 #include "DX12VertexBuffer.h"
+#include "DX12IndexBuffer.h"
 #include "DXILShaderCompiler.h"
 #include "DX12ConstantBuffer.h"
+#include "DX12Material.h"
+#include "DX12Technique.h"
 #include "DX12Texture2D.h"
 #include "DX12Texture2DArray.h"
 #include "DX12Mesh.h"
@@ -20,6 +23,8 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_camera(nullptr)
 	, m_meshes(nullptr)
 	, m_skyboxTexture(nullptr)
+	, m_gen(m_rd())
+	, m_dis(0.f, 1.0f)
 {
 }
 
@@ -31,14 +36,16 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 	createAccelerationStructures(cmdList);
 	createDxrGlobalRootSignature();
 	createRaytracingPSO();
-	/*createShaderResources();
-	createShaderTables();*/
+	createShaderResources();
+	createTemporalAccumulationResources(cmdList);
 }
 
 void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 	if (m_updateBLAS) {
-		createShaderResources();
-		createShaderTables();
+		if (!m_newInPlace) {
+			createShaderResources();
+			createShaderTables();
+		}
 		createBLAS(cmdList, m_newInPlace);
 		m_updateBLAS = false;
 	}
@@ -55,14 +62,20 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 	// Update constant buffers
 	if (m_camera) {
+		XMMATRIX jitterMat = XMMatrixIdentity();
+		if (getRTFlags() & RT_ENABLE_JITTER_AA) {
+			float jitterX = (m_dis(m_gen) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowWidth();
+			float jitterY = (m_dis(m_gen) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowHeight();
+			jitterMat = XMMatrixTranslation(jitterX, jitterY, 0.f);
+		}
 		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
-		m_sceneCBData->projectionToWorld = m_camera->getInvProjMatrix() * m_camera->getInvViewMatrix();
+		m_sceneCBData->projectionToWorld = (m_camera->getInvProjMatrix() * jitterMat) * m_camera->getInvViewMatrix();
 		m_sceneCB->setData(m_sceneCBData, 0);
 	}
 
 	m_rayGenCBData.frameCount++;
 	m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
-	m_rayGenSettingsCB->forceUpdate(0);
+	//m_rayGenSettingsCB->forceUpdate(0);
 
 
 	//Set constant buffer descriptor heap
@@ -99,6 +112,8 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
 	// Set scene constant buffer
 	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SCENE_BUFFER, m_sceneCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
+	// Set ray gen settings constant buffer
+	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SETTINGS, m_rayGenSettingsCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
 
 	// Dispatch
 	cmdList->SetPipelineState1(m_rtPipelineState.Get());
@@ -106,13 +121,60 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 }
 
+void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* renderTarget) {
+
+	// Reset accumCount if camera has moved
+	if (!D3DUtils::xmMatrixEqual(m_camViewMat, m_camera->getViewMatrix())) {
+		m_camViewMat = m_camera->getViewMatrix();
+		m_taCBData.accumCount = 0;
+	}
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	cmdList->SetGraphicsRootSignature(m_renderer->getRootSignature());
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_taSrvDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
+	cmdList->SetGraphicsRootDescriptorTable(GlobalRootParam::DT_SRVS, m_taSrvGPUHandle);
+
+	cmdList->SetPipelineState(m_taTechnique->getPipelineState());
+	// Enable the technique
+	// This binds constant buffers
+	m_taTechnique->enable(m_renderer, cmdList);
+	
+	// Set topology
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Bind vertices, indices, normals and UVs
+	m_taMesh->bindIA(cmdList);
+
+	// Draw
+	size_t numIndices = m_taMesh->geometryBuffer.numIndices;
+	cmdList->DrawIndexedInstanced(static_cast<UINT>(numIndices), 1, 0, 0, 0);
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, renderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	// Copy this frames output to the last frame texture
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_taLastFrameBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+	cmdList->CopyResource(m_taLastFrameBuffer.Get(), renderTarget);
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_taLastFrameBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	D3DUtils::setResourceTransitionBarrier(cmdList, renderTarget, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	// Increase frame accumulation count
+	m_taMaterial->updateConstantBuffer(&m_taCBData, 0);
+	m_taCBData.accumCount++;
+}
+
 void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target) {
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 	// Copy the results to the back-buffer
 	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
-	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	cmdList->CopyResource(target, m_rtOutputUAV.resource.Get());
 	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 }
 
 void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
@@ -125,7 +187,7 @@ void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
 
 void DXR::setSkyboxTexture(DX12Texture2D* texture) {
 	m_skyboxTexture = texture;
-	m_skyboxGPUDescHandle = m_skyboxTexture->getGpuDescHandle();
+	//m_skyboxGPUDescHandle = m_skyboxTexture->getGpuDescHandle();
 }
 
 void DXR::updateBLASnextFrame(bool inPlace) {
@@ -163,6 +225,18 @@ UINT& DXR::getNumAORays() {
 	return m_rayGenCBData.numAORays;
 }
 
+UINT& DXR::getNumGISamples() {
+	return m_rayGenCBData.GISamples;
+}
+
+UINT& DXR::getNumGIBounces() {
+	return m_rayGenCBData.GIBounces;
+}
+
+UINT& DXR::getTemporalAccumulationCount() {
+	return m_taCBData.accumCount;
+}
+
 void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 	createBLAS(cmdList);
 	createTLAS(cmdList);
@@ -170,95 +244,120 @@ void DXR::createAccelerationStructures(ID3D12GraphicsCommandList4* cmdList) {
 
 void DXR::createShaderResources() {
 
-	m_rtDescriptorHeap.Reset();
-	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-	heapDescriptorDesc.NumDescriptors = 10;
-	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	m_renderer->getDevice()->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_rtDescriptorHeap));
+	// Create some resources only once on init
+	if (!m_rtDescriptorHeap) {
+		m_rtDescriptorHeap.Reset();
+		D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
+		heapDescriptorDesc.NumDescriptors = 10;
+		heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		m_renderer->getDevice()->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_rtDescriptorHeap));
 
-	// Create the output resource. The dimensions and format should match the swap-chain
-	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.DepthOrArraySize = 1;
-	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // The backbuffer is actually DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, but sRGB formats can't be used with UAVs. We will convert to sRGB ourselves in the shader
-	resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-	resDesc.Width = m_renderer->getWindow()->getWindowWidth();
-	resDesc.Height = m_renderer->getWindow()->getWindowHeight();
-	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resDesc.MipLevels = 1;
-	resDesc.SampleDesc.Count = 1;
-	m_renderer->getDevice()->CreateCommittedResource(&D3DUtils::sDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&m_rtOutputUAV.resource)); // Starting as copy-source to simplify onFrameRender()
-	m_rtOutputUAV.resource->SetName(L"RTOutputUAV");
+		m_heapIncr = m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// Create the UAV. Based on the root signature we created it should be the first entry
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		// Create the output resource. The dimensions and format should match the swap-chain
+		D3D12_RESOURCE_DESC resDesc = {};
+		resDesc.DepthOrArraySize = 1;
+		resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // The backbuffer is actually DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, but sRGB formats can't be used with UAVs. We will convert to sRGB ourselves in the shader
+		resDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		resDesc.Width = m_renderer->getWindow()->getWindowWidth();
+		resDesc.Height = m_renderer->getWindow()->getWindowHeight();
+		resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		resDesc.MipLevels = 1;
+		resDesc.SampleDesc.Count = 1;
+		m_renderer->getDevice()->CreateCommittedResource(&D3DUtils::sDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&m_rtOutputUAV.resource)); // Starting as copy-source to simplify onFrameRender()
+		m_rtOutputUAV.resource->SetName(L"RTOutputUAV");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+		// Create the UAV. Based on the root signature we created it should be the first entry
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
-	// Create a view for the output UAV
-	m_renderer->getDevice()->CreateUnorderedAccessView(m_rtOutputUAV.resource.Get(), nullptr, &uavDesc, cpuHandle);
-	m_rtOutputUAV.gpuHandle = gpuHandle;
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_rtDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_rtDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-	// Create a view for each mesh textures
-		/*TODO: Replace textures with TextureArrays in shader tables - might not be required*/
-	auto incr = m_renderer->getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	m_rtMeshHandles.clear();
-	for (auto& mesh : *m_meshes) {
-		//DX12Texture2D* texture = static_cast<DX12Texture2D*>(mesh->textures.begin()->second);
-		DX12Texture2DArray* texture = mesh->getTexture2DArray();
+		// Create a view for the output UAV
+		m_renderer->getDevice()->CreateUnorderedAccessView(m_rtOutputUAV.resource.Get(), nullptr, &uavDesc, cpuHandle);
+		m_rtOutputUAV.gpuHandle = gpuHandle;
+		cpuHandle.ptr += m_heapIncr;
+		gpuHandle.ptr += m_heapIncr;
 
-		cpuHandle.ptr += incr;
-		gpuHandle.ptr += incr;
+		// Store heap start for views that might update in runtime
+		m_rtHeapCPUHandle = cpuHandle;
+		m_rtHeapGPUHandle = gpuHandle;
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = texture->getSRVDesc();
-		/*srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = texture->getFormat();
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = texture->getMips();*/
-		m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
+		// Ray gen settings CB
+		m_rayGenCBData.flags = RT_ENABLE_TA | RT_ENABLE_JITTER_AA;
+		m_rayGenCBData.numAORays = 5;
+		m_rayGenCBData.AORadius = 0.9f;
+		m_rayGenCBData.frameCount = 0;
+		m_rayGenCBData.GISamples = 1;
+		m_rayGenCBData.GIBounces = 1;
+		m_rayGenSettingsCB = std::make_unique<DX12ConstantBuffer>("Ray Gen Settings CB", sizeof(RayGenSettings), m_renderer);
+		m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
 
-		MeshHandles handles;
-		handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.buffer)->getBuffer()->GetGPUVirtualAddress();
-		handles.textureHandle = gpuHandle;
-		m_rtMeshHandles.emplace_back(handles);
+		// Scene CB
+		m_sceneCBData = new SceneConstantBuffer();
+		m_sceneCB = std::make_unique<DX12ConstantBuffer>("Scene Constant Buffer", sizeof(SceneConstantBuffer), m_renderer);
+		m_sceneCB->setData(m_sceneCBData, 0/*Not used*/);
 	}
 
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_rtHeapCPUHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_rtHeapGPUHandle;
+
 	// Create Shader Resource Handle here for skybox
-	cpuHandle.ptr += incr;
-	m_skyboxGPUDescHandle.ptr = gpuHandle.ptr + incr;
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = m_skyboxTexture->getFormat();
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = m_skyboxTexture->getMips();
-	m_renderer->getDevice()->CreateShaderResourceView(m_skyboxTexture->getResource(), &srvDesc, cpuHandle);
+	if (m_skyboxTexture) {
+		m_skyboxGPUDescHandle = gpuHandle;
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = m_skyboxTexture->getFormat();
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = m_skyboxTexture->getMips();
+		m_renderer->getDevice()->CreateShaderResourceView(m_skyboxTexture->getResource(), &srvDesc, cpuHandle);
+		cpuHandle.ptr += m_heapIncr;
+		gpuHandle.ptr += m_heapIncr;
+	}
 
-	// Ray gen settings CB
-	m_rayGenCBData.flags = 0;
-	m_rayGenCBData.numAORays = 5;
-	m_rayGenCBData.AORadius = 0.9f;
-	m_rayGenCBData.frameCount = 0;
-	m_rayGenSettingsCB = new DX12ConstantBuffer("Ray Gen Settings CB", sizeof(RayGenSettings), m_renderer);
-	m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
+	// Create a view for each mesh textures
+	if (m_meshes) {
+		m_rtMeshHandles.clear();
+		for (auto& mesh : *m_meshes) {
+			DX12Texture2DArray* texture = mesh->getTexture2DArray();
 
-	// Scene CB
-	m_sceneCBData = new SceneConstantBuffer();
-	m_sceneCB = new DX12ConstantBuffer("Scene Constant Buffer", sizeof(SceneConstantBuffer), m_renderer);
-	m_sceneCB->setData(m_sceneCBData, 0/*Not used*/);
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = texture->getSRVDesc();
+			/*srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = texture->getFormat();
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = texture->getMips();*/
+			m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
+
+			MeshHandles handles;
+			handles.vertexBufferHandle = static_cast<DX12VertexBuffer*>(mesh->geometryBuffer.vBuffer)->getBuffer()->GetGPUVirtualAddress();
+			handles.indexBufferHandle = static_cast<DX12IndexBuffer*>(mesh->geometryBuffer.iBuffer)->getBuffer()->GetGPUVirtualAddress();
+			handles.textureHandle = gpuHandle;
+
+			handles.materialHandle = mesh->getMaterialCB()->getBuffer(0)->GetGPUVirtualAddress();
+
+			m_rtMeshHandles.emplace_back(handles);
+
+			cpuHandle.ptr += m_heapIncr;
+			gpuHandle.ptr += m_heapIncr;
+		}
+	}
 
 }
 
 void DXR::createShaderTables() {
 
-	// TODO: possibly store vertex buffer in local signatures/shader table
-	//		 "Shader tables can be modified freely by the application (with appropriate state barriers)"
+	// 	 "Shader tables can be modified freely by the application (with appropriate state barriers)"
 
 	// Ray gen
 	{
-		m_rayGenShaderTable.Resource.Reset();
+		if (m_rayGenShaderTable.Resource) {
+			m_rayGenShaderTable.Resource->Release();
+			m_rayGenShaderTable.Resource.Reset();
+		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_rayGenName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_rtOutputUAV.gpuHandle.ptr);
 		m_rayGenShaderTable = tableBuilder.build(m_renderer->getDevice());
@@ -266,7 +365,10 @@ void DXR::createShaderTables() {
 
 	// Miss
 	{
-		m_missShaderTable.Resource.Reset();
+		if (m_missShaderTable.Resource) {
+			m_missShaderTable.Resource->Release();
+			m_missShaderTable.Resource.Reset();
+		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr);
 		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
@@ -274,13 +376,17 @@ void DXR::createShaderTables() {
 
 	// Hit group
 	{
-		auto rayGenHandle = m_rayGenSettingsCB->getBuffer(0)->GetGPUVirtualAddress();
-		m_hitGroupShaderTable.Resource.Reset();
+		if (m_hitGroupShaderTable.Resource) {
+			m_hitGroupShaderTable.Resource->Release();
+			m_hitGroupShaderTable.Resource.Reset();
+		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
-			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i); // only supports one texture/mesh atm // TODO FIX
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i);
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].indexBufferHandle, i);
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].textureHandle.ptr, i); // only supports one texture/mesh atm // TODO FIX
-			tableBuilder.addDescriptor(rayGenHandle, i);
+			tableBuilder.addDescriptor(m_rtMeshHandles[i].materialHandle, i);
+			//tableBuilder.addDescriptor(rayGenHandle, i);
 		}
 		m_hitGroupShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
@@ -300,7 +406,8 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 		}
 
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
-			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.buffer);
+			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.vBuffer);
+			DX12IndexBuffer* ib = static_cast<DX12IndexBuffer*>((*m_meshes)[i]->geometryBuffer.iBuffer);
 			
 			D3D12_RAYTRACING_GEOMETRY_DESC geomDesc[1] = {};
 			geomDesc[0] = {};
@@ -309,6 +416,9 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			geomDesc[0].Triangles.VertexBuffer.StrideInBytes = vb->getVertexStride();
 			geomDesc[0].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 			geomDesc[0].Triangles.VertexCount = vb->getVertexCount();
+			geomDesc[0].Triangles.IndexBuffer = ib->getBuffer()->GetGPUVirtualAddress();
+			geomDesc[0].Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+			geomDesc[0].Triangles.IndexCount = ib->getNumIndices();
 			geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 			// Get the size requirements for the scratch and AS buffers
@@ -460,15 +570,16 @@ void DXR::createDxrGlobalRootSignature() {
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.ShaderRegister = 0;
 	rootParams[DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE].Descriptor.RegisterSpace = 0;
 
-	// Vertex buffer
-	/*rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
-	rootParams[DXRGlobalRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;*/
-
 	// Scene CBV
 	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].Descriptor.ShaderRegister = 0;
 	rootParams[DXRGlobalRootParam::CBV_SCENE_BUFFER].Descriptor.RegisterSpace = 2;
+
+	// Ray Gen settings CBV
+	rootParams[DXRGlobalRootParam::CBV_SETTINGS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[DXRGlobalRootParam::CBV_SETTINGS].Descriptor.ShaderRegister = 0;
+	rootParams[DXRGlobalRootParam::CBV_SETTINGS].Descriptor.RegisterSpace = 1;
+	rootParams[DXRGlobalRootParam::CBV_SETTINGS].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.NumParameters = _countof(rootParams);
@@ -529,27 +640,24 @@ ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
 	range[0].RegisterSpace = 0;
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
+
+	rootParams[DXRHitGroupRootParam::SRV_INDEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRHitGroupRootParam::SRV_INDEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::SRV_INDEX_BUFFER].Descriptor.RegisterSpace = 1;
 	
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.NumDescriptorRanges = _countof(range);
 	rootParams[DXRHitGroupRootParam::DT_TEXTURES].DescriptorTable.pDescriptorRanges = range;
 
-	/*D3D12_DESCRIPTOR_RANGE range2[1]{};
-	range2[0].BaseShaderRegister = 0;
-	range2[0].RegisterSpace = 1;
-	range2[0].NumDescriptors = 1;
-	range2[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	range2[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].DescriptorTable.NumDescriptorRanges = _countof(range2);
-	rootParams[DXRRayGenRootParam::CBV_RAY_GEN].DescriptorTable.pDescriptorRanges = range2;*/
-
-	// Ray Gen settings CBV
-	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].Descriptor.ShaderRegister = 0;
-	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].Descriptor.RegisterSpace = 1;
-	rootParams[DXRHitGroupRootParam::CBV_SETTINGS].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	// Material properties CBV
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].Descriptor.RegisterSpace = 0;
+	rootParams[DXRHitGroupRootParam::CBV_MATERIAL].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
 	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -629,4 +737,102 @@ ID3D12RootSignature* DXR::createMissLocalRootSignature() {
 	pRootSig->SetName(L"MissLocal");
 
 	return pRootSig;
+}
+
+void DXR::createTemporalAccumulationResources(ID3D12GraphicsCommandList4* cmdList) {
+
+	// Create a texture resource to store the last frame
+    D3D12_RESOURCE_DESC textureDesc = {};
+	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//textureDesc.Format = DXGI_FORMAT_R32G32B32A32_UINT;
+	textureDesc.DepthOrArraySize = 1;
+	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureDesc.Width = m_renderer->getWindow()->getWindowWidth();
+	textureDesc.Height = m_renderer->getWindow()->getWindowHeight();
+	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	textureDesc.MipLevels = 1;
+	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+
+	// create a default heap where the upload heap will copy its contents into (contents being the texture)
+	m_taLastFrameBuffer = D3DUtils::createBuffer(m_renderer->getDevice(), 0, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST, D3DUtils::sDefaultHeapProps, &textureDesc);
+	m_taLastFrameBuffer->SetName(L"Temporal Accumulation Texture Buffer Resource Heap");
+	/*for (UINT i = 0; i < m_renderer->getNumSwapBuffers(); i++) {
+		m_taLastFrames.emplace_back(D3DUtils::createBuffer(m_renderer->getDevice(), textureUploadBufferSize, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties));
+		m_taLastFrames.back()->SetName(L"Temporal Accumulation Texture Buffer Upload Resource Heap");
+	}*/
+
+	UINT64 textureUploadBufferSize;
+	// this function gets the size an upload buffer needs to be to upload a texture to the gpu.
+	m_renderer->getDevice()->GetCopyableFootprints(&textureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
+
+
+	D3DUtils::setResourceTransitionBarrier(cmdList, m_taLastFrameBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+
+
+	// TODO: Create a heap for each swap buffer
+	m_taSrvDescriptorHeap.Reset();
+	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
+	heapDescriptorDesc.NumDescriptors = 2;
+	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	m_renderer->getDevice()->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_taSrvDescriptorHeap));
+
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_taSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_taSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	m_taSrvGPUHandle = gpuHandle;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = textureDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+	m_renderer->getDevice()->CreateShaderResourceView(m_rtOutputUAV.resource.Get(), &srvDesc, cpuHandle);
+	cpuHandle.ptr += m_heapIncr;
+	gpuHandle.ptr += m_heapIncr;
+	m_renderer->getDevice()->CreateShaderResourceView(m_taLastFrameBuffer.Get(), &srvDesc, cpuHandle);
+	
+
+	// Vertices for a full screen quad
+	const float vertices[] = {
+		-1.0f, -1.0f, 0.f,
+		-1.0f,  1.0f, 0.f,
+		1.0f,   1.0f, 0.f,
+		1.0f,  -1.0f, 0.f,
+	};
+	const unsigned int indices[] = {
+		0, 1, 2, 0, 2, 3
+	};
+
+	m_taVb = std::unique_ptr<DX12VertexBuffer>((DX12VertexBuffer*)m_renderer->makeVertexBuffer(sizeof(vertices), VertexBuffer::STATIC));
+	m_taVb->setData(vertices, sizeof(vertices), 0);
+
+	m_taIb = std::unique_ptr<DX12IndexBuffer>((DX12IndexBuffer*)m_renderer->makeIndexBuffer(sizeof(indices), IndexBuffer::STATIC));
+	m_taIb->setData(indices, sizeof(indices), 0);
+
+	m_taMesh = std::unique_ptr<DX12Mesh>((DX12Mesh*)m_renderer->makeMesh());
+	m_taMesh->setIABinding(m_taVb.get(), m_taIb.get(), 0, 4, 6, sizeof(float) * 3);
+	m_taMesh->technique = (Technique*)m_taTechnique.get();
+
+	m_taMaterial = std::unique_ptr<DX12Material>((DX12Material*)m_renderer->makeMaterial("mat_accumulation"));
+	std::string shaderPath = m_renderer->getShaderPath();
+	std::string shaderExtension = m_renderer->getShaderExtension();
+	m_taMaterial->setShader(shaderPath + "Accumulate" + shaderExtension, Material::ShaderType::VS);
+	m_taMaterial->setShader(shaderPath + "Accumulate" + shaderExtension, Material::ShaderType::PS);
+	std::string err;
+
+	D3D12_INPUT_ELEMENT_DESC inputElementDesc[1];
+	inputElementDesc[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	m_taMaterial->compileMaterial(err, inputElementDesc, 1);
+
+	m_taTechnique = std::make_unique<DX12Technique>(m_taMaterial.get(), (DX12RenderState*)m_renderer->makeRenderState(), m_renderer, false);
+
+	//m_taCB = std::make_unique<DX12ConstantBuffer>("TA Constant Buffer", sizeof(TAConstantBufferData), m_renderer);
+
+	m_taCBData.accumCount = 0;
+	m_taMaterial->addConstantBuffer("TA Constant Buffer", 0, sizeof(TAConstantBufferData));
+	m_taMaterial->updateConstantBuffer(&m_taCBData, 0);
+
 }

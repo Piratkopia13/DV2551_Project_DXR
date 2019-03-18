@@ -9,6 +9,7 @@
 #include "DX12ConstantBuffer.h"
 #include "DX12Texture2D.h"
 #include "DX12VertexBuffer.h"
+#include "DX12IndexBuffer.h"
 #include "DX12Skybox.h"
 #include "D3DUtils.h"
 #include "DX12Texture2DArray.h"
@@ -36,6 +37,7 @@ DX12Renderer::DX12Renderer()
 	, m_supportsDXR(false)
 	, m_DXREnabled(false)
 	, m_backBufferIndex(0)
+	, m_vsync(false)
 {
 	m_renderTargets.resize(NUM_SWAP_BUFFERS);
 	m_fenceValues.resize(NUM_SWAP_BUFFERS, 0);
@@ -174,9 +176,17 @@ DXR& DX12Renderer::getDXR() {
 	return *m_dxr;
 }
 
+D3D12::D3D12Timer& DX12Renderer::getTimer() {
+	return m_gpuTimer;
+}
+
 VertexBuffer* DX12Renderer::makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) {
 	return new DX12VertexBuffer(size, usage, this);
-};
+}
+IndexBuffer* DX12Renderer::makeIndexBuffer(size_t size, IndexBuffer::DATA_USAGE usage) {
+	return new DX12IndexBuffer(size, usage, this);
+}
+;
 
 Material* DX12Renderer::makeMaterial(const std::string& name) {
 	return new DX12Material(name, this);
@@ -225,6 +235,10 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	// Reset pre allocator and command list to prep for initialization commands
 	ThrowIfFailed(m_preCommand.allocators[getFrameIndex()]->Reset());
 	ThrowIfFailed(m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr));
+
+	// Timer
+	m_gpuTimer.init(m_device.Get(), 10);
+
 
 	// DXR
 	m_supportsDXR = checkRayTracingSupport();
@@ -276,6 +290,8 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 
 	// ImGui
 	initImGui();
+
+	m_numFrames = 0;
 
 	return 0;
 }
@@ -352,31 +368,42 @@ void DX12Renderer::createCmdInterfacesAndSwapChain() {
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_directCommandQueue)));
+	m_directCommandQueue->SetName(L"Direct Command Queue");
 
 	// Create compute command queue
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_computeCommandQueue)));
+	m_computeCommandQueue->SetName(L"Compute Command Queue");
 
 	// Create copy command queue
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_copyCommandQueue)));
+	m_copyCommandQueue->SetName(L"Copy Command Queue");
 
 	// Create allocators
 	m_preCommand.allocators.resize(NUM_SWAP_BUFFERS);
 	m_postCommand.allocators.resize(NUM_SWAP_BUFFERS);
+	m_computeCommand.allocators.resize(NUM_SWAP_BUFFERS);
+	m_copyCommand.allocators.resize(NUM_SWAP_BUFFERS);
 	for (UINT i = 0; i < NUM_SWAP_BUFFERS; i++) {
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_preCommand.allocators[i])));
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_postCommand.allocators[i])));
+		// TODO: Is this required?
+		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeCommand.allocators[i])));
+		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&m_copyCommand.allocators[i])));
 	}
 	// Create command lists
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_preCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_preCommand.list)));
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_postCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_postCommand.list)));
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_computeCommand.list)));
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, m_copyCommand.allocators[0].Get(), nullptr, IID_PPV_ARGS(&m_copyCommand.list)));
 
 	// Command lists are created in the recording state. Since there is nothing to
 	// record right now and the main loop expects it to be closed, we close them
 	m_preCommand.list->Close();
 	m_postCommand.list->Close();
-
+	m_computeCommand.list->Close();
+	m_copyCommand.list->Close();
 
 	// 5. Create swap chain
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
@@ -411,6 +438,12 @@ void DX12Renderer::createFenceAndEventHandle() {
 		m_fenceValues[i] = 1;
 	// Create an event handle to use for GPU synchronization
 	m_eventHandle = CreateEvent(0, false, false, 0);
+
+
+
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_computeQueueFence)));
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_copyQueueFence)));
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_directQueueFence)));
 }
 
 void DX12Renderer::createRenderTargets() {
@@ -437,7 +470,7 @@ void DX12Renderer::createGlobalRootSignature() {
 	// Define descriptor range(s)
 	D3D12_DESCRIPTOR_RANGE descRangeSrv[1];
 	descRangeSrv[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descRangeSrv[0].NumDescriptors = 1;
+	descRangeSrv[0].NumDescriptors = 2;
 	descRangeSrv[0].BaseShaderRegister = 0; // register bX
 	descRangeSrv[0].RegisterSpace = 0; // register (bX,spaceY)
 	descRangeSrv[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -468,6 +501,12 @@ void DX12Renderer::createGlobalRootSignature() {
 	D3D12_ROOT_DESCRIPTOR rootDescCBV3 = {};
 	rootDescCBV3.ShaderRegister = CB_REG_CAMERA;
 	rootDescCBV3.RegisterSpace = 0;
+	D3D12_ROOT_DESCRIPTOR rootDescSRVT10 = {};
+	rootDescSRVT10.ShaderRegister = 10;
+	rootDescSRVT10.RegisterSpace = 0;
+	D3D12_ROOT_DESCRIPTOR rootDescSRVT11 = {};
+	rootDescSRVT11.ShaderRegister = 11;
+	rootDescSRVT11.RegisterSpace = 0;
 
 	// Create root parameters
 	D3D12_ROOT_PARAMETER rootParam[GlobalRootParam::SIZE];
@@ -492,27 +531,32 @@ void DX12Renderer::createGlobalRootSignature() {
 	rootParam[GlobalRootParam::DT_SAMPLERS].DescriptorTable = dtSampler;
 	rootParam[GlobalRootParam::DT_SAMPLERS].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
-	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	staticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	staticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	staticSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	staticSamplerDesc.MipLODBias = 0.f;
-	staticSamplerDesc.MaxAnisotropy = 1;
-	staticSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-	staticSamplerDesc.MinLOD = 0.f;
-	staticSamplerDesc.MaxLOD = FLT_MAX;
-	staticSamplerDesc.ShaderRegister = 1;
-	staticSamplerDesc.RegisterSpace = 0;
-	staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc[2];
+	staticSamplerDesc[0] = {};
+	staticSamplerDesc[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	staticSamplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	staticSamplerDesc[0].MipLODBias = 0.f;
+	staticSamplerDesc[0].MaxAnisotropy = 1;
+	staticSamplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	staticSamplerDesc[0].BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	staticSamplerDesc[0].MinLOD = 0.f;
+	staticSamplerDesc[0].MaxLOD = FLT_MAX;
+	staticSamplerDesc[0].ShaderRegister = 1;
+	staticSamplerDesc[0].RegisterSpace = 0;
+	staticSamplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	staticSamplerDesc[1] = staticSamplerDesc[0];
+	staticSamplerDesc[1].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	staticSamplerDesc[1].ShaderRegister = 2;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rsDesc.NumParameters = ARRAYSIZE(rootParam);
 	rsDesc.pParameters = rootParam;
-	rsDesc.NumStaticSamplers = 1;
-	rsDesc.pStaticSamplers = &staticSamplerDesc;
+	rsDesc.NumStaticSamplers = 2;
+	rsDesc.pStaticSamplers = staticSamplerDesc;
 
 	// Serialize and create the actual signature
 	ID3DBlob* sBlob;
@@ -538,12 +582,12 @@ bool DX12Renderer::checkRayTracingSupport() {
 }
 
 HRESULT DX12Renderer::initImGui() {
+	// Create the ImGui-specific descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.NumDescriptors = 1;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	if (m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiSrvDescHeap)) != S_OK)
-		return E_FAIL;
+	ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_ImGuiDescHeap)));
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -560,8 +604,8 @@ HRESULT DX12Renderer::initImGui() {
 	ImGui_ImplDX12_Init(getDevice(),
 		getNumSwapBuffers(),
 		DXGI_FORMAT_R8G8B8A8_UNORM,
-		m_ImGuiSrvDescHeap->GetCPUDescriptorHandleForHeapStart(),
-		m_ImGuiSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+		m_ImGuiDescHeap->GetCPUDescriptorHandleForHeapStart(),
+		m_ImGuiDescHeap->GetGPUDescriptorHandleForHeapStart());
 
 	return S_OK;
 }
@@ -659,21 +703,26 @@ void DX12Renderer::workerThread(unsigned int id) {
 			for (auto mesh : work->second) {
 				size_t numberElements = mesh->geometryBuffer.numElements;
 
+				size_t numVertices = mesh->geometryBuffer.numVertices;
+				size_t numIndices = mesh->geometryBuffer.numIndices;
 				// TODO: Bind texture array instead
 				/*for (auto t : mesh->textures) {
+				for (auto t : mesh->textures) {
 					static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
 				}*/
 				mesh->getTexture2DArray()->bind(list.Get());
 
-				// Bind vertices, normals and UVs
-				mesh->bindIAVertexBuffer(list.Get());
+				// Bind indices, vertices, normals and UVs
+				mesh->bindIA(list.Get());
+				//list->IASetIndexBuffer();
 
 				// Bind translation constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->getTransformCB())->bind(work->first->getMaterial(), list.Get());
 				// Bind camera data constant buffer
 				static_cast<DX12ConstantBuffer*>(mesh->getCameraCB())->bind(work->first->getMaterial(), list.Get());
 				// Draw
-				list->DrawInstanced(static_cast<UINT>(numberElements), 1, 0, 0);
+				//list->DrawInstanced(static_cast<UINT>(numVertices), 1, 0, 0);
+				list->DrawIndexedInstanced(static_cast<UINT>(numIndices), 1, 0, 0, 0);
 			}
 		}
 		list->Close();
@@ -696,7 +745,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// TODO: check if drawList differs from last frame, if so rebuild DXR acceleration structures
 
-
 	if (m_firstFrame) {
 		//Execute the initialization command list
 		ThrowIfFailed(m_preCommand.list->Close());
@@ -718,7 +766,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// Execute stored functions that needs an open preCommand list
 	for (auto& func : m_preCommandFuncsToExecute) {
-		waitForGPU();
+		//waitForGPU();
 		func();
 	}
 	m_preCommandFuncsToExecute.clear();
@@ -742,7 +790,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_preCommand.list->OMSetRenderTargets(1, &m_cdh, true, &m_dsvDescHandle);
 	m_preCommand.list->ClearRenderTargetView(m_cdh, m_clearColor, 0, nullptr);
 	m_preCommand.list->ClearDepthStencilView(m_dsvDescHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
+	
 	if (!m_DXREnabled) {
 		m_preCommand.list->SetGraphicsRootSignature(m_globalRootSignature.Get());
 		// Set topology
@@ -788,12 +836,42 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_postCommand.allocators[getFrameIndex()]->Reset();
 	m_postCommand.list->Reset(m_postCommand.allocators[getFrameIndex()].Get(), nullptr);
 
-
 	// DXR
 	if (m_DXREnabled) {
-		m_dxr->updateAS(m_postCommand.list.Get());
-		m_dxr->doTheRays(m_postCommand.list.Get());
+		if (!m_firstFrame)
+			m_computeCommandQueue->Wait(m_directQueueFence.Get(), m_numFrames);
+
+		m_computeCommand.allocators[getFrameIndex()]->Reset();
+		m_computeCommand.list->Reset(m_computeCommand.allocators[getFrameIndex()].Get(), nullptr);
+		m_dxr->updateAS(m_computeCommand.list.Get());
+		m_dxr->doTheRays(m_computeCommand.list.Get());
+
+		/* Dispatch compute queue for AS and rays here */
+		m_computeCommand.list->Close();
+		ID3D12CommandList* listsToExecute[] = { m_computeCommand.list.Get() };
+		// Wait for last frame to finish rendering
+		//m_computeCommandQueue->Wait(m_directQueueFence.Get(), getFrameIndex());
+		m_computeCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		// Add a wait for the copy queue
+		m_directCommandQueue->Wait(m_computeQueueFence.Get(), m_numFrames);
+		m_computeCommandQueue->Signal(m_computeQueueFence.Get(), m_numFrames);
+
+
 		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
+
+		// Do post process temporal accumulation from the dxr output
+		// Bind pipeline state set up with the correct shaders
+		m_postCommand.list->OMSetRenderTargets(1, &m_cdh, true, nullptr);
+		m_postCommand.list->RSSetViewports(1, &m_viewport);
+		m_postCommand.list->RSSetScissorRects(1, &m_scissorRect);
+
+		if (m_dxr->getRTFlags() & RT_ENABLE_TA) {
+			m_dxr->doTemporalAccumulation(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
+		}
+		else {
+			m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
+		}
+
 	}
 
 	// ImGui
@@ -821,7 +899,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		ImGui::End();
 
 		// Set the descriptor heaps
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiSrvDescHeap.Get() };
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiDescHeap.Get() };
 		m_postCommand.list->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_postCommand.list.Get());
@@ -837,8 +915,10 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_postCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_postCommand.list.Get() };
 		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		m_directCommandQueue->Signal(m_directQueueFence.Get(), m_numFrames + 1);
 	}
 
+	m_numFrames++;
 };
 #else
 void DX12Renderer::frame(std::function<void()> imguiFunc) {
@@ -968,11 +1048,15 @@ void DX12Renderer::present() {
 
 	//Present the frame.
 	DXGI_PRESENT_PARAMETERS pp = { };
-	m_swapChain->Present1(0, 0, &pp);
+	m_swapChain->Present1((UINT)m_vsync, 0, &pp);
 
 	//waitForGPU(); //Wait for GPU to finish.
 				  //NOT BEST PRACTICE, only used as such for simplicity.
 	nextFrame();
+}
+
+bool& DX12Renderer::getVsync() {
+	return m_vsync;
 }
 
 void DX12Renderer::executeNextOpenPreCommand(std::function<void()> func) {

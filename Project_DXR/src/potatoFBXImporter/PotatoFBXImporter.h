@@ -1,39 +1,6 @@
 #pragma once
 
-#include <d3d12.h>
-#include <DirectXMath.h>
-class PotatoModel {
-public:
-	struct Vertex {
-		DirectX::XMFLOAT3 position;
-		DirectX::XMFLOAT3 normal;
-		DirectX::XMFLOAT2 texCoord;
-	};
-
-	PotatoModel() {
-
-	};
-
-	PotatoModel(std::vector<PotatoModel::Vertex> _data) {
-		data = _data;
-	};
-
-	~PotatoModel() {};
-
-	void addVertex(Vertex vertex) {
-		data.push_back(vertex);
-	};
-
-
-	const std::vector<PotatoModel::Vertex>& getModelData() {
-		return data;
-	}
-
-private:
-
-	std::vector<PotatoModel::Vertex> data;
-
-};
+#include "PotatoModel.h"
 
 
 class PotatoFBXImporter{
@@ -63,17 +30,26 @@ private:
 	void traverse(FbxNode* node, PotatoModel* model);
 	FbxVector2 getTexCoord(int cpIndex, FbxGeometryElementUV* geUV, FbxMesh* mesh, int polyIndex, int vertIndex) const;
 	void fetchGeometry(FbxNode* mesh, PotatoModel* model, const std::string& filename);
+	
+	
 	void fetchSkeleton(FbxNode* mesh, PotatoModel* model, const std::string& filename);
+	void fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* model, int inDepth, int myIndex, int inParentIndex);
+
+
+	static XMMATRIX convertToXMMatrix(const FbxAMatrix& pSrc)
+	{
+		return XMMatrixSet(
+			static_cast<FLOAT>(pSrc.Get(0, 0)), static_cast<FLOAT>(pSrc.Get(0, 1)), static_cast<FLOAT>(pSrc.Get(0, 2)), static_cast<FLOAT>(pSrc.Get(0, 3)),
+			static_cast<FLOAT>(pSrc.Get(1, 0)), static_cast<FLOAT>(pSrc.Get(1, 1)), static_cast<FLOAT>(pSrc.Get(1, 2)), static_cast<FLOAT>(pSrc.Get(1, 3)),
+			static_cast<FLOAT>(pSrc.Get(2, 0)), static_cast<FLOAT>(pSrc.Get(2, 1)), static_cast<FLOAT>(pSrc.Get(2, 2)), static_cast<FLOAT>(pSrc.Get(2, 3)),
+			static_cast<FLOAT>(pSrc.Get(3, 0)), static_cast<FLOAT>(pSrc.Get(3, 1)), static_cast<FLOAT>(pSrc.Get(3, 2)), static_cast<FLOAT>(pSrc.Get(3, 3)));
+	}
 
 
 
 
 
-
-
-
-
-
+	void printAnimationStack(FbxNode* node);
 
 
 

@@ -224,8 +224,9 @@ D3DUtils::ShaderTableBuilder::ShaderTableBuilder(LPCWSTR shaderName, ID3D12State
 D3DUtils::ShaderTableBuilder::~ShaderTableBuilder() {
 	for (UINT i = 0; i < m_numInstances; i++)
 		free(m_data[i]);
-	delete m_data;
-	delete m_dataOffsets;
+	delete[] m_data;
+	delete[] m_dataOffsets;
+	//m_soProps->Release();
 }
 
 D3DUtils::ShaderTableData D3DUtils::ShaderTableBuilder::build(ID3D12Device5* device) {

@@ -10,6 +10,7 @@
 #include "Core/Camera.h"
 #include "Core/CameraController.h"
 #include "potatoFBXImporter/PotatoFBXImporter.h"
+#include "GameObject.h"
 
 class DX12Renderer;
 class DX12Mesh;
@@ -20,7 +21,11 @@ public:
 	~Game();
 
 	virtual void init() override;
+	// Updates every frame
 	virtual void update(double dt) override;
+	// Tries to update 60 times per second
+	virtual void fixedUpdate(double dt) override;
+	// Renders every frame
 	virtual void render(double dt) override;
 
 private:
@@ -45,9 +50,15 @@ private:
 	//std::unique_ptr<Mesh> m_mesh;
 
 	std::vector<std::unique_ptr<VertexBuffer>> m_vertexBuffers;
+	std::vector<std::unique_ptr<IndexBuffer>> m_indexBuffers;
 	std::vector<std::unique_ptr<DX12Mesh>> m_meshes;
 
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
+	std::vector<PotatoModel*> m_models;
+	float m_animationSpeed;
+	int m_animatedModelsStartIndex;
+	std::vector<GameObject> m_gameObjects;
+
 
 	// ImGui
 	std::string m_availableModels;

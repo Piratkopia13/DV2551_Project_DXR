@@ -3,6 +3,7 @@
 #include "../Core/Renderer.h"
 #include "DX12.h"
 #include "DXR.h"
+#include "D3D12Timer.h"
 
 #ifdef _DEBUG
 #include <initguid.h>
@@ -47,6 +48,7 @@ public:
 	virtual Material* makeMaterial(const std::string& name) override;
 	virtual Mesh* makeMesh() override;
 	virtual VertexBuffer* makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) override;
+	virtual IndexBuffer* makeIndexBuffer(size_t size, IndexBuffer::DATA_USAGE usage) override;
 	virtual ConstantBuffer* makeConstantBuffer(std::string NAME, size_t size) override;
 	virtual RenderState* makeRenderState() override;
 	virtual Technique* makeTechnique(Material* m, RenderState* r) override;
@@ -69,6 +71,7 @@ public:
 	bool& isDXREnabled();
 	bool& isDXRSupported();
 	DXR& getDXR();
+	D3D12::D3D12Timer& getTimer();
 
 	virtual int initialize(unsigned int width = 640, unsigned int height = 480) override;
 	virtual void setWinTitle(const char* title) override;
@@ -81,6 +84,7 @@ public:
 	virtual void submit(Mesh* mesh) override;
 	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
+	bool& getVsync();
 
 	void useCamera(Camera* camera);
 	
@@ -122,6 +126,7 @@ private:
 	float m_clearColor[4];
 	bool m_firstFrame;
 	UINT m_backBufferIndex;
+	bool m_vsync;
 	
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;
@@ -129,27 +134,42 @@ private:
 	bool m_supportsDXR;
 	bool m_DXREnabled;
 
+	D3D12::D3D12Timer m_gpuTimer;
+
 	// DX12 stuff
 	std::unique_ptr<DXR> m_dxr;
 
 	wComPtr<ID3D12Device5> m_device;
+
+	// Queues
 	wComPtr<ID3D12CommandQueue> m_directCommandQueue;
 	wComPtr<ID3D12CommandQueue> m_computeCommandQueue;
 	wComPtr<ID3D12CommandQueue> m_copyCommandQueue;
+
+	// Commands
 	Command m_preCommand;
 	Command m_postCommand;
+	Command m_copyCommand;
+	Command m_computeCommand;
+
+	/* DXR Fence */
+	wComPtr<ID3D12Fence1> m_computeQueueFence;
+	wComPtr<ID3D12Fence1> m_copyQueueFence;
+	wComPtr<ID3D12Fence1> m_directQueueFence;
+
 	wComPtr<ID3D12Fence1> m_fence;
 	wComPtr<ID3D12DescriptorHeap> m_renderTargetsHeap;
 	wComPtr<IDXGISwapChain4> m_swapChain;
 	std::vector<wComPtr<ID3D12Resource1>> m_renderTargets;
 	wComPtr<ID3D12RootSignature> m_globalRootSignature;
+
 	// Depth/Stencil
 	wComPtr<ID3D12Resource> m_depthStencilBuffer;
 	wComPtr<ID3D12DescriptorHeap> m_dsDescriptorHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_dsvDescHandle;
 
 	// ImGui
-	wComPtr<ID3D12DescriptorHeap> m_ImGuiSrvDescHeap;
+	wComPtr<ID3D12DescriptorHeap> m_ImGuiDescHeap;
 
 	wComPtr<IDXGIFactory2> m_dxgiFactory;
 
@@ -188,6 +208,9 @@ private:
 	//UINT8* m_pDataEnd = nullptr; // End position of upload buffer
 
 	std::unordered_map<DX12Technique*, std::vector<DX12Mesh*>> drawList;
+
+	// Number of frames that has been rendered during application execution
+	UINT64 m_numFrames;
 
 };
 
