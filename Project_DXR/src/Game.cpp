@@ -68,7 +68,7 @@ void Game::init() {
 	
 	m_models.push_back(_robo);
 	for (int i = 0; i < _robo->getStackSize(); i++) {
-		XMFLOAT3 position = { (i)*15.0f-50.f, 3.0f, 36.0f};
+		XMFLOAT3 position = { (i)*15.0f-40.f, 0.0f, 36.0f};
 		XMFLOAT3 rotation{ 0,0,0 };
 #ifdef _DEBUG
 		XMFLOAT3 scale = { 1.0f, 1.0f, 1.0f };
