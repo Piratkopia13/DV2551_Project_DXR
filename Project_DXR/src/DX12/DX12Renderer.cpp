@@ -701,7 +701,7 @@ void DX12Renderer::workerThread(unsigned int id) {
 			list->RSSetScissorRects(1, &m_scissorRect);
 
 			for (auto mesh : work->second) {
-				size_t numberElements = mesh->geometryBuffer.numElements;
+				//size_t numberElements = mesh->geometryBuffer.numElements;
 
 				size_t numVertices = mesh->geometryBuffer.numVertices;
 				size_t numIndices = mesh->geometryBuffer.numIndices;

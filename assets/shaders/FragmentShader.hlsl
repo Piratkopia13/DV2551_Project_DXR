@@ -16,7 +16,12 @@ cbuffer CB_DiffuseTint : register(MERGE(b, CB_REG_DIFFUSE_TINT)) {
 }
 
 float4 PSMain(VSOut input) : SV_TARGET0 {
-    float4 color = tex.Sample(static_ss, float3(input.texCoord, 0.0));
+	UINT width;
+	UINT height;
+	UINT numElements;
+	UINT numberOfLevels;
+	tex.GetDimensions(0, width, height, numElements, numberOfLevels);
+    float4 color = tex.Sample(static_ss, float3(input.texCoord, numElements - 1));
     //color = float4(input.texCoord, 0.0, 0.0);
 	return color * float4(diffuseTint.rgb, 1.0);
 }

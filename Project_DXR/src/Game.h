@@ -40,6 +40,10 @@ private:
 	std::unique_ptr<Technique> m_technique;
 	/*std::unique_ptr<Texture2D> m_texture;
 	std::unique_ptr<Texture2D> m_floorTexture;*/
+	std::unique_ptr<DX12Texture2DArray> m_ballbotTexArray;
+	std::unique_ptr<DX12Texture2DArray> m_cornellTexArray;
+	std::unique_ptr<DX12Texture2DArray> m_dragonTexArray;
+	std::unique_ptr<DX12Texture2DArray> m_floorTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_reflectTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_refractTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_diffuseTexArray;
