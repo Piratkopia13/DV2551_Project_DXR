@@ -110,6 +110,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 		model->reSizeAnimationStack(stackCount);
 		fetchGeometry(root, model, objName);
 		model->normalizeWeights();
+		fetchTextures(root, model);
 	}
 	else {
 		cout << "no root in " << objName << endl;
@@ -888,6 +889,58 @@ void PotatoFBXImporter::fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* mod
 	}
 
 
+}
+
+void PotatoFBXImporter::fetchTextures(FbxNode * node, PotatoModel * model) {
+
+	int materialIndex;
+	FbxProperty fbxProperty;
+	int materialCount = node->GetSrcObjectCount<FbxSurfaceMaterial>();
+	// Loops through all materials to find the textures of the model
+	for (materialIndex = 0; materialIndex < materialCount; materialIndex++) {
+		FbxSurfaceMaterial* material = node->GetSrcObject<FbxSurfaceMaterial>(materialIndex);
+		if (material) {
+			int textureIndex;
+			FBXSDK_FOR_EACH_TEXTURE(textureIndex) {
+				fbxProperty = material->FindProperty(FbxLayerElement::sTextureChannelNames[textureIndex]);
+				if (fbxProperty.IsValid()) {
+					int textureCount = fbxProperty.GetSrcObjectCount<FbxTexture>();
+					for (int i = 0; i < textureCount; ++i) {
+						FbxLayeredTexture* layeredTexture = fbxProperty.GetSrcObject<FbxLayeredTexture>(i);
+						// Checks if there's multiple layers to the texture
+						if (layeredTexture) {
+							int numTextures = layeredTexture->GetSrcObjectCount<FbxTexture>();
+
+							// Loops through all the textures of the material (Engine currently only supports one texture per spec/diff/norm.)
+							for (int j = 0; j < numTextures; j++) {
+
+								FbxTexture* texture = layeredTexture->GetSrcObject<FbxTexture>(j);
+
+								FbxFileTexture* fileTexture = FbxCast<FbxFileTexture>(texture);
+
+								std::string filename = fileTexture->GetRelativeFileName();
+								std::cout << filename << std::endl;
+								if (filename.find("specular")) {
+									model->addSpecularTexture(filename);
+								}
+								if (filename.find("diffuse")) {
+									model->addDiffuseTexture(filename);
+								}
+								if (filename.find("normal")) {
+									model->addNormalTexture(filename);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+	for (int i = 0; i < node->GetChildCount(); i++) {
+		fetchTextures(node->GetChild(i), model);
+	}
 }
 
 

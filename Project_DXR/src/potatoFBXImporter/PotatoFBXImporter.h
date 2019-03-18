@@ -30,11 +30,9 @@ private:
 	void traverse(FbxNode* node, PotatoModel* model);
 	FbxVector2 getTexCoord(int cpIndex, FbxGeometryElementUV* geUV, FbxMesh* mesh, int polyIndex, int vertIndex) const;
 	void fetchGeometry(FbxNode* mesh, PotatoModel* model, const std::string& filename);
-	
-	
 	void fetchSkeleton(FbxNode* mesh, PotatoModel* model, const std::string& filename);
 	void fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* model, int inDepth, int myIndex, int inParentIndex);
-
+	void fetchTextures(FbxNode* node, PotatoModel* model);
 
 	static XMMATRIX convertToXMMatrix(const FbxAMatrix& pSrc)
 	{
@@ -44,8 +42,6 @@ private:
 			static_cast<FLOAT>(pSrc.Get(2, 0)), static_cast<FLOAT>(pSrc.Get(2, 1)), static_cast<FLOAT>(pSrc.Get(2, 2)), static_cast<FLOAT>(pSrc.Get(2, 3)),
 			static_cast<FLOAT>(pSrc.Get(3, 0)), static_cast<FLOAT>(pSrc.Get(3, 1)), static_cast<FLOAT>(pSrc.Get(3, 2)), static_cast<FLOAT>(pSrc.Get(3, 3)));
 	}
-
-
 
 
 

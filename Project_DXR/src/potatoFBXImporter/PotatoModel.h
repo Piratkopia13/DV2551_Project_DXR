@@ -137,10 +137,19 @@ public:
 	void reSizeControlPoints(size_t size);
 	void reSizeAnimationStack(size_t size);
 
+	void addSpecularTexture(const std::string& name);
+	void addDiffuseTexture(const std::string& name);
+	void addNormalTexture(const std::string& name);
+
 
 
 	const std::vector<PotatoModel::Vertex>& getModelData();
 	const std::vector<PotatoModel::Vertex>& getModelVertices();
+	const std::vector<std::string>& getSpecularTextureNames();
+	const std::vector<std::string>& getDiffuseTextureNames();
+	const std::vector<std::string>& getNormalTextureNames();
+
+
 	std::vector<PotatoModel::Limb>& getSkeleton();
 	const std::vector<unsigned int>& getModelIndices();
 	size_t getStackSize();
@@ -158,6 +167,9 @@ private:
 	std::vector<std::vector<unsigned int>> m_ControlPointIndexes;
 	std::vector<unsigned int> indexes;
 
+	std::vector<std::string> m_specularTextureNames;
+	std::vector<std::string> m_diffuseTextureNames;
+	std::vector<std::string> m_normalTextureNames;
 	struct Cache {
 		int index = -1;
 		float time = 0.0f;

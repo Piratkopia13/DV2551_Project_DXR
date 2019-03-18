@@ -67,6 +67,15 @@ void PotatoModel::reSizeAnimationStack(size_t size) {
 	}
 	m_maxTime.resize(size);
 }
+void PotatoModel::addSpecularTexture(const std::string& name) {
+	m_specularTextureNames.push_back(name);
+}
+void PotatoModel::addDiffuseTexture(const std::string& name) {
+	m_diffuseTextureNames.push_back(name);
+}
+void PotatoModel::addNormalTexture(const std::string& name) {
+	m_normalTextureNames.push_back(name);
+}
 void PotatoModel::setGlobalBindposeInverse(unsigned int index, XMMATRIX matrix) {
 	m_Skeleton[index].globalBindposeInverse = matrix;
 }
@@ -78,6 +87,21 @@ const std::vector<PotatoModel::Vertex>& PotatoModel::getModelData() {
 }
 const std::vector<PotatoModel::Vertex>& PotatoModel::getModelVertices() {
 	return m_currentData;
+}
+const std::vector<std::string>& PotatoModel::getSpecularTextureNames()
+{
+	return m_specularTextureNames;
+	// TODO: insert return statement here
+}
+const std::vector<std::string>& PotatoModel::getDiffuseTextureNames()
+{
+	return m_diffuseTextureNames;
+	// TODO: insert return statement here
+}
+const std::vector<std::string>& PotatoModel::getNormalTextureNames()
+{
+	return m_normalTextureNames;
+	// TODO: insert return statement here
 }
 const std::vector<unsigned int>& PotatoModel::getModelIndices() {
 	return indexes;
