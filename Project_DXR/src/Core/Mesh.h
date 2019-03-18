@@ -11,8 +11,11 @@
 class Mesh
 {
 public:
-	Mesh();
+	Mesh(const std::string& name = "Unnamed");
 	~Mesh();
+
+	void setName(const std::string& name);
+	const std::string& getName() const;
 
 	// technique has: Material, RenderState, Attachments (color, depth, etc)
 	Technique* technique; 
@@ -49,6 +52,9 @@ protected:
 	ConstantBuffer* cameraCB;
 	// local copy of the transform
 	Transform transform;
+
+private:
+	std::string m_name;
 
 
 };

@@ -25,14 +25,8 @@ std::string DX12Material::expandShaderText(std::string& shaderSource, ShaderType
 DX12Material::DX12Material(const std::string& name, DX12Renderer* renderer)
 	: m_materialName(name)
 	, m_renderer(renderer)
-	, m_materialCB(name + "_cb", sizeof(MaterialProperties), m_renderer)
 {
 	isValid = false;
-
-	m_matProps.maxRecursionDepth = 3;
-	m_matProps.reflectionAttenuation = 0.6f;
-	m_matProps.fuzziness = 0.03f;
-	m_matProps.albedoColor = XMFLOAT3(1.0f, 1.0f, 1.0f);
 };
 
 DX12Material::~DX12Material() {
@@ -66,20 +60,6 @@ std::vector<DX12ConstantBuffer*> DX12Material::getConstantBuffers() const {
 		cbuffers.push_back(buffer.second);
 
 	return cbuffers;
-}
-
-const DX12ConstantBuffer* DX12Material::getMaterialCB() const {
-	return &m_materialCB;
-}
-
-const MaterialProperties& DX12Material::getProperties() const {
-	return m_matProps;
-}
-
-void DX12Material::setProperties(const MaterialProperties& props) {
-	m_matProps = props;
-	m_materialCB.setData(&m_matProps, 0);
-	m_materialCB.forceUpdate(0);
 }
 
 // location identifies the constant buffer in a unique way

@@ -335,7 +335,7 @@ void DXR::createShaderResources() {
 			handles.indexBufferHandle = static_cast<DX12IndexBuffer*>(mesh->geometryBuffer.iBuffer)->getBuffer()->GetGPUVirtualAddress();
 			handles.textureHandle = gpuHandle;
 
-			handles.materialHandle = static_cast<DX12Material*>(mesh->technique->getMaterial())->getMaterialCB()->getBuffer(0)->GetGPUVirtualAddress();
+			handles.materialHandle = mesh->getMaterialCB()->getBuffer(0)->GetGPUVirtualAddress();
 
 			m_rtMeshHandles.emplace_back(handles);
 

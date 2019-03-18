@@ -121,9 +121,6 @@ void Game::init() {
 	// when material is bound, this buffer should be also bound for access.
 	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
 
-	MaterialProperties matProps = dxMaterial->getProperties();
-	dxMaterial->setProperties(matProps);
-
 	// basic technique
 	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
 
@@ -154,6 +151,7 @@ void Game::init() {
 	{
 		// Set up mirrror 1 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Mirror 1");
 		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
 		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
@@ -169,6 +167,7 @@ void Game::init() {
 	{
 		// Set up mirrror 2 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Mirror 2");
 		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
 		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
@@ -184,6 +183,7 @@ void Game::init() {
 	{
 		// Set up floor mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Floor");
 		constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
 		constexpr auto numIndices = std::extent<decltype(floorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
@@ -199,6 +199,7 @@ void Game::init() {
 		// Dragon mesh
 		PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Dragon");
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
 		m_vertexBuffers.back()->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), offset);
 		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * model->getModelIndices().size(), IndexBuffer::STATIC));
@@ -216,6 +217,7 @@ void Game::init() {
 		// Cornell box
 		PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/cornell_box.fbx");
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Cornell box");
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * model->getModelData().size(), VertexBuffer::DATA_USAGE::STATIC));
 		m_vertexBuffers.back()->setData(&model->getModelData()[0], sizeof(Vertex) * model->getModelData().size(), offset);
 		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * model->getModelIndices().size(), IndexBuffer::STATIC));
@@ -236,6 +238,7 @@ void Game::init() {
 	for (int i = 0; i < m_gameObjects.size(); i++) {
 		// Set up multiple meshes from a single fbx model
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Animated " + std::to_string(i));
 
 		// Vertex buffer
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects[i].getModel()->getModelVertices().size(), VertexBuffer::STATIC));
@@ -411,50 +414,65 @@ void Game::imguiFunc() {
 
 	if (ImGui::Begin("Animation")) {
 		ImGui::SliderFloat("Speed", &m_animationSpeed, 0.0f, 1.0f);
-		ImGui::End();
 	}
+	ImGui::End();
 
 	if (ImGui::Begin("Scene")) {
 		if (ImGui::CollapsingHeader("Models")) {
 			unsigned int i = 0;
 			for (auto& mesh : m_meshes) {
-				if (ImGui::TreeNode(std::string("Mesh " + std::to_string(i)).c_str())) {
-					static int matIndex = 0;
-					if (ImGui::Combo("Material", &matIndex, m_availableModels.c_str())) {
-						//mesh->technique.
+				if (ImGui::TreeNode(std::string("Mesh " + std::to_string(i) + " - " + mesh->getName()).c_str())) {
+					XMVECTOR vec;
+					vec = mesh->getTransform().getTranslationVec();
+					Transform& transform = mesh->getTransform();
+					if (i >= m_animatedModelsStartIndex) {
+						transform = m_gameObjects[i - m_animatedModelsStartIndex].getTransform();
+					}
+					if (ImGui::DragFloat3("Position", (float*)&vec, 0.1f)) {
+						transform.setTranslation(vec);
+						mesh->setTransform(transform); // To update rasterisation CB
+					}
+					vec = transform.getRotationVec();
+					if (ImGui::DragFloat3("Rotation", (float*)&vec, 0.01f)) {
+						transform.setRotation(vec);
+						mesh->setTransform(transform); // To update rasterisation CB
+					}
+					vec = transform.getScaleVec();
+					if (ImGui::DragFloat3("Scale", (float*)&vec, 0.01f)) {
+						transform.setScale(vec);
+						mesh->setTransform(transform); // To update rasterisation CB
 					}
 
-					static XMVECTOR vec;
-					vec = mesh->getTransform().getTranslationVec();
-					if (ImGui::DragFloat3("Position", (float*)&vec, 0.1f)) {
-						mesh->getTransform().setTranslation(vec);
-						mesh->setTransform(mesh->getTransform()); // To update rasterisation CB
+					ImGui::Text("Material");
+					MaterialProperties matProps = mesh->getProperties();
+					float fuzziness = matProps.fuzziness;
+					if (ImGui::SliderFloat("Fuzziness", &fuzziness, 0.0f, 1.0f)) {
+						matProps.fuzziness = fuzziness;
+						mesh->setProperties(matProps);
 					}
-					vec = mesh->getTransform().getRotationVec();
-					if (ImGui::DragFloat3("Rotation", (float*)&vec, 0.01f)) {
-						mesh->getTransform().setRotation(vec);
-						mesh->setTransform(mesh->getTransform()); // To update rasterisation CB
+					float reflectionAttenuation = matProps.reflectionAttenuation;
+					if (ImGui::SliderFloat("ReflectionAttenuation", &reflectionAttenuation, 0.0f, 1.0f)) {
+						matProps.reflectionAttenuation = reflectionAttenuation;
+						mesh->setProperties(matProps);
 					}
-					vec = mesh->getTransform().getScaleVec();
-					if (ImGui::DragFloat3("Scale", (float*)&vec, 0.01f)) {
-						mesh->getTransform().setScale(vec);
-						mesh->setTransform(mesh->getTransform()); // To update rasterisation CB
+					int recursionDepth = matProps.maxRecursionDepth;
+					if (ImGui::SliderInt("Recursion", &recursionDepth, 0, MAX_RAY_RECURSION_DEPTH)) {
+						matProps.maxRecursionDepth = recursionDepth;
+						mesh->setProperties(matProps);
 					}
+
+					ImVec4 color = ImVec4(matProps.albedoColor.x, matProps.albedoColor.y, matProps.albedoColor.z, 1.0f);
+					if (ImGui::ColorEdit4("Albedo color##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha)) {
+						matProps.albedoColor = XMFLOAT3(color.x, color.y, color.z);
+						mesh->setProperties(matProps);
+					}
+					ImGui::SameLine();
+					ImGui::Text("Albedo color");
 
 					ImGui::TreePop();
 				}
 				i++;
 			}
-		}
-		if (ImGui::CollapsingHeader("Materials")) {
-			/*for (auto& mat : m_material) {
-				unsigned int i = 0;
-				if (ImGui::TreeNode("Material " + i)) {
-
-					ImGui::TreePop();
-				}
-				i++;
-			}*/
 		}
 
 	}
@@ -541,30 +559,24 @@ void Game::imguiFunc() {
 			ImGui::Separator();
 			ImGui::Spacing();
 
-
-			DX12Material* dxMaterial = ((DX12Material*)m_material.get());
-			MaterialProperties matProps = dxMaterial->getProperties();
-			static float fuzziness = matProps.fuzziness;
-			if (ImGui::SliderFloat("Fuzziness", &fuzziness, 0.0f, 1.0f)) {
-				matProps.fuzziness = fuzziness;
-				dxMaterial->setProperties(matProps);
-			}
-			static float reflectionAttenuation = matProps.reflectionAttenuation;
-			if (ImGui::SliderFloat("ReflectionAttenuation", &reflectionAttenuation, 0.0f, 1.0f)) {
-				matProps.reflectionAttenuation = reflectionAttenuation;
-				dxMaterial->setProperties(matProps);
-			}
-			static int recursionDepth = matProps.maxRecursionDepth;
-			if (ImGui::SliderInt("Recursion", &recursionDepth, 0, MAX_RAY_RECURSION_DEPTH)) {
-				matProps.maxRecursionDepth = recursionDepth;
-				dxMaterial->setProperties(matProps);
-				std::cout << recursionDepth << std::endl;
-			}
-
-			static ImVec4 color = ImVec4(matProps.albedoColor.x, matProps.albedoColor.y, matProps.albedoColor.z, 1.0f);
-			if (ImGui::ColorEdit4("Albedo color##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha)) {
-				matProps.albedoColor = XMFLOAT3(color.x, color.y, color.z);
-				dxMaterial->setProperties(matProps);
+			ImGui::Text("Materials override");
+			static float fuzziness = 0.0f;
+			bool fuzzChanged = ImGui::SliderFloat("Fuzziness", &fuzziness, 0.0f, 1.0f);
+			static float reflectionAttenuation = 0.8f;
+			bool refAttChanged = ImGui::SliderFloat("ReflectionAttenuation", &reflectionAttenuation, 0.0f, 1.0f);
+			static int recursionDepth = 3;
+			bool recursionChanged = ImGui::SliderInt("Recursion", &recursionDepth, 0, MAX_RAY_RECURSION_DEPTH);
+			static ImVec4 color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+			bool colorChanged = ImGui::ColorEdit4("Albedo color##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha);
+			if (fuzzChanged || refAttChanged || recursionChanged || colorChanged) {
+				MaterialProperties props;
+				props.fuzziness = fuzziness;
+				props.reflectionAttenuation = reflectionAttenuation;
+				props.maxRecursionDepth = recursionDepth;
+				props.albedoColor = XMFLOAT3(color.x, color.y, color.z);
+				for (auto& mesh : m_meshes) {
+					mesh->setProperties(props);
+				}
 			}
 			ImGui::SameLine();
 			ImGui::Text("Albedo color");

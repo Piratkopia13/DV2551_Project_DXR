@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Mesh.h"
 
-Mesh::Mesh() { };
+Mesh::Mesh(const std::string& name) : m_name(name) { };
 
 /*
 	buffer: is a VertexBuffer*
@@ -42,6 +42,14 @@ Mesh::~Mesh() {
 	geometryBuffer.vBuffer->decRef();
 	geometryBuffer.iBuffer->decRef();
 	delete transformCB;
+}
+
+void Mesh::setName(const std::string& name) {
+	m_name = name;
+}
+
+const std::string& Mesh::getName() const {
+	return m_name;
 }
 
 void Mesh::updateCameraCB(ConstantBuffer* cb) {
