@@ -48,9 +48,9 @@ void PotatoModel::addBone(Limb limb) {
 void PotatoModel::addFrame(unsigned int animationIndex, unsigned int limbIndex, float time, XMMATRIX matrix) {
 	m_Skeleton[limbIndex].animationStack[animationIndex].animation.push_back({time, matrix});
 	m_Skeleton[limbIndex].animationStack[animationIndex].duration = time;
-	if (m_maxTime[animationIndex] < time) {
-		m_maxTime[animationIndex] = time;
-	}
+	//if (m_maxTime[animationIndex] < time) {
+	//	m_maxTime[animationIndex] = time;
+	//}
 }
 void PotatoModel::addConnection(int ControlPointIndex, int boneIndex, float weight) {
 	m_ConnectionData[ControlPointIndex].indexes.push_back(boneIndex);

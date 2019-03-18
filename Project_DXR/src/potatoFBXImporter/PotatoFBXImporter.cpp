@@ -101,12 +101,18 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	}
 
 	PotatoModel* model = new PotatoModel();
-	
+
+
 	FbxNode * root = scene->GetRootNode();
 	printAnimationStack(root);
 	if (root) {
 		fetchSkeleton(root, model, objName);
+		int stackCount = scene->GetSrcObjectCount<FbxAnimStack>();
+		cout << objName << " StackSize: " << to_string(stackCount) << endl;
+		model->reSizeAnimationStack(stackCount);
 		fetchGeometry(root, model, objName);
+
+		model->normalizeWeights();
 	}
 	else {
 		cout << "no root in " << objName << endl;
@@ -580,10 +586,128 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 				}
 
 				unsigned int clusterCount = skin->GetClusterCount();
-				//cout << "  clusters: " << to_string(clusterCount) << endl;
+				cout << "  clusters: " << to_string(clusterCount) << endl;
+
+
+				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++) {
 
 
 
+					FbxCluster * cluster = skin->GetCluster(clusterIndex);
+					
+					int limbIndex = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
+					if (limbIndex == -1) {
+						//cout << "Could not find limb at clusterIndex: " << to_string(clusterIndex) << endl;
+						return;
+					}
+					
+					FbxAMatrix transformMatrix;
+					FbxAMatrix transformLinkMatrix;
+					FbxAMatrix globalBindposeInverseMatrix;
+
+					cluster->GetTransformMatrix(transformMatrix);	// The transformation of the mesh at binding time
+					cluster->GetTransformLinkMatrix(transformLinkMatrix);	// The transformation of the cluster(joint) at binding time from joint space to world space
+					globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix;
+
+					// Update the information in mSkeleton 
+					model->setGlobalBindposeInverse(limbIndex, convertToXMMatrix(globalBindposeInverseMatrix));
+
+
+					unsigned int indexCount = cluster->GetControlPointIndicesCount();
+					int* CPIndices = cluster->GetControlPointIndices();
+					double* CPWeights = cluster->GetControlPointWeights();
+
+					for (unsigned int index = 0; index < indexCount; ++index) {
+						/*if (CPIndices[index] > largestIndex)
+							largestIndex = CPIndices[index];*/
+
+						model->addConnection(CPIndices[index], limbIndex, (float)CPWeights[index]);
+					}
+
+					
+				
+				}
+				
+
+
+				std::vector<std::thread> limbThreads;
+				limbThreads.reserve(clusterCount);
+				std::condition_variable stackStop;
+				std::atomic_int atomicCounter;
+				atomicCounter.store(0);
+				std::mutex lock;
+
+
+				/*
+				   |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+				*/
+
+				int stackCount = scene->GetSrcObjectCount<FbxAnimStack>();
+				auto animateLimbWorker = [&](FbxCluster* cluster, int threadIndex) {
+					//FbxScene* scene = node->GetScene();
+
+					
+					//std::cout << "Started thread: " << threadIndex << endl;
+					//cout <<"    " <<PrintAttribute(cluster->GetLink()->GetNodeAttribute()) << endl;
+					int limbIndex = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
+					if (limbIndex == -1) {
+						//cout << "Could not find limb at clusterIndex: " << to_string(clusterIndex) << endl;
+						return;
+					}
+
+					for (int currentStack = 0; currentStack < stackCount; currentStack++) {
+						FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(currentStack);
+						FbxTakeInfo* takeInfo = scene->GetTakeInfo(currAnimStack->GetName());
+
+
+						atomicCounter++;
+						stackStop.notify_all();
+						std::unique_lock<std::mutex> mLock(lock);
+						//std::cout << "Thread " << threadIndex << " Waiting, atomicCounter: " << atomicCounter << std::endl;
+						stackStop.wait(mLock, [&]() {return atomicCounter*(currentStack+1) >= clusterCount; });
+						//atomicCounter.store(0);
+						
+						scene->SetCurrentAnimationStack(currAnimStack);
+
+
+
+						FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
+						FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
+						//cout << "Animation Time: " << to_string((float)takeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble()) << " Frame Count: " << to_string((int)end.GetFrameCount(FbxTime::eFrames24)) << endl;
+						float firstFrameTime = 0.0f;
+
+						for (FbxLongLong frame = start.GetFrameCount(FbxTime::eFrames24); frame <= end.GetFrameCount(FbxTime::eFrames24); frame++) {
+							FbxTime currTime;
+							currTime.SetFrame(frame, FbxTime::eFrames24);
+							if (firstFrameTime == 0.0f)
+								firstFrameTime = currTime.GetSecondDouble();
+							FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime);
+							//node->GetScene()->GetAnimationEvaluator()->GetNodeGlobalTransform(node, currTime);
+							//cout << (currTime.GetSecondDouble() - firstFrameTime) << endl;
+
+							XMMATRIX something = convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime));
+							model->addFrame(currentStack, limbIndex, currTime.GetSecondDouble() - firstFrameTime, something);
+						}
+
+					}
+					//std::cout << "Thread " << threadIndex << " done"<< std::endl;
+				};
+				
+				// every bone
+				
+				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++) {
+					FbxCluster * cluster = skin->GetCluster(clusterIndex);
+					limbThreads.emplace_back(animateLimbWorker, cluster, clusterIndex);
+				}
+
+				for (auto &thread : limbThreads) {
+					thread.join();
+				}
+
+
+				//std::thread thread(abc);
+				
+				/*
 				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
 
 					FbxCluster * cluster = skin->GetCluster(clusterIndex);
@@ -644,6 +768,8 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 					}
 				}
+				*/
+				
 			}
 		}
 
