@@ -147,11 +147,16 @@ void Game::init() {
 	m_cornellTexture->loadFromFile("../assets/textures/cornell.png");
 	m_cornellTexture->sampler = m_sampler.get();
 
+	MaterialProperties mirrorMatProps;
+	mirrorMatProps.maxRecursionDepth = 30;
+	mirrorMatProps.reflectionAttenuation = 0.0f;
+
 	size_t offset = 0;
 	{
 		// Set up mirrror 1 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 		m_meshes.back()->setName("Mirror 1");
+		m_meshes.back()->setProperties(mirrorMatProps);
 		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
 		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
@@ -168,6 +173,7 @@ void Game::init() {
 		// Set up mirrror 2 mesh
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 		m_meshes.back()->setName("Mirror 2");
+		m_meshes.back()->setProperties(mirrorMatProps);
 		constexpr auto numVertices = std::extent<decltype(mirrorVertices)>::value;
 		constexpr auto numIndices = std::extent<decltype(mirrorIndices)>::value;
 		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(mirrorVertices), VertexBuffer::DATA_USAGE::STATIC));
