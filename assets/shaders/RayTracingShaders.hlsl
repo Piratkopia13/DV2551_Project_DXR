@@ -367,6 +367,8 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 			dir = reflect(WorldRayDirection(), normalInWorldSpace);
 			scatter(dir, payload);
 			scatteredColor += payload.color * reflectanceFactor;
+
+			reflectionAttenuation = 0.0;
 		} 
 		else if (reflectionAttenuation < 1.0) { // -1 to allow for shadow ray
 			// Shoot a recursive reflected ray
