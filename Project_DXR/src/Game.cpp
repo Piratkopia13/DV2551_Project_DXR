@@ -424,8 +424,10 @@ void Game::imguiFunc() {
 			for (int i = 0; i < m_gameObjects.size(); i++) {
 				if (ImGui::TreeNode(std::string("animation " + std::to_string(i)).c_str())) {
 					ImGui::Checkbox("Updating", &m_gameObjects[i].getAnimationUpdate());
-					if (ImGui::SliderInt("index", &m_gameObjects[i].getAnimationIndex(), 0, m_gameObjects[i].getModel()->getStackSize())) {
 
+					int index = m_gameObjects[i].getAnimationIndex();
+					if (ImGui::SliderInt("index", &index, 0, m_gameObjects[i].getModel()->getStackSize()-1)) {
+						m_gameObjects[i].setAnimationIndex(index);
 					}
 
 					if (ImGui::SliderFloat("time", &m_gameObjects[i].getAnimationTime(), 0.0f, m_gameObjects[i].getMaxAnimationTime())) {
