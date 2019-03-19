@@ -417,9 +417,29 @@ void Game::render(double dt) {
 }
 
 void Game::imguiFunc() {
-
 	if (ImGui::Begin("Animation")) {
 		ImGui::SliderFloat("Speed", &m_animationSpeed, 0.0f, 1.0f);
+		if (ImGui::CollapsingHeader("Objects")) {
+
+			for (int i = 0; i < m_gameObjects.size(); i++) {
+				if (ImGui::TreeNode(std::string("animation " + std::to_string(i)).c_str())) {
+					ImGui::Checkbox("Updating", &m_gameObjects[i].getAnimationUpdate());
+					if (ImGui::SliderInt("index", &m_gameObjects[i].getAnimationIndex(), 0, m_gameObjects[i].getModel()->getStackSize())) {
+
+					}
+
+					if (ImGui::SliderFloat("time", &m_gameObjects[i].getAnimationTime(), 0.0f, m_gameObjects[i].getMaxAnimationTime())) {
+
+					}
+
+					ImGui::TreePop();
+				}
+
+			}
+		
+		}
+
+
 	}
 	ImGui::End();
 

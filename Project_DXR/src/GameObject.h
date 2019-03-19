@@ -11,12 +11,18 @@ public:
 	~GameObject();
 
 	void update(float d);
-	PotatoModel* getModel();
 
-	int getAnimationIndex();
-	float getAnimationTime();
+	PotatoModel* getModel();
+	int& getAnimationIndex();
+	int& getMaxAnimationIndex();
+	bool& getAnimationUpdate();
+	float& getAnimationTime();
+	float& getMaxAnimationTime();
 	
 	void setAnimationIndex(size_t index);
+	void setAnimationUpdate(const bool state);
+	void setAnimationTime(const float time);
+
 
 	Transform& getTransform();
 	const XMMATRIX& getTransformMatrix();
@@ -26,6 +32,7 @@ private:
 	int m_animationIndex;
 	float m_animationTime;
 	float m_maxAnimationTime;
+	bool m_update;
 	
 	PotatoModel* m_model;
 
