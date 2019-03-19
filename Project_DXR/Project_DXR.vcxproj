@@ -186,6 +186,7 @@
     <ClInclude Include="src\ImGui\imstb_textedit.h" />
     <ClInclude Include="src\potatoFBXImporter\PotatoFBXImporter.h" />
     <ClInclude Include="src\potatoFBXImporter\PotatoModel.h" />
+    <ClInclude Include="src\TimerSaver.h" />
     <ClInclude Include="src\Utils\Input.h" />
     <ClInclude Include="src\DX12\DX12ConstantBuffer.h" />
     <ClInclude Include="src\DX12\DX12Mesh.h" />
@@ -256,6 +257,7 @@
     </ClCompile>
     <ClCompile Include="src\potatoFBXImporter\PotatoFBXImporter.cpp" />
     <ClCompile Include="src\potatoFBXImporter\PotatoModel.cpp" />
+    <ClCompile Include="src\TimerSaver.cpp" />
     <ClCompile Include="src\Utils\Input.cpp" />
     <ClCompile Include="src\DX12\DX12ConstantBuffer.cpp" />
     <ClCompile Include="src\DX12\DX12Mesh.cpp" />

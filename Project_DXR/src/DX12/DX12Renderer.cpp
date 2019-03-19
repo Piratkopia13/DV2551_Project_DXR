@@ -236,7 +236,7 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	ThrowIfFailed(m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr));
 
 	// Timer
-	m_gpuTimer.init(m_device.Get(), 10);
+	m_gpuTimer.init(m_device.Get(), Timers::SIZE);
 
 
 	// DXR
@@ -755,8 +755,8 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_cdh.ptr += m_renderTargetDescriptorSize * frameIndex;
 
 	// Reset preCommand
-	m_preCommand.allocators[getFrameIndex()]->Reset();
-	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
+	m_preCommand.allocators[frameIndex]->Reset();
+	m_preCommand.list->Reset(m_preCommand.allocators[frameIndex].Get(), nullptr);
 
 	// Execute stored functions that needs an open preCommand list
 	for (auto& func : m_preCommandFuncsToExecute) {
@@ -827,16 +827,16 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	drawList.clear();
 
 	// Reset post command
-	m_postCommand.allocators[getFrameIndex()]->Reset();
-	m_postCommand.list->Reset(m_postCommand.allocators[getFrameIndex()].Get(), nullptr);
+	m_postCommand.allocators[frameIndex]->Reset();
+	m_postCommand.list->Reset(m_postCommand.allocators[frameIndex].Get(), nullptr);
 
 	// DXR
 	if (m_DXREnabled) {
 		if (!m_firstFrame)
 			m_computeCommandQueue->Wait(m_directQueueFence.Get(), m_numFrames);
 
-		m_computeCommand.allocators[getFrameIndex()]->Reset();
-		m_computeCommand.list->Reset(m_computeCommand.allocators[getFrameIndex()].Get(), nullptr);
+		m_computeCommand.allocators[frameIndex]->Reset();
+		m_computeCommand.list->Reset(m_computeCommand.allocators[frameIndex].Get(), nullptr);
 		m_dxr->updateAS(m_computeCommand.list.Get());
 		m_dxr->doTheRays(m_computeCommand.list.Get());
 

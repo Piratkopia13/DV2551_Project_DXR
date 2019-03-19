@@ -10,6 +10,7 @@
 #include "Core/CameraController.h"
 #include "potatoFBXImporter/PotatoFBXImporter.h"
 #include "GameObject.h"
+#include "TimerSaver.h"
 
 class DX12Renderer;
 class DX12Mesh;
@@ -64,4 +65,6 @@ private:
 
 	std::string m_availableTextures;
 	std::vector<std::string> m_availableTexturesList;
+
+	TimerSaver m_timerSaver;
 };

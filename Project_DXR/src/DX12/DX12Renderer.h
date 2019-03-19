@@ -28,6 +28,16 @@ class DX12Technique;
 class DX12Skybox;
 class Camera;
 
+namespace Timers {
+	enum Gpu {
+		BLAS,
+		TLAS,
+		VB_UPDATE,
+		DISPATCHRAYS,
+		SIZE
+	};
+}
+
 namespace GlobalRootParam {
 	enum Slot {
 		CBV_TRANSFORM = 0,
