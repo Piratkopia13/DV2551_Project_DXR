@@ -24,13 +24,16 @@ GameObject::~GameObject() {
 }
 
 void GameObject::update(float d) {
-	m_animationTime += d;
-	if (d > 1.0) {
-		std::cout << d << std::endl;
-	}
-	if (m_animationTime > m_maxAnimationTime) {
-		m_animationTime = m_animationTime - (int(m_animationTime / m_maxAnimationTime)*m_maxAnimationTime);
-		//std::cout << "max" << std::endl;
+	if (m_update) {
+		m_animationTime += d;
+		if (d > 1.0) {
+			std::cout << d << std::endl;
+		}
+		if (m_animationTime > m_maxAnimationTime) {
+			m_animationTime = m_animationTime - (int(m_animationTime / m_maxAnimationTime)*m_maxAnimationTime);
+			//std::cout << "max" << std::endl;
+		}
+
 	}
 
 }
@@ -40,16 +43,36 @@ PotatoModel * GameObject::getModel() {
 }
 
 
-int GameObject::getAnimationIndex() {
+int& GameObject::getAnimationIndex() {
 	return m_animationIndex;
 }
-float GameObject::getAnimationTime() {
+bool & GameObject::getAnimationUpdate()
+{
+	return m_update;
+	// TODO: insert return statement here
+}
+float& GameObject::getAnimationTime() {
 	return m_animationTime;
 }
+
+float & GameObject::getMaxAnimationTime()
+{
+	return m_maxAnimationTime;
+	// TODO: insert return statement here
+}
+
 void GameObject::setAnimationIndex(size_t index) {
 	m_animationIndex = index;
 	if (m_model)
 		m_maxAnimationTime = m_model->getMaxTime(index);
+	}
+
+void GameObject::setAnimationUpdate(const bool state) {
+	m_update = state;
+}
+
+void GameObject::setAnimationTime(const float time) {
+	m_animationTime = time - (int(time / m_maxAnimationTime)*m_maxAnimationTime);
 }
 
 Transform& GameObject::getTransform() {

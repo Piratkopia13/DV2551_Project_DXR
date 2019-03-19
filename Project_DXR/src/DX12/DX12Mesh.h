@@ -5,6 +5,7 @@
 #include "../Core/Mesh.h"
 
 class DX12Renderer;
+class DX12Texture2DArray;
 
 class DX12Mesh : public Mesh {
 public:
@@ -18,9 +19,15 @@ public:
 	const MaterialProperties& getProperties() const;
 	void setProperties(const MaterialProperties& props);
 
+	DX12Texture2DArray* getTexture2DArray() const;
+	void setTexture2DArray(DX12Texture2DArray* texArr);
+
 private:
 	DX12ConstantBuffer m_materialCB;
 	MaterialProperties m_matProps; // MaterialProperties is a shader-common struct
+
+private:
+	DX12Texture2DArray* m_texArr;
 
 };
 

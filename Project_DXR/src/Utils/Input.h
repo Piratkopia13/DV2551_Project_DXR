@@ -22,21 +22,30 @@ public:
 	// Call at the end of frame
 	static void EndFrame();
 
-	// Check if key is down
-	static bool IsKeyDown(const UINT keyCode);
-	static bool IsKeyPressed(const UINT keyCode);
-
 	static void ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 
 	static float GetMouseDX();
 	static float GetMouseDY();
 	static bool IsMouseButtonDown(MouseButton button);
 	static bool IsMouseButtonPressed(MouseButton button);
+	
+	// Check if key is down
+	static bool IsKeyDown(const UINT keyCode);
+	static bool IsKeyPressed(const UINT keyCode);
 
 	static void showCursor(bool show);
 	static bool IsCursorHidden();
 
+	static void setActive(bool active);
+
 private:
+	// Disallow instances
+	Input() {}
+	~Input() {}
+
+private:
+	static bool m_isActive;
+
 	static std::map<unsigned int, bool> m_keysDown;
 	static std::vector<unsigned int> m_keysPressedPreviousFrame;
 	// TODO: Add system keys
@@ -51,11 +60,6 @@ private:
 	static float m_mouseDeltaYSinceLastFrame;
 
 	static bool m_cursorHidden;
-
-private:
-	// Disallow instances
-	Input() {}
-	~Input() {}
 
 };
 
