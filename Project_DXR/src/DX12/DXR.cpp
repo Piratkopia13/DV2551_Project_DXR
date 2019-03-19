@@ -8,6 +8,7 @@
 #include "DX12Material.h"
 #include "DX12Technique.h"
 #include "DX12Texture2D.h"
+#include "DX12Texture2DArray.h"
 #include "DX12Mesh.h"
 #include "../Core/Camera.h"
 #include "../Core/CameraController.h"
@@ -321,13 +322,14 @@ void DXR::createShaderResources() {
 	if (m_meshes) {
 		m_rtMeshHandles.clear();
 		for (auto& mesh : *m_meshes) {
-			DX12Texture2D* texture = static_cast<DX12Texture2D*>(mesh->textures.begin()->second);
+			DX12Texture2DArray* texture = mesh->getTexture2DArray();
 
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = texture->getSRVDesc();
+			/*srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			srvDesc.Format = texture->getFormat();
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = texture->getMips();
+			srvDesc.Texture2D.MipLevels = texture->getMips();*/
 			m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 			MeshHandles handles;
@@ -368,7 +370,7 @@ void DXR::createShaderTables() {
 			m_missShaderTable.Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
-		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr); // TODO: Check if correct
+		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr);
 		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
 	}
 
@@ -625,10 +627,14 @@ ID3D12RootSignature* DXR::createRayGenLocalRootSignature() {
 }
 
 ID3D12RootSignature* DXR::createHitGroupLocalRootSignature() {
-	D3D12_DESCRIPTOR_RANGE range[1]{};
 	D3D12_ROOT_PARAMETER rootParams[DXRHitGroupRootParam::SIZE]{};
 
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.ShaderRegister = 1;
+	rootParams[DXRHitGroupRootParam::SRV_VERTEX_BUFFER].Descriptor.RegisterSpace = 0;
+
 	// diffuseTexture
+	D3D12_DESCRIPTOR_RANGE range[1]{};
 	range[0].BaseShaderRegister = 2;
 	range[0].NumDescriptors = 1;
 	range[0].RegisterSpace = 0;

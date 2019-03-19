@@ -12,6 +12,7 @@
 #include "DX12IndexBuffer.h"
 #include "DX12Skybox.h"
 #include "D3DUtils.h"
+#include "DX12Texture2DArray.h"
 
 #include "../ImGui/imgui_impl_win32.h"
 #include "../ImGui/imgui_impl_dx12.h"
@@ -700,11 +701,16 @@ void DX12Renderer::workerThread(unsigned int id) {
 			list->RSSetScissorRects(1, &m_scissorRect);
 
 			for (auto mesh : work->second) {
+				//size_t numberElements = mesh->geometryBuffer.numElements;
+
 				size_t numVertices = mesh->geometryBuffer.numVertices;
 				size_t numIndices = mesh->geometryBuffer.numIndices;
+				// TODO: Bind texture array instead
+				/*for (auto t : mesh->textures) {
 				for (auto t : mesh->textures) {
 					static_cast<DX12Texture2D*>(t.second)->bind(t.first, list.Get());
-				}
+				}*/
+				mesh->getTexture2DArray()->bind(list.Get());
 
 				// Bind indices, vertices, normals and UVs
 				mesh->bindIA(list.Get());
@@ -849,9 +855,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		// Add a wait for the copy queue
 		m_directCommandQueue->Wait(m_computeQueueFence.Get(), m_numFrames);
 		m_computeCommandQueue->Signal(m_computeQueueFence.Get(), m_numFrames);
-
-
-		m_dxr->copyOutputTo(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get());
 
 		// Do post process temporal accumulation from the dxr output
 		// Bind pipeline state set up with the correct shaders

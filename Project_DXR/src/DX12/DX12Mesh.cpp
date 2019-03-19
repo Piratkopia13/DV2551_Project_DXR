@@ -48,3 +48,11 @@ void DX12Mesh::setProperties(const MaterialProperties& props) {
 	m_materialCB.setData(&m_matProps, 0);
 	m_materialCB.forceUpdate(0);
 }
+
+DX12Texture2DArray * DX12Mesh::getTexture2DArray() const {
+	return m_texArr;
+}
+
+void DX12Mesh::setTexture2DArray(DX12Texture2DArray * texArr) {
+	m_texArr = texArr;
+}

@@ -7,7 +7,7 @@ RWTexture2D<float4> lOutput : register(u0);
 StructuredBuffer<Vertex> Vertices : register(t1, space0);
 StructuredBuffer<uint> Indices : register(t1, space1);
 
-Texture2D<float4> diffuseTexture : register(t2, space0);
+Texture2DArray<float4> textureArray : register(t2, space0);
 SamplerState ss : register(s0);
 
 Texture2D<float4> skyboxTexture : register(t3, space0);
@@ -156,6 +156,43 @@ float3 phongShading(float3 diffuseColor, float3 normal, float2 texCoords) {
 	return color;
 }
 
+// Approximation of reflectance and transmittance
+// Provided by: https://graphics.stanford.edu/courses/cs148-10-summer/docs/2006--degreve--reflection_refraction.pdf
+// Ray, normal, refractive indices n1 (from), n2 (to)
+// Refractive indices - air ~1, water 20*C ~1.33, glass ~1.5
+// Reflectance = rSchlick2, Transmittance = 1 - Reflectance
+float rSchlick2(in float3 incident, in float3 normal, in float n1, in float n2) {
+	float mat1 = n1, mat2 = n2;
+	float cosI = -dot(incident, normal);
+	// Leaving the material
+	//if(cosI < 0.0) {
+	//	mat1 = n2;
+	//	mat2 = n1;
+	//}
+	// Due to restriction in approximation
+	if (mat1 > mat2) {
+		float n = mat1 / mat2;
+		float sinT2 = pow(n, 2) * (1.0 - pow(abs(cosI), 2));
+		if (sinT2 > 1.0f) return 1.0f; // TIR
+		cosI = sqrt(1.0f - sinT2);
+	}
+	float x = 1.0f - cosI;
+	float r0 = pow(abs(mat1 - mat2) / (mat1 + mat2), 2);
+	return r0 + (1.0f - r0) * pow(x, 5);
+}
+
+// Ray, normal, refractive indices n1 (from), n2 (to)
+float3 GetTransmittanceRay(in float3 incident, in float3 normal, float n1, float n2) {
+	float n = n1/n2;
+	float cosI = -dot(incident, normal);
+	float sinT2 = pow(n, 2) * (1.0f - pow(abs(cosI), 2));
+	if(sinT2 > 1.0) return float3(0.0, 0.0, 0.0);
+	float cosT = sqrt(1.0 - sinT2);
+	return n * incident + (n * cosI - cosT) * normal;
+}
+
+
+
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
 inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction) {
@@ -263,7 +300,7 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 		return;
 	}
 
-	float3 diffuseColor = diffuseTexture.SampleLevel(ss, texCoords, 0).rgb * material.albedoColor;
+	float3 diffuseColor = textureArray.SampleLevel(ss, float3(texCoords, DIFFUSE_TEXTURE_INDEX), 0).rgb * material.albedoColor;
 	// float3 diffuseColor = float3(0.f, 0.8, 0.0);
 	float3 giColor = float3(1,1,1);
 
@@ -299,15 +336,50 @@ void closestHit(inout RayPayload payload, in BuiltInTriangleIntersectionAttribut
 	}
 
 	float3 scatteredColor = color;
-	if (material.reflectionAttenuation < 1.0 && payload.recursionDepth < min(material.maxRecursionDepth+3, MAX_RAY_RECURSION_DEPTH) - 2) { // -1 to allow for shadow ray
-		// Shoot a recursive reflected ray
-		float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
-		dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
-		scatter(dir, payload);
-		scatteredColor = payload.color;
+	float reflectionAttenuation = material.reflectionAttenuation;
+	if (payload.recursionDepth < min(material.maxRecursionDepth+3, MAX_RAY_RECURSION_DEPTH) - 2) {
+		// Check if multiple materials
+		UINT width;
+		UINT height;
+		UINT numElements;
+		// TODO: Check if this works
+		textureArray.GetDimensions(width, height, numElements);
+
+		float refractionFactor = 0;
+		if (numElements > 1) {
+			float2 matRGB = textureArray.SampleLevel(ss, float3(texCoords, MATERIAL_TEXTURE_INDEX), 0).rg;
+			reflectionAttenuation = 1.0 - matRGB.r;
+			refractionFactor = matRGB.g;
+		}
+
+		if (refractionFactor > 0.01) {
+			// Material refraction indices
+			float n1 = 1.0; // Air
+			float n2 = 1.0 + refractionFactor;
+			float reflectanceFactor = saturate(rSchlick2(WorldRayDirection(), normalInWorldSpace, n1, n2));
+
+			// Refraction
+			float3 dir = GetTransmittanceRay(WorldRayDirection(), normalInWorldSpace, n1, n2);
+			scatter(dir, payload);
+			scatteredColor = payload.color * (1.0 - reflectanceFactor);
+
+			// Reflection
+			dir = reflect(WorldRayDirection(), normalInWorldSpace);
+			scatter(dir, payload);
+			scatteredColor += payload.color * reflectanceFactor;
+
+			reflectionAttenuation = 0.0;
+		} 
+		else if (reflectionAttenuation < 1.0) { // -1 to allow for shadow ray
+			// Shoot a recursive reflected ray
+			float3 dir = reflect(WorldRayDirection(), normalInWorldSpace);
+			dir += (float3(nextRand(randSeed), nextRand(randSeed), nextRand(randSeed)) * 2.0 - 1.0) * material.fuzziness;
+			scatter(dir, payload);
+			scatteredColor = payload.color * (1.0 - reflectionAttenuation);
+		}
 	}
 
- 	payload.color.rgb = material.reflectionAttenuation * color + (1.0 - material.reflectionAttenuation) * scatteredColor;
+ 	payload.color.rgb = reflectionAttenuation * color + scatteredColor;
  	payload.color.rgb = toneMap(payload.color.rgb);
  	payload.color.a = 1.0f;
 
