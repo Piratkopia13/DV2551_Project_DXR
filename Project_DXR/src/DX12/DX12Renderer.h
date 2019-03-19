@@ -60,6 +60,7 @@ public:
 	ID3D12Device5* getDevice() const;
 	ID3D12CommandQueue* getCmdQueue(D3D12_COMMAND_LIST_TYPE = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 	ID3D12GraphicsCommandList4* getCmdList() const;
+	ID3D12GraphicsCommandList4* getCopyList() const;
 	ID3D12RootSignature* getRootSignature() const;
 	ID3D12CommandAllocator* getCmdAllocator() const;
 	UINT getNumSwapBuffers() const;
@@ -89,6 +90,7 @@ public:
 	void useCamera(Camera* camera);
 	
 	void executeNextOpenPreCommand(std::function<void()> func);
+	void executeNextOpenCopyCommand(std::function<void()> func);
 
 	void waitForGPU();
 	void reportLiveObjects();
@@ -117,6 +119,7 @@ private:
 	};
 private:
 	std::vector<std::function<void()>> m_preCommandFuncsToExecute; // Stored functions to execute on next open pre-command list
+	std::vector<std::function<void()>> m_copyCommandFuncsToExecute; // Stored functions to execute on next open copy-command list
 
 	// Only used for initialization
 	IDXGIFactory6* m_factory;

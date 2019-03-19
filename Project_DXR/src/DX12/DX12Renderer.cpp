@@ -130,6 +130,11 @@ ID3D12GraphicsCommandList4* DX12Renderer::getCmdList() const {
 	return m_preCommand.list.Get();
 }
 
+ID3D12GraphicsCommandList4 * DX12Renderer::getCopyList() const
+{
+	return m_copyCommand.list.Get();
+}
+
 ID3D12RootSignature* DX12Renderer::getRootSignature() const {
 	return m_globalRootSignature.Get();
 }
@@ -760,6 +765,31 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_cdh = m_renderTargetsHeap->GetCPUDescriptorHandleForHeapStart();
 	m_cdh.ptr += m_renderTargetDescriptorSize * frameIndex;
 
+	
+	
+	// Reset copy command
+	m_copyCommand.allocators[getFrameIndex()]->Reset();
+	m_copyCommand.list->Reset(m_copyCommand.allocators[getFrameIndex()].Get(), nullptr);
+	
+	// Execute stored functions that needs an open copyCommand list
+	for (auto& func : m_copyCommandFuncsToExecute) {
+		func();
+	}
+	m_copyCommandFuncsToExecute.clear();
+
+	//Execute the copy command list
+	m_copyCommand.list->Close();
+	ID3D12CommandList* listsToExecute[] = { m_copyCommand.list.Get() };
+	m_copyCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+
+	if (m_DXREnabled)
+		m_computeCommandQueue->Wait(m_copyQueueFence.Get(), m_numFrames);
+	else
+		m_directCommandQueue->Wait(m_copyQueueFence.Get(), m_numFrames);
+	m_copyCommandQueue->Signal(m_copyQueueFence.Get(), m_numFrames);
+
+
+
 	// Reset preCommand
 	m_preCommand.allocators[getFrameIndex()]->Reset();
 	m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr);
@@ -838,8 +868,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// DXR
 	if (m_DXREnabled) {
-		if (!m_firstFrame)
-			m_computeCommandQueue->Wait(m_directQueueFence.Get(), m_numFrames);
 
 		m_computeCommand.allocators[getFrameIndex()]->Reset();
 		m_computeCommand.list->Reset(m_computeCommand.allocators[getFrameIndex()].Get(), nullptr);
@@ -912,6 +940,8 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_postCommand.list->Close();
 		ID3D12CommandList* listsToExecute[] = { m_postCommand.list.Get() };
 		m_directCommandQueue->ExecuteCommandLists(ARRAYSIZE(listsToExecute), listsToExecute);
+		// Wait for direct queue to finish execution (Maybe?)
+		m_copyCommandQueue->Wait(m_directQueueFence.Get(), m_numFrames + 1);
 		m_directCommandQueue->Signal(m_directQueueFence.Get(), m_numFrames + 1);
 	}
 
@@ -1058,6 +1088,10 @@ bool& DX12Renderer::getVsync() {
 
 void DX12Renderer::executeNextOpenPreCommand(std::function<void()> func) {
 	m_preCommandFuncsToExecute.push_back(func);
+}
+
+void DX12Renderer::executeNextOpenCopyCommand(std::function<void()> func) {
+	m_copyCommandFuncsToExecute.push_back(func);
 }
 
 void DX12Renderer::nextFrame() {

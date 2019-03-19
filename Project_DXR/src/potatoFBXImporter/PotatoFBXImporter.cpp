@@ -590,7 +590,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 				// CONNECTION AND GLOBALBINDPOSE FOR EACH CONNECTION FOR EACH LIMB
 
 				std::vector<int> limbIndexes;
-				limbIndexes.reserve(clusterCount);
+				limbIndexes.resize(clusterCount);
 				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++) {
 					FbxCluster* cluster = skin->GetCluster(clusterIndex);
 					limbIndexes[clusterIndex] = model->findLimbIndex(cluster->GetLink()->GetUniqueID());
