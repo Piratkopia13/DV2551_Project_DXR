@@ -30,6 +30,7 @@ DXR::DXR(DX12Renderer* renderer)
 
 DXR::~DXR() {
 	//SafeDelete(m_vb);
+	delete m_sceneCBData;
 }
 
 void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
@@ -41,8 +42,9 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 }
 
 void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
+	static bool firstFrame = true;
 	if (m_updateBLAS) {
-		if (!m_newInPlace) {
+		if (!m_newInPlace || firstFrame) {
 			createShaderResources();
 			createShaderTables();
 		}
@@ -54,6 +56,7 @@ void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 		m_updateTLAS = false;
 	}
 	m_numMeshesChanged = false;
+	firstFrame = false;
 }
 
 void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
@@ -448,7 +451,11 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers[i].result->GetGPUVirtualAddress();
 			asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers[i].scratch->GetGPUVirtualAddress();
 
+			m_renderer->getTimer().start(cmdList, Timers::BLAS);
 			cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
+			m_renderer->getTimer().stop(cmdList, Timers::BLAS);
+
+			m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::BLAS);
 
 			// We need to insert a UAV barrier before using the acceleration structures in a raytracing operation
 			D3D12_RESOURCE_BARRIER uavBarrier = {};
@@ -526,7 +533,11 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 	asDesc.DestAccelerationStructureData = m_DXR_TopBuffers.result->GetGPUVirtualAddress();
 	asDesc.ScratchAccelerationStructureData = m_DXR_TopBuffers.scratch->GetGPUVirtualAddress();
 
+	m_renderer->getTimer().start(cmdList, Timers::TLAS);
 	cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
+	m_renderer->getTimer().stop(cmdList, Timers::TLAS);
+
+	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::TLAS);
 
 	// UAV barrier needed before using the acceleration structures in a raytracing operation
 	D3D12_RESOURCE_BARRIER uavBarrier = {};

@@ -13,7 +13,7 @@ DX12Texture2DArray::DX12Texture2DArray(DX12Renderer* renderer)
 
 DX12Texture2DArray::~DX12Texture2DArray() {
 	if (m_rgba) {
-		delete m_rgba;
+		free(m_rgba);
 		m_rgba = nullptr;
 	}
 }
@@ -42,7 +42,7 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 		memcpy(m_rgbaVec.data() + imageByteSize * index, m_rgba, imageByteSize);
 		index++;
 
-		delete m_rgba;
+		free(m_rgba);
 		m_rgba = nullptr;
 	}
 

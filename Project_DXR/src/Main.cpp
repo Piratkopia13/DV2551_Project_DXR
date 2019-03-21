@@ -3,24 +3,6 @@
 
 using namespace std;
 
-//// TOTAL_TRIS pretty much decides how many drawcalls in a brute force approach.
-//constexpr int TOTAL_TRIS = 100;
-//// this has to do with how the triangles are spread in the screen, not important.
-//constexpr int TOTAL_PLACES = 2 * TOTAL_TRIS;
-//float xt[TOTAL_PLACES], yt[TOTAL_PLACES];
-//
-//// lissajous points
-//typedef union { 
-//	struct { float x, y, z, w; };
-//	struct { float r, g, b, a; };
-//} float4;
-//
-//typedef union { 
-//	struct { float x, y; };
-//	struct { float u, v; };
-//} float2;
-
-
 int main(int argc, char *argv[])
 {
 	// Check for memory leaks
@@ -28,11 +10,6 @@ int main(int argc, char *argv[])
 
 	Game game;
 	int status = game.startGameLoop();
-	/*dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
-	auto m_fbxImporter = std::make_unique<PotatoFBXImporter>();
-	PotatoModel* dino;
-	dino = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
-	delete dino;
-	int status = 0;*/
+	
 	return status;
 };

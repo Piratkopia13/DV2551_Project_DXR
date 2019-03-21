@@ -8,7 +8,9 @@
 
 Game::Game() 
 	: Application(1700, 900, "DX12 DXR Raytracer thing with soon to come skinned animated models")
+	, m_timerSaver(10000)
 {
+
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
 
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
@@ -45,6 +47,8 @@ Game::Game()
 
 Game::~Game() {
 
+	m_timerSaver.saveToFile();
+
 	for (int i = 0; i < m_models.size(); i++) {
 		if (m_models[i])
 			delete m_models[i];
@@ -57,7 +61,8 @@ void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* _robo;
 #ifdef _DEBUG
-	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
+	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot3.fbx");
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
 #else
 	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot3.fbx");
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/deer.fbx");
@@ -492,22 +497,23 @@ void Game::update(double dt) {
 		}
 	}
 	
+	if (m_animationSpeed > 0.0f) {
+		for (int i = 0; i < m_gameObjects.size(); i++) {
+			PotatoModel* pModel = m_gameObjects[i].getModel();
+			m_gameObjects[i].update(dt * m_animationSpeed);
+			m_meshes[m_animatedModelsStartIndex + i]->setTransform(m_gameObjects[i].getTransform());
 
-}
-
-void Game::fixedUpdate(double dt) {
-	for (int i = 0; i < m_gameObjects.size(); i++) {
-		PotatoModel* pModel = m_gameObjects[i].getModel();
-		m_gameObjects[i].update(dt * m_animationSpeed);
-		m_meshes[m_animatedModelsStartIndex + i]->setTransform(m_gameObjects[i].getTransform());
-
-		if (m_dxRenderer->isDXRSupported())
-			m_dxRenderer->getDXR().updateBLASnextFrame(true);
+			if (m_dxRenderer->isDXRSupported())
+				m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
 		m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
 			static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
 		});
 	}
+
+}
+
+void Game::fixedUpdate(double dt) {
 }
 
 
@@ -522,6 +528,22 @@ void Game::render(double dt) {
 	m_dxRenderer->frame(imgui);
 
 	getRenderer().present();
+
+	UINT64 queueFreq;
+	m_dxRenderer->getCmdQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetTimestampFrequency(&queueFreq);
+	double timestampToMs = (1.0 / queueFreq) * 1000.0;
+
+	auto getMsTime = [&](Timers::Gpu timer) {
+		D3D12::GPUTimestampPair updateTime = m_dxRenderer->getTimer().getTimestampPair(timer);
+		UINT64 timerDt = updateTime.Stop - updateTime.Start;
+		return timerDt * timestampToMs;
+	};
+
+	m_timerSaver.addResult("BLAS", m_gameObjects.size(), getMsTime(Timers::BLAS));
+	m_timerSaver.addResult("TLAS", m_gameObjects.size(), getMsTime(Timers::TLAS));
+
+	//std::cout << "GPU time to update BLAS: " << timeInMs << std::endl;
+
 }
 
 void Game::imguiFunc() {
