@@ -18,6 +18,11 @@ Game::Game()
 	m_persCamera->setPosition(XMVectorSet(-20.0f, 30.0f, 0.0f, 0.f));
 	m_persCamera->setDirection(XMVectorSet(1.0f, -0.4f, 0.0f, 1.0f));
 	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get(), m_persCamera->getDirectionVec());
+
+	if (m_dxRenderer->isDXREnabled()) {
+		m_dxRenderer->getDXR().getRTFlags() &= ~RT_ENABLE_TA;
+		m_dxRenderer->getDXR().getRTFlags() &= ~RT_ENABLE_JITTER_AA;
+	}
 	#else
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
 	m_persCamera->setPosition(XMVectorSet(7.37f, 12.44f, 13.5f, 0.f));
@@ -467,14 +472,14 @@ void Game::update(double dt) {
 	}
 
 
-	#else
-
-
-
 	if (Input::IsKeyPressed(VK_RETURN)) {
 		auto& r = static_cast<DX12Renderer&>(getRenderer());
 		r.enableDXR(!r.isDXREnabled());
 	}
+	#else
+
+
+
 	if (Input::IsMouseButtonPressed(Input::MouseButton::RIGHT)) {
 		Input::showCursor(Input::IsCursorHidden());
 	}
@@ -952,14 +957,14 @@ Transform Game::getNextPosition() {
 
 bool Game::addObject(PotatoModel * model, int animationIndex, Transform & transform) {
 	size_t offset = 0;
-	m_gameObjects.emplace_back(m_models.back(), animationIndex, transform);
+	m_gameObjects.emplace_back(model, animationIndex, transform);
 
 	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
 	m_meshes.back()->setName("Animated " + std::to_string(m_meshes.size()));
 
 	// Vertex buffer
-	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects.back().getModel()->getModelVertices().size(), VertexBuffer::STATIC));
-	m_vertexBuffers.back()->setData(m_gameObjects.back().getModel()->getModelVertices().data(), sizeof(Vertex) * m_gameObjects.back().getModel()->getModelVertices().size(), offset);
+	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects.back().getModel()->getModelData().size(), VertexBuffer::STATIC));
+	m_vertexBuffers.back()->setData(m_gameObjects.back().getModel()->getModelData().data(), sizeof(Vertex) * m_gameObjects.back().getModel()->getModelVertices().size(), offset);
 	// Index buffer
 	m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * m_gameObjects.back().getModel()->getModelIndices().size(), IndexBuffer::STATIC));
 	m_indexBuffers.back()->setData(m_gameObjects.back().getModel()->getModelIndices().data(), sizeof(unsigned int) * m_gameObjects.back().getModel()->getModelIndices().size(), offset);
@@ -971,9 +976,9 @@ bool Game::addObject(PotatoModel * model, int animationIndex, Transform & transf
 	// Texture
 	//m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
 	m_meshes.back()->setTexture2DArray(m_ballbotTexArray.get());
-
-
-
+	
+	if (m_dxRenderer->isDXREnabled())
+		m_dxRenderer->getDXR().setMeshes(m_meshes);
 
 	return true;
 }
