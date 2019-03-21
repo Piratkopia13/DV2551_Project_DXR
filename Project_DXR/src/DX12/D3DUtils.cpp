@@ -117,7 +117,7 @@ void D3DUtils::PSOBuilder::addLibrary(const std::string& shaderPath, const std::
 	dxilLibraryDesc.DXILLibrary.pShaderBytecode = pShaders->GetBufferPointer();
 	dxilLibraryDesc.DXILLibrary.BytecodeLength = pShaders->GetBufferSize();
 	dxilLibraryDesc.pExports = &dxilExports[0];
-	dxilLibraryDesc.NumExports = dxilExports.size();
+	dxilLibraryDesc.NumExports = UINT(dxilExports.size());
 
 	append(D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &dxilLibraryDesc);
 
@@ -145,7 +145,7 @@ void D3DUtils::PSOBuilder::addSignatureToShaders(std::vector<LPCWSTR> shaderName
 	m_exportAssociations.emplace_back();
 	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION& rayGenLocalRootAssociation = m_exportAssociations.back();
 	rayGenLocalRootAssociation.pExports = &m_associationNames.back()[0];
-	rayGenLocalRootAssociation.NumExports = shaderNames.size();
+	rayGenLocalRootAssociation.NumExports = UINT(shaderNames.size());
 	rayGenLocalRootAssociation.pSubobjectToAssociate = signatureSO; //<-- address to local root subobject
 
 	append(D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &rayGenLocalRootAssociation);
@@ -178,7 +178,7 @@ ID3D12StateObject* D3DUtils::PSOBuilder::build(ID3D12Device5* device) {
 	if (!m_shaderNames.empty()) {
 		// Bind the payload size to the programs
 		shaderConfigAssociation.pExports = &m_shaderNames[0];
-		shaderConfigAssociation.NumExports = m_shaderNames.size();
+		shaderConfigAssociation.NumExports = UINT(m_shaderNames.size());
 		shaderConfigAssociation.pSubobjectToAssociate = configSO; //<-- address to shader config subobject
 		append(D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &shaderConfigAssociation);
 	}

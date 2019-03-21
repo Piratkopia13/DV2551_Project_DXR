@@ -13,7 +13,7 @@ public:
 	void update(float d);
 
 	PotatoModel* getModel();
-	int& getAnimationIndex();
+	size_t& getAnimationIndex();
 	int& getMaxAnimationIndex();
 	bool& getAnimationUpdate();
 	float& getAnimationTime();
@@ -29,7 +29,7 @@ public:
 private:
 
 	Transform m_transform;
-	int m_animationIndex;
+	size_t m_animationIndex;
 	float m_animationTime;
 	float m_maxAnimationTime;
 	bool m_update;

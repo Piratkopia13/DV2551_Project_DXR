@@ -35,6 +35,7 @@ DX12ConstantBuffer::DX12ConstantBuffer(std::string name, size_t size, DX12Render
 	}
 
 	// Allocate cpu memory for the buffer
+	// Memory leak
 	m_newData = malloc(size);
 
 }
@@ -43,6 +44,8 @@ DX12ConstantBuffer::~DX12ConstantBuffer() {
 
 	delete[] m_constantBufferUploadHeap;
 	delete[] m_cbGPUAddress;
+	delete[] m_needsUpdate;
+	free(m_newData);
 
 }
 

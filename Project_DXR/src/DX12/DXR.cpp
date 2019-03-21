@@ -30,6 +30,7 @@ DXR::DXR(DX12Renderer* renderer)
 
 DXR::~DXR() {
 	//SafeDelete(m_vb);
+	delete m_sceneCBData;
 }
 
 void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
@@ -414,7 +415,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			geomDesc[0].Triangles.VertexCount = vb->getVertexCount();
 			geomDesc[0].Triangles.IndexBuffer = ib->getBuffer()->GetGPUVirtualAddress();
 			geomDesc[0].Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
-			geomDesc[0].Triangles.IndexCount = ib->getNumIndices();
+			geomDesc[0].Triangles.IndexCount = UINT(ib->getNumIndices());
 			geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 			// Get the size requirements for the scratch and AS buffers

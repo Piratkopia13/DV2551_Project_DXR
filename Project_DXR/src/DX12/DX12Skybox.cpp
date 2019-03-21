@@ -113,6 +113,9 @@ DX12Skybox::DX12Skybox(DX12Renderer* renderer)
 }
 
 DX12Skybox::~DX12Skybox() {
+	delete m_texture;
+	delete m_transCB;
+	delete m_vb;
 	delete m_mat;
 }
 
