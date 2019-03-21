@@ -251,7 +251,7 @@ void Game::init() {
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->setTexture2DArray(m_reflectTexArray.get());
 		Transform t = m_meshes.back()->getTransform();
-		t.setTranslation(DirectX::XMVectorSet(15.0f, 5.f, 0.f, 1.0f));
+		t.setTranslation(DirectX::XMVectorSet(15.0f, 16.f, 0.f, 1.0f));
 		m_meshes.back()->setTransform(t);
 
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
@@ -264,7 +264,7 @@ void Game::init() {
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->setTexture2DArray(m_refractTexArray.get());
 		t = m_meshes.back()->getTransform();
-		t.setTranslation(DirectX::XMVectorSet(-15.0f, 5.f, 0.f, 1.0f));
+		t.setTranslation(DirectX::XMVectorSet(-15.0f, 16.f, 0.f, 1.0f));
 		m_meshes.back()->setTransform(t);
 
 		delete model;
@@ -286,7 +286,7 @@ void Game::init() {
 		m_meshes.back()->setTexture2DArray(m_mirrorTextures.get());
 		Transform t = m_meshes.back()->getTransform();
 		t.setScale(DirectX::XMVectorSet(0.3f, 0.3f, 0.3f, 1.0f));
-		//t.setTranslation(DirectX::XMVectorSet(0.0f, 5.f, 0.f, 1.0f));
+		//t.setTranslation(DirectX::XMVectorSet(0.0f, -10.f, 0.f, 1.0f));
 		t.rotateAroundY(3.14f / 2.f);
 		m_meshes.back()->setTransform(t);
 		delete model;

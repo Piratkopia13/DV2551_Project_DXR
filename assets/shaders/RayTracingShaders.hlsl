@@ -254,16 +254,16 @@ void miss(inout RayPayload payload) {
 }
 
 float3 toneMap(float3 color) {
-	float gamma = 1.0;
+	float gamma = 0.6;
 
 	float A = 0.15;
-	float B = 0.50;
+	float B = 0.25;
 	float C = 0.10;
-	float D = 0.20;
+	float D = 0.10;
 	float E = 0.02;
 	float F = 0.30;
 	float W = 11.2;
-	float exposure = 2.;
+	float exposure = 4.;
 	color *= exposure;
 	color = ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
 	float white = ((W * (A * W + C * B) + D * E) / (W * (A * W + B) + D * F)) - E / F;

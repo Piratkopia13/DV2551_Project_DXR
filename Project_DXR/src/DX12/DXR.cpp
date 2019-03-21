@@ -250,7 +250,7 @@ void DXR::createShaderResources() {
 	if (!m_rtDescriptorHeap) {
 		m_rtDescriptorHeap.Reset();
 		D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-		heapDescriptorDesc.NumDescriptors = 10;
+		heapDescriptorDesc.NumDescriptors = 20; // TODO: this does not throw error when full
 		heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		m_renderer->getDevice()->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_rtDescriptorHeap));
@@ -325,13 +325,7 @@ void DXR::createShaderResources() {
 		m_rtMeshHandles.clear();
 		for (auto& mesh : *m_meshes) {
 			DX12Texture2DArray* texture = mesh->getTexture2DArray();
-
-
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = texture->getSRVDesc();
-			/*srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = texture->getFormat();
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = texture->getMips();*/
 			m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 			MeshHandles handles;
