@@ -103,6 +103,7 @@ void Input::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
 		//std::cout << "---------------------" << std::endl;
 
 		delete[] lpb;
+		lpb = nullptr;
 	}
 }
 

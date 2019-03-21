@@ -25,11 +25,13 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_skyboxTexture(nullptr)
 	, m_gen(m_rd())
 	, m_dis(0.f, 1.0f)
+	, m_numMeshes(0)
 {
 }
 
 DXR::~DXR() {
 	//SafeDelete(m_vb);
+	delete m_sceneCBData;
 }
 
 void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
@@ -180,11 +182,12 @@ void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* targ
 }
 
 void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
-	if (m_meshes == nullptr || meshes.size() != m_meshes->size())
+	if (m_meshes == nullptr || meshes.size() != m_numMeshes)
 		m_numMeshesChanged = true;
 	m_meshes = &meshes;
 	m_updateBLAS = true;
 	m_newInPlace = false;
+	m_numMeshes = meshes.size();
 }
 
 void DXR::setSkyboxTexture(DX12Texture2D* texture) {
@@ -250,7 +253,7 @@ void DXR::createShaderResources() {
 	if (!m_rtDescriptorHeap) {
 		m_rtDescriptorHeap.Reset();
 		D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-		heapDescriptorDesc.NumDescriptors = 10;
+		heapDescriptorDesc.NumDescriptors = 20; // TODO: this does not throw error when full
 		heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		m_renderer->getDevice()->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_rtDescriptorHeap));
@@ -325,13 +328,7 @@ void DXR::createShaderResources() {
 		m_rtMeshHandles.clear();
 		for (auto& mesh : *m_meshes) {
 			DX12Texture2DArray* texture = mesh->getTexture2DArray();
-
-
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = texture->getSRVDesc();
-			/*srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = texture->getFormat();
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = texture->getMips();*/
 			m_renderer->getDevice()->CreateShaderResourceView(texture->getResource(), &srvDesc, cpuHandle);
 
 			MeshHandles handles;
@@ -420,7 +417,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			geomDesc[0].Triangles.VertexCount = vb->getVertexCount();
 			geomDesc[0].Triangles.IndexBuffer = ib->getBuffer()->GetGPUVirtualAddress();
 			geomDesc[0].Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
-			geomDesc[0].Triangles.IndexCount = ib->getNumIndices();
+			geomDesc[0].Triangles.IndexCount = UINT(ib->getNumIndices());
 			geomDesc[0].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 			// Get the size requirements for the scratch and AS buffers

@@ -313,7 +313,7 @@ void Game::init() {
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->setTexture2DArray(m_reflectTexArray.get());
 		Transform t = m_meshes.back()->getTransform();
-		t.setTranslation(DirectX::XMVectorSet(15.0f, 5.f, 0.f, 1.0f));
+		t.setTranslation(DirectX::XMVectorSet(15.0f, 16.f, 0.f, 1.0f));
 		m_meshes.back()->setTransform(t);
 
 		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
@@ -326,7 +326,7 @@ void Game::init() {
 		m_meshes.back()->technique = m_technique.get();
 		m_meshes.back()->setTexture2DArray(m_refractTexArray.get());
 		t = m_meshes.back()->getTransform();
-		t.setTranslation(DirectX::XMVectorSet(-15.0f, 5.f, 0.f, 1.0f));
+		t.setTranslation(DirectX::XMVectorSet(-15.0f, 16.f, 0.f, 1.0f));
 		m_meshes.back()->setTransform(t);
 
 		delete model;
@@ -348,7 +348,7 @@ void Game::init() {
 		m_meshes.back()->setTexture2DArray(m_mirrorTextures.get());
 		Transform t = m_meshes.back()->getTransform();
 		t.setScale(DirectX::XMVectorSet(0.3f, 0.3f, 0.3f, 1.0f));
-		//t.setTranslation(DirectX::XMVectorSet(0.0f, 5.f, 0.f, 1.0f));
+		//t.setTranslation(DirectX::XMVectorSet(0.0f, -10.f, 0.f, 1.0f));
 		t.rotateAroundY(3.14f / 2.f);
 		m_meshes.back()->setTransform(t);
 		delete model;
@@ -554,7 +554,7 @@ void Game::update(double dt) {
 
 
 	// Camera movement
-	m_persCameraController->update(dt);
+	m_persCameraController->update(float(dt));
 
 	m_persCamera->updateConstantBuffer();
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
@@ -582,13 +582,13 @@ void Game::update(double dt) {
 	if (m_animationSpeed > 0.0f) {
 		for (int i = 0; i < m_gameObjects.size(); i++) {
 			PotatoModel* pModel = m_gameObjects[i].getModel();
-			m_gameObjects[i].update(dt * m_animationSpeed);
+			m_gameObjects[i].update(float(dt) * m_animationSpeed);
 			m_meshes[m_animatedModelsStartIndex + i]->setTransform(m_gameObjects[i].getTransform());
 
 			if (m_dxRenderer->isDXRSupported())
 				m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
-			m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
+			m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
 				static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
 			});
 		}
@@ -622,8 +622,8 @@ void Game::render(double dt) {
 		return timerDt * timestampToMs;
 	};
 
-	m_timerSaver.addResult("BLAS", m_gameObjects.size(), getMsTime(Timers::BLAS));
-	m_timerSaver.addResult("TLAS", m_gameObjects.size(), getMsTime(Timers::TLAS));
+	m_timerSaver.addResult("BLAS", int(m_gameObjects.size()), getMsTime(Timers::BLAS));
+	m_timerSaver.addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
 
 	//std::cout << "GPU time to update BLAS: " << timeInMs << std::endl;
 
@@ -669,7 +669,7 @@ void Game::imguiFunc() {
 					XMVECTOR vec;
 					vec = mesh->getTransform().getTranslationVec();
 					Transform& transform = mesh->getTransform();
-					if (i >= m_animatedModelsStartIndex) {
+					if (i >= UINT(m_animatedModelsStartIndex)) {
 						transform = m_gameObjects[i - m_animatedModelsStartIndex].getTransform();
 					}
 					if (ImGui::DragFloat3("Position", (float*)&vec, 0.1f)) {

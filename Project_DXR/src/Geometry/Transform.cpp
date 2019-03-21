@@ -66,7 +66,7 @@ void Transform::setTransformMatrix(DirectX::XMMATRIX matrix) {
 	XMFLOAT4 q;
 	XMMatrixDecompose(&m_scale, &quat, &m_translation, matrix);
 	XMStoreFloat4(&q, quat);
-	XMVectorSetX(m_rotation, atan2f(2.0f * q.y*q.w - 2.0f * q.x*q.z, 1.0f - 2.0f * q.y * q.y - 2.0 * q.z * q.z));
+	XMVectorSetX(m_rotation, atan2f(2.0f * q.y*q.w - 2.0f * q.x*q.z, 1.0f - 2.0f * q.y * q.y - 2.0f * q.z * q.z));
 	XMVectorSetY(m_rotation, asinf(2.0f * q.x*q.y + 2.0f * q.z*q.w));
 	XMVectorSetZ(m_rotation, atan2f(2.0f * q.x*q.w - 2.0f * q.y*q.z, 1.0f - 2.0f * q.x * q.x - 2.0f * q.z * q.z));
 	m_transformMatrix = matrix;

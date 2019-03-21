@@ -64,7 +64,7 @@ private:
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 	std::vector<PotatoModel*> m_models;
 	float m_animationSpeed;
-	int m_animatedModelsStartIndex;
+	size_t m_animatedModelsStartIndex;
 	std::vector<GameObject> m_gameObjects;
 
 
