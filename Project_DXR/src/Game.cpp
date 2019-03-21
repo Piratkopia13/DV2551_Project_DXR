@@ -506,9 +506,10 @@ void Game::update(double dt) {
 			if (m_dxRenderer->isDXRSupported())
 				m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
-		m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
-			static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
-		});
+			m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
+				static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
+			});
+		}
 	}
 
 }
