@@ -100,6 +100,7 @@ private:
 	DX12Renderer* m_renderer;
 
 	const std::vector<std::unique_ptr<DX12Mesh>>* m_meshes;
+	unsigned int m_numMeshes;
 	//DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
 	std::unique_ptr<DX12ConstantBuffer> m_sceneCB; // Temporary constant buffer
 	std::unique_ptr<DX12ConstantBuffer> m_rayGenSettingsCB; // Temporary constant buffer

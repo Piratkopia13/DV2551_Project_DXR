@@ -25,6 +25,7 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_skyboxTexture(nullptr)
 	, m_gen(m_rd())
 	, m_dis(0.f, 1.0f)
+	, m_numMeshes(0)
 {
 }
 
@@ -181,11 +182,12 @@ void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* targ
 }
 
 void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
-	if (m_meshes == nullptr || meshes.size() != m_meshes->size())
+	if (m_meshes == nullptr || meshes.size() != m_numMeshes)
 		m_numMeshesChanged = true;
 	m_meshes = &meshes;
 	m_updateBLAS = true;
 	m_newInPlace = false;
+	m_numMeshes = meshes.size();
 }
 
 void DXR::setSkyboxTexture(DX12Texture2D* texture) {
