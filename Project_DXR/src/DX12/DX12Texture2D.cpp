@@ -14,7 +14,7 @@ DX12Texture2D::DX12Texture2D(DX12Renderer* renderer)
 
 DX12Texture2D::~DX12Texture2D() {
 	if (m_rgba) {
-		delete m_rgba;
+		free(m_rgba);
 		m_rgba = nullptr;
 	}
 }

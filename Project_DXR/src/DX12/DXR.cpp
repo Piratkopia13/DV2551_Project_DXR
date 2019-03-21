@@ -30,6 +30,7 @@ DXR::DXR(DX12Renderer* renderer)
 
 DXR::~DXR() {
 	//SafeDelete(m_vb);
+	delete m_sceneCBData;
 }
 
 void DXR::init(ID3D12GraphicsCommandList4* cmdList) {

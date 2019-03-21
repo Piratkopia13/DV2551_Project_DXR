@@ -27,6 +27,7 @@ Camera::Camera(const float aspectRatio, const float fov, const float nearZ, cons
 }
 
 Camera::~Camera() {
+	delete m_constantBuffer;
 }
 
 void Camera::init(DX12Renderer * renderer) {
