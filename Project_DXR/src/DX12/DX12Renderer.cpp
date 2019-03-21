@@ -893,7 +893,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 		imguiFunc();
 
-		ImGui::End();
 
 		// Set the descriptor heaps
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiDescHeap.Get() };

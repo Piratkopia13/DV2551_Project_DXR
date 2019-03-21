@@ -13,11 +13,17 @@ Game::Game()
 
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
 
+	#ifdef PERFORMANCE_TESTING
+	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
+	m_persCamera->setPosition(XMVectorSet(-20.0f, 30.0f, 0.0f, 0.f));
+	m_persCamera->setDirection(XMVectorSet(1.0f, -0.4f, 0.0f, 1.0f));
+	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get(), m_persCamera->getDirectionVec());
+	#else
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
 	m_persCamera->setPosition(XMVectorSet(7.37f, 12.44f, 13.5f, 0.f));
 	m_persCamera->setDirection(XMVectorSet(0.17f, -0.2f, -0.96f, 1.0f));
 	m_persCameraController = std::make_unique<CameraController>(m_persCamera.get(), m_persCamera->getDirectionVec());
-
+	#endif
 	getRenderer().setClearColor(0.2f, 0.4f, 0.2f, 1.0f);
 
 	{
@@ -57,9 +63,65 @@ Game::~Game() {
 
 void Game::init() {
 	m_animationSpeed = 1.0f;
-
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* _robo;
+	#ifdef PERFORMANCE_TESTING
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot3.fbx");
+	if (!_robo)
+	{
+		std::cout << "NO ROBO" << std::endl;
+	}
+	m_models.push_back(_robo);
+	
+
+
+
+	std::string shaderPath = getRenderer().getShaderPath();
+	std::string shaderExtension = getRenderer().getShaderExtension();
+	float diffuse[4] = {
+		1.0, 1.0, 1.0, 1.0
+	};
+
+	m_material = std::unique_ptr<Material>(getRenderer().makeMaterial("material_0"));
+	m_material->setShader(shaderPath + "VertexShader" + shaderExtension, Material::ShaderType::VS);
+	m_material->setShader(shaderPath + "FragmentShader" + shaderExtension, Material::ShaderType::PS);
+	DX12Material* dxMaterial = ((DX12Material*)m_material.get());
+	std::string err;
+	dxMaterial->compileMaterial(err);
+
+	// add a constant buffer to the material, to tint every triangle using this material
+	m_material->addConstantBuffer("DiffuseTint", CB_REG_DIFFUSE_TINT, 4 * sizeof(float));
+	// no need to update anymore
+	// when material is bound, this buffer should be also bound for access.
+	m_material->updateConstantBuffer(diffuse, CB_REG_DIFFUSE_TINT);
+
+	// basic technique
+	m_technique = std::unique_ptr<Technique>(getRenderer().makeTechnique(m_material.get(), getRenderer().makeRenderState()));
+
+
+	m_ballbotTexArray = std::unique_ptr<DX12Texture2DArray>(new DX12Texture2DArray(static_cast<DX12Renderer*>(&getRenderer())));
+	std::vector<std::string> texFiles;
+	texFiles.clear();
+	texFiles.emplace_back("../assets/textures/ballbot_lowres.png");
+	m_ballbotTexArray->loadFromFiles(texFiles);
+
+
+
+
+	m_animatedModelsStartIndex = m_meshes.size();
+	int STARTOBJECTS = 1;
+	for (int i = 0; i < STARTOBJECTS; i++) {
+		Transform tt = getNextPosition();
+		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
+		tt.setScale(XMLoadFloat3(&scale));
+		addObject(m_models[0], 0, tt);
+	}
+
+
+
+	#else
+
+
 #ifdef _DEBUG
 	//_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot3.fbx");
 	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
@@ -375,6 +437,7 @@ void Game::init() {
 		//delete _robo;
 	}
 
+	#endif
 
 	if (m_dxRenderer->isDXREnabled()) {
 		// Update raytracing acceleration structures
@@ -385,9 +448,27 @@ void Game::init() {
 
 	static_cast<DX12Renderer*>(&getRenderer())->useCamera(m_persCamera.get());
 
+	m_persCamera->updateConstantBuffer();
+
 }
 
 void Game::update(double dt) {
+
+
+	#ifdef PERFORMANCE_TESTING
+	static float acc = 0.0f;
+	acc += dt;
+	if (acc > 1.0f) {
+		acc = 0.0f;
+		Transform tt = getNextPosition();
+		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
+		tt.setScale(XMLoadFloat3(&scale));
+		addObject(m_models[0], 0, tt);
+	}
+
+
+	#else
+
 
 
 	if (Input::IsKeyPressed(VK_RETURN)) {
@@ -479,6 +560,7 @@ void Game::update(double dt) {
 	//m_meshes[0]->setTransform(t); // Updates transform matrix for rasterisation
 
 	// Update camera constant buffer for rasterisation
+	#endif
 	for (auto& mesh : m_meshes)
 		mesh->updateCameraCB((ConstantBuffer*)(m_persCamera->getConstantBuffer())); // Update camera constant buffer for rasterisation
 
@@ -548,6 +630,9 @@ void Game::render(double dt) {
 }
 
 void Game::imguiFunc() {
+	#ifdef PERFORMANCE_TESTING
+	return;
+	#endif
 	if (ImGui::Begin("Animation")) {
 		ImGui::SliderFloat("Speed", &m_animationSpeed, 0.0f, 1.0f);
 		if (ImGui::CollapsingHeader("Objects")) {
@@ -853,6 +938,42 @@ void Game::imguiFunc() {
 
 	}
 
+	ImGui::End();
 	// No likey the demo window
 	//ImGui::ShowDemoWindow();
+}
+
+Transform Game::getNextPosition() {
+	int n = m_gameObjects.size(); 
+	Transform potato;
+	potato.setTranslation(XMLoadFloat3(&XMFLOAT3(int(n*5.0f)%1000, n*0.10f, -10+n*0.10f))); 
+	return potato;
+}
+
+bool Game::addObject(PotatoModel * model, int animationIndex, Transform & transform) {
+	size_t offset = 0;
+	m_gameObjects.emplace_back(m_models.back(), animationIndex, transform);
+
+	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+	m_meshes.back()->setName("Animated " + std::to_string(m_meshes.size()));
+
+	// Vertex buffer
+	m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(Vertex) * m_gameObjects.back().getModel()->getModelVertices().size(), VertexBuffer::STATIC));
+	m_vertexBuffers.back()->setData(m_gameObjects.back().getModel()->getModelVertices().data(), sizeof(Vertex) * m_gameObjects.back().getModel()->getModelVertices().size(), offset);
+	// Index buffer
+	m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(unsigned int) * m_gameObjects.back().getModel()->getModelIndices().size(), IndexBuffer::STATIC));
+	m_indexBuffers.back()->setData(m_gameObjects.back().getModel()->getModelIndices().data(), sizeof(unsigned int) * m_gameObjects.back().getModel()->getModelIndices().size(), offset);
+	// Binding
+	m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, m_gameObjects.back().getModel()->getModelVertices().size(), m_gameObjects.back().getModel()->getModelIndices().size(), sizeof(Vertex));
+
+	// Technique
+	m_meshes.back()->technique = m_technique.get();
+	// Texture
+	//m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
+	m_meshes.back()->setTexture2DArray(m_ballbotTexArray.get());
+
+
+
+
+	return true;
 }

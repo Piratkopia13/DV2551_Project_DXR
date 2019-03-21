@@ -8,6 +8,7 @@ GameObject::GameObject() {
 
 GameObject::GameObject(PotatoModel * model, size_t _animationIndex, XMFLOAT3 position, XMFLOAT3 rotation, XMFLOAT3 scale) {
 	m_model = model;
+	m_update = true;
 	m_animationIndex = _animationIndex;
 	m_animationTime = 0.0f;
 	m_maxAnimationTime = model->getMaxTime(m_animationIndex);
@@ -15,8 +16,13 @@ GameObject::GameObject(PotatoModel * model, size_t _animationIndex, XMFLOAT3 pos
 	m_transform.setScale(XMLoadFloat3(&scale));
 }
 
-GameObject::GameObject(PotatoModel * model, size_t _animationIndex, Transform & transform)
-{
+GameObject::GameObject(PotatoModel * model, size_t _animationIndex, Transform & transform) {
+	m_model = model;
+	m_update = true;
+	m_animationIndex = _animationIndex;
+	m_animationTime = 0.0f;
+	m_maxAnimationTime = model->getMaxTime(m_animationIndex);
+	m_transform = Transform(transform);
 }
 
 
