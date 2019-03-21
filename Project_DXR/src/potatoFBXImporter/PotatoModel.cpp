@@ -20,7 +20,7 @@ const std::vector<PotatoModel::Vertex>& PotatoModel::getMesh(int animation, floa
 }
 
 void PotatoModel::addVertex(Vertex vertex, int controlPointIndex) {
-	int index = exists(vertex);
+	size_t index = exists(vertex);
 
 	if (index == -1) {
 		m_Data.push_back(vertex);
@@ -171,7 +171,7 @@ void PotatoModel::updateVertexes(int animation, float t) {
 
 }
 
-int PotatoModel::exists(PotatoModel::Vertex _vert) {
+size_t PotatoModel::exists(PotatoModel::Vertex _vert) {
 	for (int i = m_Data.size() - 1; i >= 0; i--) {
 		if (_vert == m_Data[i])
 			return i;

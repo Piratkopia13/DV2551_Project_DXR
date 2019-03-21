@@ -43,7 +43,7 @@ PotatoModel * GameObject::getModel() {
 }
 
 
-int& GameObject::getAnimationIndex() {
+size_t& GameObject::getAnimationIndex() {
 	return m_animationIndex;
 }
 bool & GameObject::getAnimationUpdate()
