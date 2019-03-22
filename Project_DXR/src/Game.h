@@ -22,6 +22,7 @@ public:
 	~Game();
 
 	virtual void init() override;
+	//virtual void init() override;
 	// Updates every frame
 	virtual void update(double dt) override;
 	// Tries to update 60 times per second
@@ -31,6 +32,8 @@ public:
 
 private:
 	void imguiFunc();
+	Transform getNextPosition();
+	bool addObject(PotatoModel* model, int animationIndex, Transform& transform);
 	
 private:
 	DX12Renderer* m_dxRenderer;
@@ -72,5 +75,5 @@ private:
 	std::string m_availableTextures;
 	std::vector<std::string> m_availableTexturesList;
 
-	TimerSaver m_timerSaver;
+	std::unique_ptr<TimerSaver> m_timerSaver;
 };

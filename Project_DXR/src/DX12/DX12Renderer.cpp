@@ -160,6 +160,10 @@ ID3D12DescriptorHeap* DX12Renderer::getSamplerDescriptorHeap() const {
 	return m_samplerDescriptorHeap.Get();
 }
 
+const DX12Renderer::GPUInfo& DX12Renderer::getGPUInfo() const {
+	return m_gpuInfo;
+}
+
 void DX12Renderer::enableDXR(bool enable) {
 	if (m_supportsDXR) {
 		m_DXREnabled = enable;
@@ -342,6 +346,7 @@ void DX12Renderer::createDevice() {
 	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&m_factory)));
 	for (UINT adapterIndex = 0;; ++adapterIndex) {
 		adapter = nullptr;
+
 		if (DXGI_ERROR_NOT_FOUND == m_factory->EnumAdapters1(adapterIndex, &adapter)) {
 			break; // No more adapters to enumerate
 		}
@@ -356,12 +361,34 @@ void DX12Renderer::createDevice() {
 	if (adapter) {
 		// Create the actual device
 		ThrowIfFailed(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&m_device)));
-		SafeRelease(&adapter);
+
+		DXGI_ADAPTER_DESC1 adapterDesc;
+		adapter->GetDesc1(&adapterDesc);
+		std::wstring desc(adapterDesc.Description);
+		std::string str(desc.begin(), desc.end());
+		m_gpuInfo.description = str;
+		m_gpuInfo.dedicatedVideoMemory = adapterDesc.DedicatedVideoMemory / 1073741824.0f;
+		m_gpuInfo.dedicatedSystemMemory = adapterDesc.DedicatedSystemMemory / 1073741824.0f;
+		m_gpuInfo.sharedSystemMemory = adapterDesc.SharedSystemMemory / 1073741824.0f;
+
+		std::cout << "Desc: " <<  m_gpuInfo.description << std::endl;
+		std::cout << "DedicatedVideoMem: " << m_gpuInfo.dedicatedVideoMemory << std::endl;
+		std::cout << "DedicatedSystemMem: " << m_gpuInfo.dedicatedSystemMemory << std::endl;
+		std::cout << "SharedSystemMem: " << m_gpuInfo.sharedSystemMemory << std::endl;
+		std::cout << "Revision: " << adapterDesc.Revision << std::endl;
+
+		m_adapter3 = (IDXGIAdapter3*)adapter;
+
+		//SafeRelease(&adapter);
 	} else {
 		// Create warp device if no adapter was found
 		m_factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
 		D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
 	}
+
+	/*IDXGIDevice3* dxgiDevice;
+	ThrowIfFailed(m_device->QueryInterface(__uuidof(IDXGIDevice3), (void**)&dxgiDevice));
+	ThrowIfFailed(dxgiDevice->GetAdapter((IDXGIAdapter**)&m_adapter3));*/
 
 }
 
@@ -921,7 +948,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 		imguiFunc();
 
-		ImGui::End();
 
 		// Set the descriptor heaps
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiDescHeap.Get() };
@@ -946,6 +972,12 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	}
 
 	m_numFrames++;
+
+	// Update vram usage
+	DXGI_QUERY_VIDEO_MEMORY_INFO info;
+	m_adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
+	m_gpuInfo.usedVideoMemory = info.CurrentUsage / 1000000000.0f;
+
 };
 #else
 void DX12Renderer::frame(std::function<void()> imguiFunc) {

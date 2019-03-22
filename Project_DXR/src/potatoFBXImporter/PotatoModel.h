@@ -177,5 +177,5 @@ private:
 	
 	void updateVertexes(int animation, float t);
 
-	size_t exists(PotatoModel::Vertex _vert);
+	int exists(PotatoModel::Vertex _vert);
 };

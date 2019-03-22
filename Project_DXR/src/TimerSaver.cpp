@@ -1,13 +1,16 @@
 #include "pch.h"
 #include "TimerSaver.h"
+#include "DX12/DX12Renderer.h"
 
 #include <iomanip>
 #include <time.h>
 #include <ctime>
+#include <direct.h>
 
-TimerSaver::TimerSaver(unsigned int numResultsToSave) 
+TimerSaver::TimerSaver(unsigned int numResultsToSave, DX12Renderer* renderer)
 	: m_maxResults(numResultsToSave)
 	, m_full(false)
+	, m_renderer(renderer)
 {
 #ifdef _DEBUG
 	std::cout << "RUNNING IN DEBUG - NO TIMERS WILL BE SAVED" << std::endl;
@@ -20,7 +23,10 @@ TimerSaver::~TimerSaver() {
 
 void TimerSaver::addResult(const std::string& name, int column, double valueMs) {
 
-	if (m_full) return;
+	if (m_results[name][column].size() >= m_maxResults) {
+		std::cout << "Error: Tried to add data to full column (" << column << ")." << std::endl;
+		return;
+	}
 
 	if (m_results[name].find(column) == m_results[name].end()) {
 		m_results[name][column].reserve(m_maxResults);
@@ -28,8 +34,7 @@ void TimerSaver::addResult(const std::string& name, int column, double valueMs) 
 	m_results[name][column].emplace_back(valueMs);
 
 	if (m_results[name][column].size() >= m_maxResults) {
-		m_full = true;
-		std::cout << "TimerSaver full - exit program to save file" << std::endl;
+		std::cout << "TimerSaver full at column: " << column << " - exit program to save file" << std::endl;
 	}
 
 }
@@ -40,20 +45,35 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 	return;
 #endif
 
+	auto t = std::time(nullptr);
+	tm mtm;
+	localtime_s(&mtm, &t);
+	std::ostringstream oss;
+	oss << std::put_time(&mtm, "%Y-%m-%d_%H-%M-%S");
+
+	std::string foldername = "" + oss.str();
+	//std::string rawDataFoldername = foldername + "/data";
+	
+	_mkdir(foldername.c_str());
+	//_mkdir(rawDataFoldername.c_str());
+
+
 	for (auto& pair : m_results) {
 		unsigned int numDifferent = 0;
 		
 		std::ofstream outFile;
 		
-		auto t = std::time(nullptr);
-		tm mtm;
-		localtime_s(&mtm, &t);
-		std::ostringstream oss;
-		oss << std::put_time(&mtm, "%Y-%m-%d_%H-%M-%S");
-		outFile.open(filePrefix + pair.first + "_" + oss.str() + ".tsv", std::ios_base::app);
+		outFile.open(foldername + "/" + filePrefix + pair.first + ".tsv", std::ios_base::app);
 
-		// First row
+		// First two rows
 		std::string firstLine = "#\t";
+		std::stringstream ss;
+		const DX12Renderer::GPUInfo& gpuInfo = m_renderer->getGPUInfo();
+		ss << "GPU: " << gpuInfo.description << "GB, ";
+		ss << "Dedicated VRAM: " << gpuInfo.dedicatedVideoMemory << "GB, ";
+		ss << "Shared VRAM: " << gpuInfo.sharedSystemMemory << "GB";
+		firstLine += ss.str();
+		firstLine += "\n#\t";
 		for (auto& entry : pair.second) {
 			firstLine += std::to_string(entry.first);
 			firstLine += "\t";
@@ -82,4 +102,8 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 		outFile.close();
 
 	}
+}
+
+unsigned int TimerSaver::getSizeOf(const std::string& name, int column) {
+	return m_results[name][column].size();
 }

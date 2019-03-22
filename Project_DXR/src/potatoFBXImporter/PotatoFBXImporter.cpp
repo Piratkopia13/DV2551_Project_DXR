@@ -630,6 +630,9 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 				// ANIMATION STACK FOR EACH LIMB
 				int stackCount = scene->GetSrcObjectCount<FbxAnimStack>();
+#ifdef PERFORMANCE_TESTING
+				stackCount = 1;
+#endif
 				for (unsigned int clusterIndex = 0; clusterIndex < clusterCount; ++clusterIndex) {
 
 					FbxCluster * cluster = skin->GetCluster(clusterIndex);

@@ -64,6 +64,8 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 	assert(m_meshes != nullptr); // Meshes not set
 
+	m_renderer->getTimer().start(cmdList, Timers::DISPATCHRAYS);
+
 	// Update constant buffers
 	if (m_camera) {
 		XMMATRIX jitterMat = XMMatrixIdentity();
@@ -123,6 +125,9 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	cmdList->SetPipelineState1(m_rtPipelineState.Get());
 	cmdList->DispatchRays(&raytraceDesc);
 
+	m_renderer->getTimer().stop(cmdList, Timers::DISPATCHRAYS);
+	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::DISPATCHRAYS);
+
 }
 
 void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* renderTarget) {
@@ -172,6 +177,8 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 
 void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target) {
 
+	m_renderer->getTimer().start(cmdList, Timers::DXRCOPY);
+
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 	// Copy the results to the back-buffer
@@ -179,6 +186,8 @@ void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* targ
 	cmdList->CopyResource(target, m_rtOutputUAV.resource.Get());
 	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
+	m_renderer->getTimer().stop(cmdList, Timers::DXRCOPY);
+	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::DXRCOPY);
 }
 
 void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
@@ -404,6 +413,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			m_DXR_BottomBuffers.resize(m_meshes->size());
 		}
 
+		m_renderer->getTimer().start(cmdList, Timers::BLAS);
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
 			DX12VertexBuffer* vb = static_cast<DX12VertexBuffer*>((*m_meshes)[i]->geometryBuffer.vBuffer);
 			DX12IndexBuffer* ib = static_cast<DX12IndexBuffer*>((*m_meshes)[i]->geometryBuffer.iBuffer);
@@ -447,11 +457,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers[i].result->GetGPUVirtualAddress();
 			asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers[i].scratch->GetGPUVirtualAddress();
 
-			m_renderer->getTimer().start(cmdList, Timers::BLAS);
 			cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
-			m_renderer->getTimer().stop(cmdList, Timers::BLAS);
-
-			m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::BLAS);
 
 			// We need to insert a UAV barrier before using the acceleration structures in a raytracing operation
 			D3D12_RESOURCE_BARRIER uavBarrier = {};
@@ -459,6 +465,9 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			uavBarrier.UAV.pResource = m_DXR_BottomBuffers[i].result.Get();
 			cmdList->ResourceBarrier(1, &uavBarrier);
 		}
+		m_renderer->getTimer().stop(cmdList, Timers::BLAS);
+
+		m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::BLAS);
 	}
 
 
@@ -470,6 +479,8 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 
 	if (m_meshes != nullptr && m_meshes->size() > instanceCount)
 		std::cout << "WARNING: There is more geometry in the BLAS than instances in the TLAS" << std::endl;
+
+	m_renderer->getTimer().start(cmdList, Timers::TLAS);
 
 	// First, get the size of the TLAS buffers and create them
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
@@ -529,17 +540,16 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 	asDesc.DestAccelerationStructureData = m_DXR_TopBuffers.result->GetGPUVirtualAddress();
 	asDesc.ScratchAccelerationStructureData = m_DXR_TopBuffers.scratch->GetGPUVirtualAddress();
 
-	m_renderer->getTimer().start(cmdList, Timers::TLAS);
 	cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
-	m_renderer->getTimer().stop(cmdList, Timers::TLAS);
-
-	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::TLAS);
 
 	// UAV barrier needed before using the acceleration structures in a raytracing operation
 	D3D12_RESOURCE_BARRIER uavBarrier = {};
 	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	uavBarrier.UAV.pResource = m_DXR_TopBuffers.result.Get();
 	cmdList->ResourceBarrier(1, &uavBarrier);
+
+	m_renderer->getTimer().stop(cmdList, Timers::TLAS);
+	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::TLAS);
 }
 
 void DXR::createRaytracingPSO() {
