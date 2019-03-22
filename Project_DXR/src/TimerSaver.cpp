@@ -52,9 +52,10 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 	oss << std::put_time(&mtm, "%Y-%m-%d_%H-%M-%S");
 
 	std::string foldername = "" + oss.str();
+	//std::string rawDataFoldername = foldername + "/data";
 	
 	_mkdir(foldername.c_str());
-
+	//_mkdir(rawDataFoldername.c_str());
 
 
 	for (auto& pair : m_results) {
