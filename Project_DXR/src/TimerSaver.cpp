@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <time.h>
 #include <ctime>
+#include <direct.h>
 
 TimerSaver::TimerSaver(unsigned int numResultsToSave, DX12Renderer* renderer)
 	: m_maxResults(numResultsToSave)
@@ -44,17 +45,24 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 	return;
 #endif
 
+	auto t = std::time(nullptr);
+	tm mtm;
+	localtime_s(&mtm, &t);
+	std::ostringstream oss;
+	oss << std::put_time(&mtm, "%Y-%m-%d_%H-%M-%S");
+
+	std::string foldername = "" + oss.str();
+	
+	_mkdir(foldername.c_str());
+
+
+
 	for (auto& pair : m_results) {
 		unsigned int numDifferent = 0;
 		
 		std::ofstream outFile;
 		
-		auto t = std::time(nullptr);
-		tm mtm;
-		localtime_s(&mtm, &t);
-		std::ostringstream oss;
-		oss << std::put_time(&mtm, "%Y-%m-%d_%H-%M-%S");
-		outFile.open(filePrefix + pair.first + "_" + oss.str() + ".tsv", std::ios_base::app);
+		outFile.open(foldername + "/" + filePrefix + pair.first + ".tsv", std::ios_base::app);
 
 		// First two rows
 		std::string firstLine = "#\t";
