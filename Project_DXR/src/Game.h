@@ -75,5 +75,5 @@ private:
 	std::string m_availableTextures;
 	std::vector<std::string> m_availableTexturesList;
 
-	TimerSaver m_timerSaver;
+	std::unique_ptr<TimerSaver> m_timerSaver;
 };

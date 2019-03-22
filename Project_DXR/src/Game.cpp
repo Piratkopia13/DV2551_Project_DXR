@@ -8,10 +8,11 @@
 
 Game::Game() 
 	: Application(1700, 900, "DX12 DXR Raytracer thing with soon to come skinned animated models")
-	, m_timerSaver(10000)
 {
 
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
+
+	m_timerSaver = std::make_unique<TimerSaver>(10000, m_dxRenderer);
 
 	#ifdef PERFORMANCE_TESTING
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
@@ -58,7 +59,7 @@ Game::Game()
 
 Game::~Game() {
 
-	m_timerSaver.saveToFile();
+	m_timerSaver->saveToFile();
 
 	for (int i = 0; i < m_models.size(); i++) {
 		if (m_models[i])
@@ -462,10 +463,10 @@ void Game::update(double dt) {
 
 	#ifdef PERFORMANCE_TESTING
 	const int step = 10;
-	const int framesToSave = 5000;
+	const int framesToSave = 500;
 	static float acc = 0.0f;
 	acc += dt;
-	if (m_timerSaver.getSizeOf("BLAS",m_gameObjects.size()) >= framesToSave) {
+	if (m_timerSaver->getSizeOf("BLAS",m_gameObjects.size()) >= framesToSave) {
 		acc = 0.0f;
 		
 		m_dxRenderer->executeNextOpenPreCommand([&, step]() {
@@ -648,8 +649,9 @@ void Game::render(double dt) {
 	};
 
 	
-	m_timerSaver.addResult("BLAS", int(m_gameObjects.size()), getMsTime(Timers::BLAS));
-	m_timerSaver.addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
+	m_timerSaver->addResult("BLAS", int(m_gameObjects.size()), getMsTime(Timers::BLAS));
+	m_timerSaver->addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
+	m_timerSaver->addResult("VRAM", int(m_gameObjects.size()), m_dxRenderer->getGPUInfo().usedVideoMemory);
 
 	//std::cout << "GPU time to update BLAS: " << timeInMs << std::endl;
 

@@ -1,13 +1,15 @@
 #include "pch.h"
 #include "TimerSaver.h"
+#include "DX12/DX12Renderer.h"
 
 #include <iomanip>
 #include <time.h>
 #include <ctime>
 
-TimerSaver::TimerSaver(unsigned int numResultsToSave) 
+TimerSaver::TimerSaver(unsigned int numResultsToSave, DX12Renderer* renderer)
 	: m_maxResults(numResultsToSave)
 	, m_full(false)
+	, m_renderer(renderer)
 {
 #ifdef _DEBUG
 	std::cout << "RUNNING IN DEBUG - NO TIMERS WILL BE SAVED" << std::endl;
@@ -54,8 +56,15 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 		oss << std::put_time(&mtm, "%Y-%m-%d_%H-%M-%S");
 		outFile.open(filePrefix + pair.first + "_" + oss.str() + ".tsv", std::ios_base::app);
 
-		// First row
+		// First two rows
 		std::string firstLine = "#\t";
+		std::stringstream ss;
+		const DX12Renderer::GPUInfo& gpuInfo = m_renderer->getGPUInfo();
+		ss << "GPU: " << gpuInfo.description << "GB, ";
+		ss << "Dedicated VRAM: " << gpuInfo.dedicatedVideoMemory << "GB, ";
+		ss << "Shared VRAM: " << gpuInfo.sharedSystemMemory << "GB";
+		firstLine += ss.str();
+		firstLine += "\n#\t";
 		for (auto& entry : pair.second) {
 			firstLine += std::to_string(entry.first);
 			firstLine += "\t";

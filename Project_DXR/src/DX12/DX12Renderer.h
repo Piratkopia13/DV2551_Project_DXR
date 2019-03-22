@@ -50,6 +50,14 @@ namespace GlobalRootParam {
 }
 
 class DX12Renderer : public Renderer {
+public:
+	struct GPUInfo {
+		std::string description;
+		float dedicatedVideoMemory;
+		float dedicatedSystemMemory;
+		float sharedSystemMemory;
+		float usedVideoMemory;
+	};
 
 public:
 	DX12Renderer();
@@ -77,6 +85,7 @@ public:
 	inline UINT getFrameIndex() const;
 	Win32Window* getWindow() const;
 	ID3D12DescriptorHeap* getSamplerDescriptorHeap() const;
+	const GPUInfo& getGPUInfo() const;
 	
 	void enableDXR(bool enable);
 	bool& isDXREnabled();
@@ -132,7 +141,8 @@ private:
 	std::vector<std::function<void()>> m_copyCommandFuncsToExecute; // Stored functions to execute on next open copy-command list
 
 	// Only used for initialization
-	IDXGIFactory6* m_factory;
+	IDXGIFactory7* m_factory;
+	IDXGIAdapter3* m_adapter3;
 
 	std::unique_ptr<Win32Window> m_window;
 	bool m_globalWireframeMode;
@@ -140,6 +150,7 @@ private:
 	bool m_firstFrame;
 	UINT m_backBufferIndex;
 	bool m_vsync;
+	GPUInfo m_gpuInfo;
 	
 	static const UINT NUM_SWAP_BUFFERS;
 	static const UINT MAX_NUM_SAMPLERS;
