@@ -262,7 +262,7 @@ void DXR::createShaderResources() {
 	if (!m_rtDescriptorHeap) {
 		m_rtDescriptorHeap.Reset();
 		D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-		heapDescriptorDesc.NumDescriptors = 20; // TODO: this does not throw error when full
+		heapDescriptorDesc.NumDescriptors = 2000; // TODO: this does not throw error when full
 		heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		m_renderer->getDevice()->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_rtDescriptorHeap));

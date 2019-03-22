@@ -948,15 +948,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		RECT rect;
 		GetClientRect(*m_window->getHwnd(), &rect);
 
-		//bool show_demo_window = true;
-		//bool show_another_window = true;
-		//ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		//if (show_demo_window)
-			//ImGui::ShowDemoWindow(&show_demo_window);
-
 		imguiFunc();
-
 
 		// Set the descriptor heaps
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_ImGuiDescHeap.Get() };

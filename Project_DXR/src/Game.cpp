@@ -75,7 +75,7 @@ void Game::init() {
 	#ifndef _DEBUG
 	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot3.fbx");
 	#else
-	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve_2.fbx");
 	#endif
 
 	if (!_robo)
@@ -123,8 +123,10 @@ void Game::init() {
 	int STARTOBJECTS = 1;
 	for (int i = 0; i < STARTOBJECTS; i++) {
 		Transform tt = getNextPosition();
+#ifndef _DEBUG
 		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
 		tt.setScale(XMLoadFloat3(&scale));
+#endif
 		addObject(m_models[0], 0, tt);
 	}
 
@@ -489,8 +491,10 @@ void Game::update(double dt) {
 			for (int i = 0; i < toAdd; i++) {
 				// std::cout << "\trunning nr: " << i << " in lambda, toAdd: " << toAdd << std::endl;
 				Transform tt = getNextPosition();
+#ifndef _DEBUG
 				XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
 				tt.setScale(XMLoadFloat3(&scale));
+#endif
 				addObject(m_models[0], 0, tt);
 			}
 		});

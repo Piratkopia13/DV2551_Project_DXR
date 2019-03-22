@@ -32,9 +32,9 @@ GameObject::~GameObject() {
 void GameObject::update(float d) {
 	if (m_update) {
 		m_animationTime += d;
-		if (d > 1.0) {
+		/*if (d > 1.0) {
 			std::cout << d << std::endl;
-		}
+		}*/
 		if (m_animationTime > m_maxAnimationTime) {
 			m_animationTime = m_animationTime - (int(m_animationTime / m_maxAnimationTime)*m_maxAnimationTime);
 			//std::cout << "max" << std::endl;
