@@ -468,7 +468,10 @@ void Game::update(double dt) {
 		Transform tt = getNextPosition();
 		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
 		tt.setScale(XMLoadFloat3(&scale));
-		addObject(m_models[0], 0, tt);
+		m_dxRenderer->executeNextOpenPreCommand([&]() {
+			addObject(m_models[0], 0, tt);
+		});
+			
 	}
 
 
