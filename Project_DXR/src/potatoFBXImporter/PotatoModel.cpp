@@ -41,7 +41,7 @@ void PotatoModel::addControlPoint(DirectX::XMFLOAT3 position, unsigned int index
 }
 void PotatoModel::addBone(Limb limb) {
 	if (m_Skeleton.size() > 0)
-		m_Skeleton[limb.parentIndex].childIndexes.push_back(m_Skeleton.size());
+		m_Skeleton[limb.parentIndex].childIndexes.push_back(int(m_Skeleton.size()));
 	m_Skeleton.push_back(limb);
 
 }
@@ -119,16 +119,16 @@ std::vector<PotatoModel::Limb>& PotatoModel::getSkeleton() {
 	return m_Skeleton;
 }
 
-PotatoModel::Limb * PotatoModel::findLimb(fbxsdk::FbxUInt64 id) {
+// Not used
+/*PotatoModel::Limb * PotatoModel::findLimb(fbxsdk::FbxUInt64 id) {
 	for (Limb limb : m_Skeleton) {
 		if (limb.uniqueID == id)
 			return &limb;
 	}
 	return nullptr;
-}
+}*/
 int PotatoModel::findLimbIndex(fbxsdk::FbxUInt64 id) {
-	int size = m_Skeleton.size();
-	for (int i = 0; i < size; i++) {
+	for (unsigned int i = 0; i < m_Skeleton.size(); i++) {
 		if (m_Skeleton[i].uniqueID == id)
 			return i;
 	}
@@ -172,7 +172,7 @@ void PotatoModel::updateVertexes(int animation, float t) {
 }
 
 size_t PotatoModel::exists(PotatoModel::Vertex _vert) {
-	for (int i = m_Data.size() - 1; i >= 0; i--) {
+	for (unsigned int i = m_Data.size() - 1; i >= 0; i--) {
 		if (_vert == m_Data[i])
 			return i;
 	}

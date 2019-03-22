@@ -68,8 +68,8 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	if (m_camera) {
 		XMMATRIX jitterMat = XMMatrixIdentity();
 		if (getRTFlags() & RT_ENABLE_JITTER_AA) {
-			float jitterX = (m_dis(m_gen) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowWidth();
-			float jitterY = (m_dis(m_gen) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowHeight();
+			float jitterX = (float(m_dis(m_gen)) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowWidth();
+			float jitterY = (float(m_dis(m_gen)) * 0.26f - 0.13f) / m_renderer->getWindow()->getWindowHeight();
 			jitterMat = XMMatrixTranslation(jitterX, jitterY, 0.f);
 		}
 		m_sceneCBData->cameraPosition = m_camera->getPositionF3();
@@ -187,7 +187,7 @@ void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
 	m_meshes = &meshes;
 	m_updateBLAS = true;
 	m_newInPlace = false;
-	m_numMeshes = meshes.size();
+	m_numMeshes = UINT(meshes.size());
 }
 
 void DXR::setSkyboxTexture(DX12Texture2D* texture) {
@@ -379,7 +379,7 @@ void DXR::createShaderTables() {
 			m_hitGroupShaderTable.Resource->Release();
 			m_hitGroupShaderTable.Resource.Reset();
 		}
-		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), m_meshes->size());
+		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), UINT(m_meshes->size()));
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].vertexBufferHandle, i);
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].indexBufferHandle, i);
@@ -466,7 +466,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 
 void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform) {
 
-	unsigned int instanceCount = (m_meshes) ? m_meshes->size() : 0;
+	unsigned int instanceCount = (m_meshes) ? UINT(m_meshes->size()) : 0U;
 
 	if (m_meshes != nullptr && m_meshes->size() > instanceCount)
 		std::cout << "WARNING: There is more geometry in the BLAS than instances in the TLAS" << std::endl;

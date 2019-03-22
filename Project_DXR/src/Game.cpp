@@ -498,7 +498,7 @@ void Game::update(double dt) {
 	}
 	
 	if (m_animationSpeed > 0.0f) {
-		for (int i = 0; i < m_gameObjects.size(); i++) {
+		for (unsigned int i = 0; i < m_gameObjects.size(); i++) {
 			PotatoModel* pModel = m_gameObjects[i].getModel();
 			m_gameObjects[i].update(float(dt) * m_animationSpeed);
 			m_meshes[m_animatedModelsStartIndex + i]->setTransform(m_gameObjects[i].getTransform());

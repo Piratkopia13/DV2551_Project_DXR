@@ -634,7 +634,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 
 					FbxCluster * cluster = skin->GetCluster(clusterIndex);
 					//cout << filename << " StackSize: " << to_string(stackCount) << endl;
-					for (unsigned int currentStack = 0; currentStack < stackCount; currentStack++) {
+					for (int currentStack = 0; currentStack < stackCount; currentStack++) {
 						FbxAnimStack* currAnimStack = scene->GetSrcObject<FbxAnimStack>(currentStack);
 
 						FbxTakeInfo* takeInfo = scene->GetTakeInfo(currAnimStack->GetName());
@@ -652,7 +652,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 							//eval->GetNodeGlobalTransform(node, currTime);
 							//eval->GetNodeGlobalTransform(node, currTime);
 							FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometryTransform;
-							model->addFrame(currentStack, limbIndexes[clusterIndex], float(currTime.GetSecondDouble()) - firstFrameTime,
+							model->addFrame(UINT(currentStack), limbIndexes[clusterIndex], float(currTime.GetSecondDouble()) - firstFrameTime,
 								convertToXMMatrix(currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime)));
 						}
 
@@ -885,7 +885,7 @@ void PotatoFBXImporter::fetchSkeletonRecursive(FbxNode* inNode, PotatoModel* mod
 
 	}
 	for (int i = 0; i < inNode->GetChildCount(); i++) {
-		fetchSkeletonRecursive(inNode->GetChild(i), model, inDepth + 1, model->getSkeleton().size(), myIndex);
+		fetchSkeletonRecursive(inNode->GetChild(i), model, inDepth + 1, UINT(model->getSkeleton().size()), myIndex);
 	}
 
 

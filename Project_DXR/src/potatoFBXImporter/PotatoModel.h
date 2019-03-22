@@ -155,7 +155,7 @@ public:
 	size_t getStackSize();
 	float getMaxTime(size_t index);
 
-	PotatoModel::Limb* findLimb(fbxsdk::FbxUInt64 id);
+	//PotatoModel::Limb* findLimb(fbxsdk::FbxUInt64 id);
 	int findLimbIndex(fbxsdk::FbxUInt64 id);
 	void normalizeWeights();
 private:

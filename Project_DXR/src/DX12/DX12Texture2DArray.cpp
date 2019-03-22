@@ -24,7 +24,7 @@ HRESULT DX12Texture2DArray::loadFromFiles(std::vector<std::string> filenames) {
 	stbi_info(filenames[0].c_str(), &width, &height, &bytesPerPixel); // assume all files are the same width, height and bpp
 
 	UINT imageByteSize = width * height * bytesPerPixel;
-	UINT numTextures = filenames.size();
+	UINT numTextures = UINT(filenames.size());
 	m_rgbaVec.resize(width * height * bytesPerPixel * numTextures);
 	// Pre-allocate the required memory
 	UINT index = 0;
