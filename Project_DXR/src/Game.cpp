@@ -461,16 +461,22 @@ void Game::update(double dt) {
 
 
 	#ifdef PERFORMANCE_TESTING
+	const int toAdd = 10;
 	static float acc = 0.0f;
 	acc += dt;
-	if (acc > 10.0f) {
+	if (acc > 15.0f) {
 		acc = 0.0f;
-		Transform tt = getNextPosition();
-		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
-		tt.setScale(XMLoadFloat3(&scale));
-		m_dxRenderer->executeNextOpenPreCommand([&]() {
+		
+		m_dxRenderer->executeNextOpenPreCommand([&, toAdd]() {
 			m_dxRenderer->waitForGPU();
-			addObject(m_models[0], 0, tt);
+			// std::cout << "Running addObject lambda" << std::endl;
+			for (int i = 0; i < toAdd; i++) {
+				// std::cout << "\trunning nr: " << i << " in lambda, toAdd: " << toAdd << std::endl;
+				Transform tt = getNextPosition();
+				XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
+				tt.setScale(XMLoadFloat3(&scale));
+				addObject(m_models[0], 0, tt);
+			}
 		});
 			
 	}
@@ -955,12 +961,13 @@ void Game::imguiFunc() {
 Transform Game::getNextPosition() {
 	int n = m_gameObjects.size(); 
 	Transform potato;
-	potato.setTranslation(XMLoadFloat3(&XMFLOAT3(int(n*5.0f)%1000, n*0.10f, -10+n*0.10f))); 
+	potato.setTranslation(XMLoadFloat3(&XMFLOAT3(int(n*5.0f)%100, n*0.00f, -10+n*0.10f))); 
 	return potato;
 }
 
 bool Game::addObject(PotatoModel * model, int animationIndex, Transform & transform) {
 	size_t offset = 0;
+	bool resetAnimation = true;
 	m_gameObjects.emplace_back(model, animationIndex, transform);
 
 	m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
@@ -983,6 +990,11 @@ bool Game::addObject(PotatoModel * model, int animationIndex, Transform & transf
 	
 	if (m_dxRenderer->isDXRSupported())
 		m_dxRenderer->getDXR().setMeshes(m_meshes);
+
+	if(resetAnimation)
+		for (GameObject& object : m_gameObjects) {
+			object.setAnimationTime(0.0f);
+		}
 
 	return true;
 }
