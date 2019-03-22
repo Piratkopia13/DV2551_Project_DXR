@@ -20,7 +20,10 @@ TimerSaver::~TimerSaver() {
 
 void TimerSaver::addResult(const std::string& name, int column, double valueMs) {
 
-	if (m_full) return;
+	if (m_results[name][column].size() >= m_maxResults) {
+		std::cout << "Error: Tried to add data to full column (" << column << ")." << std::endl;
+		return;
+	}
 
 	if (m_results[name].find(column) == m_results[name].end()) {
 		m_results[name][column].reserve(m_maxResults);
@@ -28,8 +31,7 @@ void TimerSaver::addResult(const std::string& name, int column, double valueMs) 
 	m_results[name][column].emplace_back(valueMs);
 
 	if (m_results[name][column].size() >= m_maxResults) {
-		m_full = true;
-		std::cout << "TimerSaver full - exit program to save file" << std::endl;
+		std::cout << "TimerSaver full at column: " << column << " - exit program to save file" << std::endl;
 	}
 
 }
@@ -82,4 +84,8 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 		outFile.close();
 
 	}
+}
+
+unsigned int TimerSaver::getSizeOf(const std::string& name, int column) {
+	return m_results[name][column].size();
 }
