@@ -615,7 +615,11 @@ void Game::update(double dt) {
 				m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
 			m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
+				auto cmdList = m_dxRenderer->getCopyList();
+				m_dxRenderer->getTimer().start(cmdList, Timers::VB_UPDATE);
 				static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
+				m_dxRenderer->getTimer().stop(cmdList, Timers::VB_UPDATE);
+				m_dxRenderer->getTimer().resolveQueryToCPU(cmdList, Timers::VB_UPDATE);
 			});
 		}
 	}
@@ -651,6 +655,9 @@ void Game::render(double dt) {
 	
 	m_timerSaver->addResult("BLAS", int(m_gameObjects.size()), getMsTime(Timers::BLAS));
 	m_timerSaver->addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
+	m_timerSaver->addResult("RAYS", int(m_gameObjects.size()), getMsTime(Timers::DISPATCHRAYS));
+	m_timerSaver->addResult("DXRCOPY", int(m_gameObjects.size()), getMsTime(Timers::DXRCOPY));
+	m_timerSaver->addResult("VB_UPDATES", int(m_gameObjects.size()), getMsTime(Timers::VB_UPDATE));
 	m_timerSaver->addResult("VRAM", int(m_gameObjects.size()), m_dxRenderer->getGPUInfo().usedVideoMemory);
 
 	//std::cout << "GPU time to update BLAS: " << timeInMs << std::endl;

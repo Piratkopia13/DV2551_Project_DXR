@@ -64,6 +64,8 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 
 	assert(m_meshes != nullptr); // Meshes not set
 
+	m_renderer->getTimer().start(cmdList, Timers::DISPATCHRAYS);
+
 	// Update constant buffers
 	if (m_camera) {
 		XMMATRIX jitterMat = XMMatrixIdentity();
@@ -123,6 +125,9 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	cmdList->SetPipelineState1(m_rtPipelineState.Get());
 	cmdList->DispatchRays(&raytraceDesc);
 
+	m_renderer->getTimer().stop(cmdList, Timers::DISPATCHRAYS);
+	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::DISPATCHRAYS);
+
 }
 
 void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* renderTarget) {
@@ -172,6 +177,8 @@ void DXR::doTemporalAccumulation(ID3D12GraphicsCommandList4* cmdList, ID3D12Reso
 
 void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* target) {
 
+	m_renderer->getTimer().start(cmdList, Timers::DXRCOPY);
+
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_rtOutputUAV.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 	// Copy the results to the back-buffer
@@ -179,6 +186,8 @@ void DXR::copyOutputTo(ID3D12GraphicsCommandList4* cmdList, ID3D12Resource* targ
 	cmdList->CopyResource(target, m_rtOutputUAV.resource.Get());
 	D3DUtils::setResourceTransitionBarrier(cmdList, target, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
+	m_renderer->getTimer().stop(cmdList, Timers::DXRCOPY);
+	m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::DXRCOPY);
 }
 
 void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {

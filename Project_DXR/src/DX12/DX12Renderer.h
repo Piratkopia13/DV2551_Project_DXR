@@ -34,6 +34,7 @@ namespace Timers {
 		TLAS,
 		VB_UPDATE,
 		DISPATCHRAYS,
+		DXRCOPY,
 		SIZE
 	};
 }
