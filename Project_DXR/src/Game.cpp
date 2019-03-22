@@ -461,15 +461,25 @@ void Game::update(double dt) {
 
 
 	#ifdef PERFORMANCE_TESTING
-	const int toAdd = 10;
+	const int step = 10;
+	const int framesToSave = 5000;
 	static float acc = 0.0f;
 	acc += dt;
-	if (acc > 15.0f) {
+	if (m_timerSaver.getSizeOf("BLAS",m_gameObjects.size()) >= framesToSave) {
 		acc = 0.0f;
 		
-		m_dxRenderer->executeNextOpenPreCommand([&, toAdd]() {
+		m_dxRenderer->executeNextOpenPreCommand([&, step]() {
 			m_dxRenderer->waitForGPU();
 			// std::cout << "Running addObject lambda" << std::endl;
+			
+			int toAdd = 0;
+			if (m_gameObjects.size() < 10) {
+				toAdd = 1;
+			}
+			else {
+				toAdd = step;
+			}
+
 			for (int i = 0; i < toAdd; i++) {
 				// std::cout << "\trunning nr: " << i << " in lambda, toAdd: " << toAdd << std::endl;
 				Transform tt = getNextPosition();
@@ -637,6 +647,7 @@ void Game::render(double dt) {
 		return timerDt * timestampToMs;
 	};
 
+	
 	m_timerSaver.addResult("BLAS", int(m_gameObjects.size()), getMsTime(Timers::BLAS));
 	m_timerSaver.addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
 
