@@ -35,6 +35,8 @@ namespace Timers {
 		VB_UPDATE,
 		DISPATCHRAYS,
 		DXRCOPY,
+		FRAME_PRE,
+		FRAME_POST,
 		SIZE
 	};
 }

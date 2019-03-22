@@ -72,7 +72,12 @@ void Game::init() {
 	m_fbxImporter = std::make_unique<PotatoFBXImporter>();
 	PotatoModel* _robo;
 	#ifdef PERFORMANCE_TESTING
+	#ifndef _DEBUG
 	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ballbot3.fbx");
+	#else
+	_robo = m_fbxImporter->importStaticModelFromScene("../assets/fbx/ScuffedSteve.fbx");
+	#endif
+
 	if (!_robo)
 	{
 		std::cout << "NO ROBO" << std::endl;
@@ -614,12 +619,18 @@ void Game::update(double dt) {
 			if (m_dxRenderer->isDXRSupported())
 				m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
+#ifdef PERFORMANCE_TESTING
+			m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
+				auto cmdList = m_dxRenderer->getCmdList();
+
+#else
 			m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
 				auto cmdList = m_dxRenderer->getCopyList();
-				m_dxRenderer->getTimer().start(cmdList, Timers::VB_UPDATE);
+#endif
+				//m_dxRenderer->getTimer().start(cmdList, Timers::VB_UPDATE);
 				static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
-				m_dxRenderer->getTimer().stop(cmdList, Timers::VB_UPDATE);
-				m_dxRenderer->getTimer().resolveQueryToCPU(cmdList, Timers::VB_UPDATE);
+				/*m_dxRenderer->getTimer().stop(cmdList, Timers::VB_UPDATE);
+				m_dxRenderer->getTimer().resolveQueryToCPU(cmdList, Timers::VB_UPDATE);*/
 			});
 		}
 	}
@@ -658,6 +669,7 @@ void Game::render(double dt) {
 	m_timerSaver->addResult("RAYS", int(m_gameObjects.size()), getMsTime(Timers::DISPATCHRAYS));
 	m_timerSaver->addResult("DXRCOPY", int(m_gameObjects.size()), getMsTime(Timers::DXRCOPY));
 	m_timerSaver->addResult("VB_UPDATES", int(m_gameObjects.size()), getMsTime(Timers::VB_UPDATE));
+	m_timerSaver->addResult("DXR_FRAME", int(m_gameObjects.size()), getMsTime(Timers::FRAME_PRE) + getMsTime(Timers::FRAME_POST));
 	m_timerSaver->addResult("VRAM", int(m_gameObjects.size()), m_dxRenderer->getGPUInfo().usedVideoMemory);
 
 	//std::cout << "GPU time to update BLAS: " << timeInMs << std::endl;
