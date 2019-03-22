@@ -11,8 +11,8 @@ public:
 	~TimerSaver();
 
 	void addResult(const std::string& name, int column, double valueMs);
-
 	void saveToFile(const std::string& filePrefix = "");
+	unsigned int getSizeOf(const std::string& name, int column);
 
 private:
 	bool m_full;

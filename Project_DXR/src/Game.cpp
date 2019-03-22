@@ -463,12 +463,13 @@ void Game::update(double dt) {
 	#ifdef PERFORMANCE_TESTING
 	static float acc = 0.0f;
 	acc += dt;
-	if (acc > 1.0f) {
+	if (acc > 10.0f) {
 		acc = 0.0f;
 		Transform tt = getNextPosition();
 		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
 		tt.setScale(XMLoadFloat3(&scale));
 		m_dxRenderer->executeNextOpenPreCommand([&]() {
+			m_dxRenderer->waitForGPU();
 			addObject(m_models[0], 0, tt);
 		});
 			
@@ -980,7 +981,7 @@ bool Game::addObject(PotatoModel * model, int animationIndex, Transform & transf
 	//m_meshes.back()->addTexture(m_ballBotTexture.get(), TEX_REG_DIFFUSE_SLOT);
 	m_meshes.back()->setTexture2DArray(m_ballbotTexArray.get());
 	
-	if (m_dxRenderer->isDXREnabled())
+	if (m_dxRenderer->isDXRSupported())
 		m_dxRenderer->getDXR().setMeshes(m_meshes);
 
 	return true;
