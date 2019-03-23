@@ -161,7 +161,7 @@ private:
 	bool m_supportsDXR;
 	bool m_DXREnabled;
 
-	D3D12::D3D12Timer m_gpuTimer;
+	std::vector<D3D12::D3D12Timer> m_gpuTimers;
 
 	// DX12 stuff
 	std::unique_ptr<DXR> m_dxr;

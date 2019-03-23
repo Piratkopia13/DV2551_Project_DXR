@@ -186,7 +186,7 @@ DXR& DX12Renderer::getDXR() {
 }
 
 D3D12::D3D12Timer& DX12Renderer::getTimer() {
-	return m_gpuTimer;
+	return m_gpuTimers[getFrameIndex()];
 }
 
 VertexBuffer* DX12Renderer::makeVertexBuffer(size_t size, VertexBuffer::DATA_USAGE usage) {
@@ -245,8 +245,11 @@ int DX12Renderer::initialize(unsigned int width, unsigned int height) {
 	ThrowIfFailed(m_preCommand.allocators[getFrameIndex()]->Reset());
 	ThrowIfFailed(m_preCommand.list->Reset(m_preCommand.allocators[getFrameIndex()].Get(), nullptr));
 
-	// Timer
-	m_gpuTimer.init(m_device.Get(), Timers::SIZE);
+	// Timers (one per frame)
+	m_gpuTimers.resize(NUM_SWAP_BUFFERS);
+	for (unsigned int i = 0; i < NUM_SWAP_BUFFERS; i++) {
+		m_gpuTimers[i].init(m_device.Get(), Timers::SIZE);
+	}
 
 
 	// DXR
