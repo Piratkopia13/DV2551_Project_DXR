@@ -17,7 +17,6 @@ from os.path import isfile, join
 import os
 
 input_map = sys.argv[1]
-averages = [0] * 3
 file_header = ''
 
 output_file = input_map + "/averages.tsv"
@@ -27,7 +26,10 @@ exists = os.path.isfile(output_file)
 if exists:
     os.remove(output_file)
 
+
 files = [f for f in listdir(input_map) if isfile(join(input_map, f))]
+numFiles = len(files)
+averages = [0] * numFiles
 curr_file_index = 0
 
 for input_file in files:
@@ -40,7 +42,7 @@ for input_file in files:
         file_header = next(reader)
         file_header = file_header[0] + " " + file_header[1]
         first_row = next(reader)
-        print(f'Number of columns: {len(first_row) - 1}')
+        #print(f'Number of columns: {len(first_row) - 1}')
 
         numRows = 0
         averages[curr_file_index] = [0] * (len(first_row) - 3)
@@ -54,22 +56,24 @@ for input_file in files:
 
         for i in range(0, len(averages[curr_file_index])):
             averages[curr_file_index][i] = averages[curr_file_index][i] / numRows
-            print(f'Num objects: {first_row[i + 1]} Average: {averages[curr_file_index][i]}')
+            #print(f'Num objects: {first_row[i + 1]} Average: {averages[curr_file_index][i]}')
 
     curr_file_index += 1
 
 
-print(averages)
+#print(averages)
 
 with open(output_file, "w+", newline='') as of:
     writer = csv.writer(of, delimiter='\t')
     writer.writerow([file_header])
-    writer.writerow(["#", "TLAS", "BLAS", "VRAM"])
+    file_names = [os.path.splitext(f)[0] for f in files]
+    #print(file_names)
+    column_headers = ['#'] + file_names
+    writer.writerow(column_headers)
     
     for i in range(0, len(averages[0])):
         row = []
         row.append(first_row[i + 1])
-        row.append(averages[0][i])
-        row.append(averages[1][i])
-        row.append(averages[2][i])
+        for j in range(0, numFiles):
+            row.append(averages[j][i])
         writer.writerow(row)
