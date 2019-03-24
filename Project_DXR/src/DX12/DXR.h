@@ -119,6 +119,16 @@ private:
 		wComPtr<ID3D12Resource1> scratch = nullptr;
 		wComPtr<ID3D12Resource1> result = nullptr;
 		wComPtr<ID3D12Resource1> instanceDesc = nullptr;    // Used only for top-level AS
+		void release() {
+			scratch->Release();
+			scratch = nullptr;
+			result->Release();
+			result = nullptr;
+			if (instanceDesc) {
+				instanceDesc->Release();
+				instanceDesc = nullptr;
+			}
+		}
 	};
 	std::vector<AccelerationStructureBuffers> m_DXR_BottomBuffers;
 	AccelerationStructureBuffers m_DXR_TopBuffers{};

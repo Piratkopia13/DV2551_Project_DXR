@@ -981,9 +981,7 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_numFrames++;
 
 	// Update vram usage
-	DXGI_QUERY_VIDEO_MEMORY_INFO info;
-	m_adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
-	m_gpuInfo.usedVideoMemory = info.CurrentUsage / 1000000000.0f;
+	m_gpuInfo.usedVideoMemory = getUsedVRAM();
 
 };
 #else
@@ -1123,6 +1121,12 @@ void DX12Renderer::present() {
 
 bool& DX12Renderer::getVsync() {
 	return m_vsync;
+}
+
+float DX12Renderer::getUsedVRAM() {
+	DXGI_QUERY_VIDEO_MEMORY_INFO info;
+	m_adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
+	return info.CurrentUsage / 1000000000.0f;
 }
 
 void DX12Renderer::executeNextOpenPreCommand(std::function<void()> func) {

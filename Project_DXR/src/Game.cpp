@@ -311,6 +311,24 @@ void Game::init() {
 	}
 
 
+	{
+		// Set up floor mesh
+		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
+		m_meshes.back()->setName("Floor");
+		constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
+		constexpr auto numIndices = std::extent<decltype(floorIndices)>::value;
+		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
+		m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
+		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(floorIndices), IndexBuffer::STATIC));
+		m_indexBuffers.back()->setData(floorIndices, sizeof(floorIndices), offset);
+		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
+		m_meshes.back()->technique = m_technique.get();
+		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
+		m_meshes.back()->setTexture2DArray(m_diffuseTexArray.get());
+	}
+
+#ifndef _DEBUG
+
 	// Reflection and refraction models
 	{
 		// Set up mesh from FBX file
@@ -368,24 +386,6 @@ void Game::init() {
 	}
 
 
-
-	{
-		// Set up floor mesh
-		m_meshes.emplace_back(static_cast<DX12Mesh*>(getRenderer().makeMesh()));
-		m_meshes.back()->setName("Floor");
-		constexpr auto numVertices = std::extent<decltype(floorVertices)>::value;
-		constexpr auto numIndices = std::extent<decltype(floorIndices)>::value;
-		m_vertexBuffers.emplace_back(getRenderer().makeVertexBuffer(sizeof(floorVertices), VertexBuffer::DATA_USAGE::STATIC));
-		m_vertexBuffers.back()->setData(floorVertices, sizeof(floorVertices), offset);
-		m_indexBuffers.emplace_back(getRenderer().makeIndexBuffer(sizeof(floorIndices), IndexBuffer::STATIC));
-		m_indexBuffers.back()->setData(floorIndices, sizeof(floorIndices), offset);
-		m_meshes.back()->setIABinding(m_vertexBuffers.back().get(), m_indexBuffers.back().get(), offset, numVertices, numIndices, sizeof(Vertex));
-		m_meshes.back()->technique = m_technique.get();
-		//m_meshes.back()->addTexture(m_floorTexture.get(), TEX_REG_DIFFUSE_SLOT);
-		m_meshes.back()->setTexture2DArray(m_diffuseTexArray.get());
-	}
-
-#ifndef _DEBUG
 	{
 		// Dragon mesh
 		PotatoModel* model = m_fbxImporter->importStaticModelFromScene("../assets/fbx/Dragon_Baked_Actions.fbx");
@@ -467,7 +467,6 @@ void Game::init() {
 
 void Game::update(double dt) {
 
-
 	#ifdef PERFORMANCE_TESTING
 	const int step = 10;
 	const int framesToSave = 500;
@@ -497,6 +496,7 @@ void Game::update(double dt) {
 #endif
 				addObject(m_models[0], 0, tt);
 			}
+			std::cout << "Num objects: " << m_gameObjects.size() << std::endl;
 		});
 			
 	}
@@ -666,8 +666,8 @@ void Game::render(double dt) {
 		UINT64 timerDt = updateTime.Stop - updateTime.Start;
 		return timerDt * timestampToMs;
 	};
+#ifndef _DEBUG
 
-	
 	m_timerSaver->addResult("BLAS", int(m_gameObjects.size()), getMsTime(Timers::BLAS));
 	m_timerSaver->addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
 	m_timerSaver->addResult("RAYS", int(m_gameObjects.size()), getMsTime(Timers::DISPATCHRAYS));
@@ -675,7 +675,8 @@ void Game::render(double dt) {
 	m_timerSaver->addResult("VB_UPDATES", int(m_gameObjects.size()), getMsTime(Timers::VB_UPDATE));
 	m_timerSaver->addResult("DXR_FRAME", int(m_gameObjects.size()), getMsTime(Timers::FRAME_PRE) + getMsTime(Timers::FRAME_POST));
 	m_timerSaver->addResult("VRAM", int(m_gameObjects.size()), m_dxRenderer->getGPUInfo().usedVideoMemory);
-
+#endif
+	//std::cout << m_dxRenderer->getGPUInfo().usedVideoMemory << std::endl;
 	//std::cout << "GPU time to update BLAS: " << timeInMs << std::endl;
 
 }

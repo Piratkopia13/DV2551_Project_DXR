@@ -108,6 +108,7 @@ public:
 	void frame(std::function<void()> imguiFunc = []() {});
 	virtual void present() override;
 	bool& getVsync();
+	float getUsedVRAM();
 
 	void useCamera(Camera* camera);
 	

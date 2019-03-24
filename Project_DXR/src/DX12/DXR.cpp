@@ -403,12 +403,13 @@ void DXR::createShaderTables() {
 
 void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 
-	// TODO: Allow multiple vertex buffers
-	// TODO: Allow for BLAS updates (multiple calls) in place?
-
 	if (m_meshes != nullptr) {
 
 		if (m_numMeshesChanged) {
+			// Release old buffers if they exist
+			for (auto& blas : m_DXR_BottomBuffers) {
+				blas.release();
+			}
 			m_DXR_BottomBuffers.clear();
 			m_DXR_BottomBuffers.resize(m_meshes->size());
 		}
@@ -443,9 +444,6 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 
 			// Only create the buffer the first time or if the size needs to change
 			if (m_numMeshesChanged || !onlyUpdate) {
-				// Release old buffers if they exist
-				m_DXR_BottomBuffers[i].scratch.Reset();
-				m_DXR_BottomBuffers[i].result.Reset();
 				// Create the buffers. They need to support UAV, and since we are going to immediately use them, we create them with an unordered-access state
 				m_DXR_BottomBuffers[i].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
 				m_DXR_BottomBuffers[i].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
@@ -465,8 +463,8 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			uavBarrier.UAV.pResource = m_DXR_BottomBuffers[i].result.Get();
 			cmdList->ResourceBarrier(1, &uavBarrier);
 		}
-		m_renderer->getTimer().stop(cmdList, Timers::BLAS);
 
+		m_renderer->getTimer().stop(cmdList, Timers::BLAS);
 		m_renderer->getTimer().resolveQueryToCPU(cmdList, Timers::BLAS);
 	}
 
@@ -490,9 +488,7 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
 	if (m_numMeshesChanged) {
-		m_DXR_TopBuffers.instanceDesc.Reset();
-		m_DXR_TopBuffers.result.Reset();
-		m_DXR_TopBuffers.scratch.Reset();
+		m_DXR_TopBuffers.release();
 	}
 
 	// on first call, create the buffer
