@@ -39,13 +39,8 @@ void DX12VertexBuffer::setData(const void * data, size_t size, size_t offset) {
 }
 
 void DX12VertexBuffer::updateData(const void* data, size_t size) {
-#ifdef PERFORMANCE_TESTING
-	auto cmdList = m_renderer->getCmdList();
-	D3DUtils::setResourceTransitionBarrier(cmdList, m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
-#else
+	//D3DUtils::setResourceTransitionBarrier(cmdList, m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
 	auto cmdList = m_renderer->getCopyList();
-#endif
-
 
 	auto& uploadBuffer = m_uploadBuffers.at(0);
 	UINT offset = 0;
@@ -58,9 +53,7 @@ void DX12VertexBuffer::updateData(const void* data, size_t size) {
 
 	// Copy the data from the uploadBuffer to the defaultBuffer
 	cmdList->CopyBufferRegion(m_vertexBuffer.Get(), offset, uploadBuffer, 0, size);
-#ifdef PERFORMANCE_TESTING
-	D3DUtils::setResourceTransitionBarrier(cmdList, m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-#endif
+	//D3DUtils::setResourceTransitionBarrier(cmdList, m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void DX12VertexBuffer::bind(size_t offset, size_t size, unsigned int location) {

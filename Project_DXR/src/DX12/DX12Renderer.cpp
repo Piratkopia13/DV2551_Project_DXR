@@ -824,9 +824,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	m_preCommand.allocators[frameIndex]->Reset();
 	m_preCommand.list->Reset(m_preCommand.allocators[frameIndex].Get(), nullptr);
 
-	// Start pre frame timer
-	//getTimer().start(m_preCommand.list.Get(), Timers::FRAME_PRE);
-
 	// Execute stored functions that needs an open preCommand list
 	for (auto& func : m_preCommandFuncsToExecute) {
 		//waitForGPU();
@@ -867,9 +864,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 		m_skybox->render(m_preCommand.list.Get());
 	}
 
-	// Stop pre frame tiemr
-	/*getTimer().stop(m_preCommand.list.Get(), Timers::FRAME_PRE);
-	getTimer().resolveQueryToCPU(m_preCommand.list.Get(), Timers::FRAME_PRE);*/
 	{
 		//Execute the pre command list
 		m_preCommand.list->Close();
@@ -901,9 +895,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 	// Reset post command
 	m_postCommand.allocators[frameIndex]->Reset();
 	m_postCommand.list->Reset(m_postCommand.allocators[frameIndex].Get(), nullptr);
-
-	// Start post frame timer
-	//getTimer().start(m_preCommand.list.Get(), Timers::FRAME_POST);
 
 	// DXR
 	if (m_DXREnabled) {
@@ -962,10 +953,6 @@ void DX12Renderer::frame(std::function<void()> imguiFunc) {
 
 	// Indicate that the back buffer will now be used to present
 	D3DUtils::setResourceTransitionBarrier(m_postCommand.list.Get(), m_renderTargets[frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-
-	// Stop post frame timer
-	/*getTimer().stop(m_preCommand.list.Get(), Timers::FRAME_POST);
-	getTimer().resolveQueryToCPU(m_preCommand.list.Get(), Timers::FRAME_POST);*/
 
 
 	{

@@ -25,7 +25,7 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_skyboxTexture(nullptr)
 	, m_gen(m_rd())
 	, m_dis(0.f, 1.0f)
-	, m_numMeshes(0)
+	//, m_numMeshes(0)
 {
 }
 
@@ -35,6 +35,13 @@ DXR::~DXR() {
 }
 
 void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
+
+	m_DXR_BottomBuffers.resize(m_renderer->getNumSwapBuffers());
+	m_DXR_TopBuffers.resize(m_renderer->getNumSwapBuffers());
+	m_rayGenShaderTable.resize(m_renderer->getNumSwapBuffers());
+	m_missShaderTable.resize(m_renderer->getNumSwapBuffers());
+	m_hitGroupShaderTable.resize(m_renderer->getNumSwapBuffers());
+
 	createAccelerationStructures(cmdList);
 	createDxrGlobalRootSignature();
 	createRaytracingPSO();
@@ -44,13 +51,27 @@ void DXR::init(ID3D12GraphicsCommandList4* cmdList) {
 
 void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 	static bool firstFrame = true;
+	unsigned int frameIndex = m_renderer->getFrameIndex();
+	if (firstFrame || m_numMeshesChanged) {
+		m_resizeAll = true;
+		m_framesResized = 0;
+		//m_newInPlace[frameIndex] = false;
+	}
+	if (m_framesResized >= m_renderer->getNumSwapBuffers()) {
+		m_resizeAll = false;
+		m_framesResized = 0;
+	}
+
+
 	if (m_updateBLAS) {
-		if (!m_newInPlace || firstFrame) {
+		if (m_resizeAll || firstFrame) {
 			createShaderResources();
 			createShaderTables();
 		}
-		createBLAS(cmdList, m_newInPlace);
+		createBLAS(cmdList, !m_resizeAll);
 		m_updateBLAS = false;
+		if (m_resizeAll)
+			m_framesResized++;
 	}
 	if (m_updateTLAS) {
 		createTLAS(cmdList, m_newInstanceTransform);
@@ -60,10 +81,11 @@ void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 	firstFrame = false;
 }
 
-void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
+void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList){
 
 	assert(m_meshes != nullptr); // Meshes not set
 
+	unsigned int frameIndex = m_renderer->getFrameIndex();
 	m_renderer->getTimer().start(cmdList, Timers::DISPATCHRAYS);
 
 	// Update constant buffers
@@ -97,16 +119,16 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	raytraceDesc.Depth = 1;
 
 	//set shader tables
-	raytraceDesc.RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable.Resource->GetGPUVirtualAddress();
-	raytraceDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable.SizeInBytes;
+	raytraceDesc.RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable[frameIndex].Resource->GetGPUVirtualAddress();
+	raytraceDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable[frameIndex].SizeInBytes;
 
-	raytraceDesc.MissShaderTable.StartAddress = m_missShaderTable.Resource->GetGPUVirtualAddress();
-	raytraceDesc.MissShaderTable.StrideInBytes = m_missShaderTable.StrideInBytes;
-	raytraceDesc.MissShaderTable.SizeInBytes = m_missShaderTable.SizeInBytes;
+	raytraceDesc.MissShaderTable.StartAddress = m_missShaderTable[frameIndex].Resource->GetGPUVirtualAddress();
+	raytraceDesc.MissShaderTable.StrideInBytes = m_missShaderTable[frameIndex].StrideInBytes;
+	raytraceDesc.MissShaderTable.SizeInBytes = m_missShaderTable[frameIndex].SizeInBytes;
 
-	raytraceDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable.Resource->GetGPUVirtualAddress();
-	raytraceDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTable.StrideInBytes;
-	raytraceDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable.SizeInBytes;
+	raytraceDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable[frameIndex].Resource->GetGPUVirtualAddress();
+	raytraceDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTable[frameIndex].StrideInBytes;
+	raytraceDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable[frameIndex].SizeInBytes;
 
 	// Bind the global root signature
 	cmdList->SetComputeRootSignature(m_dxrGlobalRootSignature.Get());
@@ -115,7 +137,7 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList) {
 	float redColor = 1.0f;
 	cmdList->SetComputeRoot32BitConstant(DXRGlobalRootParam::FLOAT_RED_CHANNEL, *reinterpret_cast<UINT*>(&redColor), 0);
 	// Set acceleration structure
-	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers.result->GetGPUVirtualAddress());
+	cmdList->SetComputeRootShaderResourceView(DXRGlobalRootParam::SRV_ACCELERATION_STRUCTURE, m_DXR_TopBuffers[m_renderer->getFrameIndex()].result->GetGPUVirtualAddress());
 	// Set scene constant buffer
 	cmdList->SetComputeRootConstantBufferView(DXRGlobalRootParam::CBV_SCENE_BUFFER, m_sceneCB->getBuffer(m_renderer->getFrameIndex())->GetGPUVirtualAddress());
 	// Set ray gen settings constant buffer
@@ -195,7 +217,13 @@ void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
 		m_numMeshesChanged = true;
 	m_meshes = &meshes;
 	m_updateBLAS = true;
-	m_newInPlace = false;
+	/*for (unsigned int i = 0; i < m_renderer->getNumSwapBuffers(); i++)
+		m_newInPlace[i] = false;*/
+	if (m_numMeshesChanged) {
+		std::cout << "num meshes changed" << std::endl;
+		m_resizeAll = true;
+		m_framesResized = 0;
+	}
 	m_numMeshes = UINT(meshes.size());
 }
 
@@ -206,7 +234,12 @@ void DXR::setSkyboxTexture(DX12Texture2D* texture) {
 
 void DXR::updateBLASnextFrame(bool inPlace) {
 	m_updateBLAS = true;
-	m_newInPlace = inPlace;
+	if (!inPlace) {
+		m_resizeAll = true;
+		m_framesResized = 0;
+	}
+	//for (unsigned int i = 0; i < m_renderer->getNumSwapBuffers(); i++)
+		//m_newInPlace[m_renderer->getFrameIndex()] = inPlace;
 }
 
 void DXR::updateTLASnextFrame(std::function<XMFLOAT3X4(int)> instanceTransform) {
@@ -359,34 +392,35 @@ void DXR::createShaderResources() {
 void DXR::createShaderTables() {
 
 	// 	 "Shader tables can be modified freely by the application (with appropriate state barriers)"
+	unsigned int frameIndex = m_renderer->getFrameIndex();
 
 	// Ray gen
 	{
-		if (m_rayGenShaderTable.Resource) {
-			m_rayGenShaderTable.Resource->Release();
-			m_rayGenShaderTable.Resource.Reset();
+		if (m_rayGenShaderTable[frameIndex].Resource) {
+			m_rayGenShaderTable[frameIndex].Resource->Release();
+			m_rayGenShaderTable[frameIndex].Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_rayGenName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_rtOutputUAV.gpuHandle.ptr);
-		m_rayGenShaderTable = tableBuilder.build(m_renderer->getDevice());
+		m_rayGenShaderTable[frameIndex] = tableBuilder.build(m_renderer->getDevice());
 	}
 
 	// Miss
 	{
-		if (m_missShaderTable.Resource) {
-			m_missShaderTable.Resource->Release();
-			m_missShaderTable.Resource.Reset();
+		if (m_missShaderTable[frameIndex].Resource) {
+			m_missShaderTable[frameIndex].Resource->Release();
+			m_missShaderTable[frameIndex].Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_missName, m_rtPipelineState.Get());
 		tableBuilder.addDescriptor(m_skyboxGPUDescHandle.ptr);
-		m_missShaderTable = tableBuilder.build(m_renderer->getDevice());
+		m_missShaderTable[frameIndex] = tableBuilder.build(m_renderer->getDevice());
 	}
 
 	// Hit group
 	{
-		if (m_hitGroupShaderTable.Resource) {
-			m_hitGroupShaderTable.Resource->Release();
-			m_hitGroupShaderTable.Resource.Reset();
+		if (m_hitGroupShaderTable[frameIndex].Resource) {
+			m_hitGroupShaderTable[frameIndex].Resource->Release();
+			m_hitGroupShaderTable[frameIndex].Resource.Reset();
 		}
 		D3DUtils::ShaderTableBuilder tableBuilder(m_hitGroupName, m_rtPipelineState.Get(), UINT(m_meshes->size()));
 		for (unsigned int i = 0; i < m_meshes->size(); i++) {
@@ -396,7 +430,7 @@ void DXR::createShaderTables() {
 			tableBuilder.addDescriptor(m_rtMeshHandles[i].materialHandle, i);
 			//tableBuilder.addDescriptor(rayGenHandle, i);
 		}
-		m_hitGroupShaderTable = tableBuilder.build(m_renderer->getDevice());
+		m_hitGroupShaderTable[frameIndex] = tableBuilder.build(m_renderer->getDevice());
 	}
 
 }
@@ -405,13 +439,19 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 
 	if (m_meshes != nullptr) {
 
-		if (m_numMeshesChanged) {
+		unsigned int frameIndex = m_renderer->getFrameIndex();
+
+		if (!onlyUpdate) {
+			std::cout << "FULL BLAS BUILD" << std::endl;
 			// Release old buffers if they exist
-			for (auto& blas : m_DXR_BottomBuffers) {
+			for (auto& blas : m_DXR_BottomBuffers[frameIndex]) {
 				blas.release();
 			}
-			m_DXR_BottomBuffers.clear();
-			m_DXR_BottomBuffers.resize(m_meshes->size());
+			//m_DXR_BottomBuffers.clear();
+			// Resize all BLAS vectors
+			//for (unsigned int i = 0; i < m_renderer->getNumSwapBuffers(); i++) {
+				m_DXR_BottomBuffers[frameIndex].resize(m_meshes->size());
+			//}
 		}
 
 		m_renderer->getTimer().start(cmdList, Timers::BLAS);
@@ -435,6 +475,9 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
 			inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 			inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+			/*if (onlyUpdate) {
+				inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+			}*/
 			inputs.NumDescs = 1;
 			inputs.pGeometryDescs = geomDesc;
 			inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
@@ -442,25 +485,29 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
 			m_renderer->getDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
-			// Only create the buffer the first time or if the size needs to change
-			if (m_numMeshesChanged || !onlyUpdate) {
+			// TODO: make sure buffer size is >= info.UpdateScratchDataSize in bytes
+			if (!onlyUpdate) {
 				// Create the buffers. They need to support UAV, and since we are going to immediately use them, we create them with an unordered-access state
-				m_DXR_BottomBuffers[i].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
-				m_DXR_BottomBuffers[i].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
+				m_DXR_BottomBuffers[frameIndex][i].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
+				m_DXR_BottomBuffers[frameIndex][i].scratch->SetName(L"BLAS_SCRATCH");
+				m_DXR_BottomBuffers[frameIndex][i].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
+				m_DXR_BottomBuffers[frameIndex][i].result->SetName(L"BLAS_RESULT");
 			}
 
 			// Create the bottom-level AS
 			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc = {};
 			asDesc.Inputs = inputs;
-			asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers[i].result->GetGPUVirtualAddress();
-			asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers[i].scratch->GetGPUVirtualAddress();
+			asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].scratch->GetGPUVirtualAddress();
+			asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].result->GetGPUVirtualAddress();
+			/*if (onlyUpdate)
+				asDesc.SourceAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].result->GetGPUVirtualAddress();*/
 
 			cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
 
 			// We need to insert a UAV barrier before using the acceleration structures in a raytracing operation
 			D3D12_RESOURCE_BARRIER uavBarrier = {};
 			uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-			uavBarrier.UAV.pResource = m_DXR_BottomBuffers[i].result.Get();
+			uavBarrier.UAV.pResource = m_DXR_BottomBuffers[frameIndex][i].result.Get();
 			cmdList->ResourceBarrier(1, &uavBarrier);
 		}
 
@@ -474,6 +521,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX::XMFLOAT3X4(int)> instanceTransform) {
 
 	unsigned int instanceCount = (m_meshes) ? UINT(m_meshes->size()) : 0U;
+	unsigned int frameIndex = m_renderer->getFrameIndex();
 
 	if (m_meshes != nullptr && m_meshes->size() > instanceCount)
 		std::cout << "WARNING: There is more geometry in the BLAS than instances in the TLAS" << std::endl;
@@ -487,29 +535,32 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 	inputs.NumDescs = instanceCount;
 	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
-	if (m_numMeshesChanged) {
-		m_DXR_TopBuffers.release();
-	}
+	m_DXR_TopBuffers[frameIndex].release();
 
 	// on first call, create the buffer
-	if (m_DXR_TopBuffers.instanceDesc == nullptr) {
+	//if (m_DXR_TopBuffers[frameIndex].instanceDesc == nullptr) {
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info;
 		m_renderer->getDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
 		// Create the buffers
-		if (m_DXR_TopBuffers.scratch == nullptr) {
-			m_DXR_TopBuffers.scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
+		if (m_DXR_TopBuffers[frameIndex].scratch == nullptr) {
+			m_DXR_TopBuffers[frameIndex].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
+			m_DXR_TopBuffers[frameIndex].scratch->SetName(L"TLAS_SCRATCH");
+
 		}
 
-		if (m_DXR_TopBuffers.result == nullptr) {
-			m_DXR_TopBuffers.result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
+		if (m_DXR_TopBuffers[frameIndex].result == nullptr) {
+			m_DXR_TopBuffers[frameIndex].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
+			m_DXR_TopBuffers[frameIndex].result->SetName(L"TLAS_RESULT");
 		}
 
-		m_DXR_TopBuffers.instanceDesc = D3DUtils::createBuffer(m_renderer->getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * max(instanceCount, 1), D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties);
-	}
+		m_DXR_TopBuffers[frameIndex].instanceDesc = D3DUtils::createBuffer(m_renderer->getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * max(instanceCount, 1), D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties);
+		m_DXR_TopBuffers[frameIndex].instanceDesc->SetName(L"TLAS_INSTANCE_DESC");
+
+	//}
 
 	D3D12_RAYTRACING_INSTANCE_DESC* pInstanceDesc;
-	m_DXR_TopBuffers.instanceDesc->Map(0, nullptr, (void**)&pInstanceDesc);
+	m_DXR_TopBuffers[frameIndex].instanceDesc->Map(0, nullptr, (void**)&pInstanceDesc);
 
 	for (UINT i = 0; i < instanceCount; i++) {
 
@@ -521,27 +572,27 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 		XMFLOAT3X4 m = instanceTransform(i);
 		memcpy(pInstanceDesc->Transform, &m, sizeof(pInstanceDesc->Transform));
 
-		pInstanceDesc->AccelerationStructure = m_DXR_BottomBuffers[i].result->GetGPUVirtualAddress();
+		pInstanceDesc->AccelerationStructure = m_DXR_BottomBuffers[frameIndex][i].result->GetGPUVirtualAddress();
 		pInstanceDesc->InstanceMask = 0xFF;
 
 		pInstanceDesc++;
 	}
 	// Unmap
-	m_DXR_TopBuffers.instanceDesc->Unmap(0, nullptr);
+	m_DXR_TopBuffers[frameIndex].instanceDesc->Unmap(0, nullptr);
 
 	// Create the TLAS
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC asDesc = {};
 	asDesc.Inputs = inputs;
-	asDesc.Inputs.InstanceDescs = m_DXR_TopBuffers.instanceDesc->GetGPUVirtualAddress();
-	asDesc.DestAccelerationStructureData = m_DXR_TopBuffers.result->GetGPUVirtualAddress();
-	asDesc.ScratchAccelerationStructureData = m_DXR_TopBuffers.scratch->GetGPUVirtualAddress();
+	asDesc.Inputs.InstanceDescs = m_DXR_TopBuffers[frameIndex].instanceDesc->GetGPUVirtualAddress();
+	asDesc.DestAccelerationStructureData = m_DXR_TopBuffers[frameIndex].result->GetGPUVirtualAddress();
+	asDesc.ScratchAccelerationStructureData = m_DXR_TopBuffers[frameIndex].scratch->GetGPUVirtualAddress();
 
 	cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
 
 	// UAV barrier needed before using the acceleration structures in a raytracing operation
 	D3D12_RESOURCE_BARRIER uavBarrier = {};
 	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	uavBarrier.UAV.pResource = m_DXR_TopBuffers.result.Get();
+	uavBarrier.UAV.pResource = m_DXR_TopBuffers[frameIndex].result.Get();
 	cmdList->ResourceBarrier(1, &uavBarrier);
 
 	m_renderer->getTimer().stop(cmdList, Timers::TLAS);

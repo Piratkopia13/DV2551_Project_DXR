@@ -90,17 +90,20 @@ private:
 
 private:
 	bool m_updateBLAS;
-	bool m_newInPlace;
+	//bool m_newInPlace;
+
+	bool m_resizeAll;
+	int m_framesResized;
 
 	bool m_updateTLAS;
 	bool m_numMeshesChanged;
+	unsigned int m_numMeshes;
 	std::function<DirectX::XMFLOAT3X4(int)> m_newInstanceTransform;
 
 private:
 	DX12Renderer* m_renderer;
 
 	const std::vector<std::unique_ptr<DX12Mesh>>* m_meshes;
-	unsigned int m_numMeshes;
 	//DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
 	std::unique_ptr<DX12ConstantBuffer> m_sceneCB; // Temporary constant buffer
 	std::unique_ptr<DX12ConstantBuffer> m_rayGenSettingsCB; // Temporary constant buffer
@@ -120,24 +123,28 @@ private:
 		wComPtr<ID3D12Resource1> result = nullptr;
 		wComPtr<ID3D12Resource1> instanceDesc = nullptr;    // Used only for top-level AS
 		void release() {
-			scratch->Release();
-			scratch = nullptr;
-			result->Release();
-			result = nullptr;
+			if (scratch) {
+				scratch->Release();
+				scratch = nullptr;
+			}
+			if (result) {
+				result->Release();
+				result = nullptr;
+			}
 			if (instanceDesc) {
 				instanceDesc->Release();
 				instanceDesc = nullptr;
 			}
 		}
 	};
-	std::vector<AccelerationStructureBuffers> m_DXR_BottomBuffers;
-	AccelerationStructureBuffers m_DXR_TopBuffers{};
+	std::vector<std::vector<AccelerationStructureBuffers>> m_DXR_BottomBuffers;
+	std::vector<AccelerationStructureBuffers> m_DXR_TopBuffers;
 
 	wComPtr<ID3D12StateObject> m_rtPipelineState = nullptr;
 
-	D3DUtils::ShaderTableData m_rayGenShaderTable{};
-	D3DUtils::ShaderTableData m_missShaderTable{};
-	D3DUtils::ShaderTableData m_hitGroupShaderTable{};
+	std::vector<D3DUtils::ShaderTableData> m_rayGenShaderTable{};
+	std::vector<D3DUtils::ShaderTableData> m_missShaderTable{};
+	std::vector<D3DUtils::ShaderTableData> m_hitGroupShaderTable{};
 
 	struct ResourceWithDescriptor {
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;

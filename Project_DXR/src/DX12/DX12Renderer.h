@@ -32,11 +32,8 @@ namespace Timers {
 	enum Gpu {
 		BLAS,
 		TLAS,
-		VB_UPDATE,
 		DISPATCHRAYS,
 		DXRCOPY,
-		FRAME_PRE,
-		FRAME_POST,
 		SIZE
 	};
 }

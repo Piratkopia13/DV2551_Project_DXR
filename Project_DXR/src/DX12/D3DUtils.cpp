@@ -247,6 +247,7 @@ D3DUtils::ShaderTableData D3DUtils::ShaderTableBuilder::build(ID3D12Device5* dev
 	shaderTable.StrideInBytes = alignedSize;
 	shaderTable.SizeInBytes = shaderTable.StrideInBytes * m_numInstances;
 	shaderTable.Resource = D3DUtils::createBuffer(device, shaderTable.SizeInBytes, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, sUploadHeapProperties);
+	shaderTable.Resource->SetName(L"SHADER_TABLE");
 
 	// Map the buffer
 	// Use a char* to to pointer arithmetic per byte

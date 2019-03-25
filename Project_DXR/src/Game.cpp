@@ -449,6 +449,16 @@ void Game::init() {
 		m_meshes.back()->setTexture2DArray(m_ballbotTexArray.get());
 		//delete _robo;
 	}
+//
+//	int STARTOBJECTS = 100;
+//	for (int i = 0; i < STARTOBJECTS; i++) {
+//		Transform tt = getNextPosition();
+//#ifndef _DEBUG
+//		XMFLOAT3 scale = XMFLOAT3(0.03f, 0.03f, 0.03f);
+//		tt.setScale(XMLoadFloat3(&scale));
+//#endif
+//		addObject(m_models[0], 0, tt);
+//	}
 
 	#endif
 
@@ -472,14 +482,18 @@ void Game::update(double dt) {
 	const int framesToSave = 500;
 	static float acc = 0.0f;
 	acc += dt;
+#ifdef _DEBUG
+	if (Input::IsKeyPressed('L')) {
+#else
 	if (m_timerSaver->getSizeOf("BLAS",m_gameObjects.size()) >= framesToSave) {
+#endif
 		acc = 0.0f;
 		
 		m_dxRenderer->executeNextOpenPreCommand([&, step]() {
 			m_dxRenderer->waitForGPU();
 			// std::cout << "Running addObject lambda" << std::endl;
 			
-			int toAdd = 0;
+			int toAdd = step;
 			if (m_gameObjects.size() < 10) {
 				toAdd = 1;
 			}
@@ -623,18 +637,9 @@ void Game::update(double dt) {
 			if (m_dxRenderer->isDXRSupported())
 				m_dxRenderer->getDXR().updateBLASnextFrame(true);
 
-#ifdef PERFORMANCE_TESTING
-			m_dxRenderer->executeNextOpenPreCommand([&, pModel, i] {
-				auto cmdList = m_dxRenderer->getCmdList();
-
-#else
 			m_dxRenderer->executeNextOpenCopyCommand([&, pModel, i] {
 				auto cmdList = m_dxRenderer->getCopyList();
-#endif
-				//m_dxRenderer->getTimer().start(cmdList, Timers::VB_UPDATE);
 				static_cast<DX12VertexBuffer*>(m_vertexBuffers[m_animatedModelsStartIndex + i].get())->updateData(pModel->getMesh(m_gameObjects[i].getAnimationIndex(), m_gameObjects[i].getAnimationTime()).data(), sizeof(Vertex) * pModel->getModelVertices().size());
-				/*m_dxRenderer->getTimer().stop(cmdList, Timers::VB_UPDATE);
-				m_dxRenderer->getTimer().resolveQueryToCPU(cmdList, Timers::VB_UPDATE);*/
 			});
 		}
 	}
@@ -672,8 +677,6 @@ void Game::render(double dt) {
 	m_timerSaver->addResult("TLAS", int(m_gameObjects.size()), getMsTime(Timers::TLAS));
 	m_timerSaver->addResult("RAYS", int(m_gameObjects.size()), getMsTime(Timers::DISPATCHRAYS));
 	m_timerSaver->addResult("DXRCOPY", int(m_gameObjects.size()), getMsTime(Timers::DXRCOPY));
-	m_timerSaver->addResult("VB_UPDATES", int(m_gameObjects.size()), getMsTime(Timers::VB_UPDATE));
-	m_timerSaver->addResult("DXR_FRAME", int(m_gameObjects.size()), getMsTime(Timers::FRAME_PRE) + getMsTime(Timers::FRAME_POST));
 	m_timerSaver->addResult("VRAM", int(m_gameObjects.size()), m_dxRenderer->getGPUInfo().usedVideoMemory);
 #endif
 	//std::cout << m_dxRenderer->getGPUInfo().usedVideoMemory << std::endl;
