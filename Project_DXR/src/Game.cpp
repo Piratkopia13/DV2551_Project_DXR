@@ -10,7 +10,9 @@ Game::Game()
 	: Application(1700, 900, "Loading.. DX12 DXR Raytracer with skinned animated models")
 {
 	m_dxRenderer = static_cast<DX12Renderer*>(&getRenderer());
+#ifdef PERFORMANCE_TESTING
 	m_timerSaver = std::make_unique<TimerSaver>(10000, m_dxRenderer);
+#endif
 
 	#ifdef PERFORMANCE_TESTING
 	m_persCamera = std::make_unique<Camera>(m_dxRenderer->getWindow()->getWindowWidth() / (float)m_dxRenderer->getWindow()->getWindowHeight(), 110.f, 0.1f, 1000.f);
@@ -57,7 +59,9 @@ Game::Game()
 
 Game::~Game() {
 
+#ifdef PERFORMANCE_TESTING
 	m_timerSaver->saveToFile();
+#endif
 
 	for (int i = 0; i < m_models.size(); i++) {
 		if (m_models[i])
