@@ -2,7 +2,7 @@
 ## A fully raytraced dynamic scene with skeletal animated models 
 ##### Made by Alexander Wester, Fredrik Junede and Henrik Johansson for a project in the course DV2551 at BTH 2019.
 #### [Associated report](Report.pdf)
-
+[Pre-built binaries can be found here](https://github.com/Piratkopia13/DV2551_Project_DXR/releases)
 ### Requirements
  - Windows version 1809 or later
  - Visual studio 2017 or later
