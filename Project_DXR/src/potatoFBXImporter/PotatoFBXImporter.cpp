@@ -103,7 +103,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	PotatoModel* model = new PotatoModel();
 	
 	FbxNode * root = scene->GetRootNode();
-	printAnimationStack(root);
+	//printAnimationStack(root);
 	if (root) {
 		fetchSkeleton(root, model, objName);
 		int stackCount = scene->GetSrcObjectCount<FbxAnimStack>();
@@ -154,7 +154,7 @@ PotatoModel * PotatoFBXImporter::importStaticModelFromScene(std::string fileName
 	QueryPerformanceCounter(&end);
 	float loadTime = (float)((end.QuadPart - start.QuadPart) * 1.0 / frequency.QuadPart);
 
-	cout << "\t LOAD TIME OF " << fileName << ": " << to_string(loadTime) << "s" << " Size: " << to_string(model->getModelVertices().size()) << " Vertices" << to_string(model->getModelIndices().size()) << " Indices" << endl;
+	cout << "\t LOAD TIME OF " << fileName << ": " << to_string(loadTime) << "s" << " Size: " << to_string(model->getModelVertices().size()) << " Vertices and " << to_string(model->getModelIndices().size()) << " Indices" << endl;
 
 
 
@@ -572,7 +572,7 @@ void PotatoFBXImporter::fetchGeometry(FbxNode* node, PotatoModel* model, const s
 			/*BONE CONNECTIONS*/
 			int largestIndex = -1;
 			unsigned int deformerCount = mesh->GetDeformerCount();
-			cout << "deformers: " << to_string(deformerCount) << endl;
+			//cout << "deformers: " << to_string(deformerCount) << endl;
 
 
 

@@ -14,6 +14,7 @@ GameObject::GameObject(PotatoModel * model, size_t _animationIndex, XMFLOAT3 pos
 	m_maxAnimationTime = model->getMaxTime(m_animationIndex);
 	m_transform.setTranslation(XMLoadFloat3(&position));
 	m_transform.setScale(XMLoadFloat3(&scale));
+	m_transform.setRotation(XMLoadFloat3(&rotation));
 }
 
 GameObject::GameObject(PotatoModel * model, size_t _animationIndex, Transform & transform) {

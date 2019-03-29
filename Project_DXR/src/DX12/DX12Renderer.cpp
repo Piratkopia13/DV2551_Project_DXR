@@ -374,11 +374,12 @@ void DX12Renderer::createDevice() {
 		m_gpuInfo.dedicatedSystemMemory = adapterDesc.DedicatedSystemMemory / 1073741824.0f;
 		m_gpuInfo.sharedSystemMemory = adapterDesc.SharedSystemMemory / 1073741824.0f;
 
-		std::cout << "Desc: " <<  m_gpuInfo.description << std::endl;
-		std::cout << "DedicatedVideoMem: " << m_gpuInfo.dedicatedVideoMemory << std::endl;
-		std::cout << "DedicatedSystemMem: " << m_gpuInfo.dedicatedSystemMemory << std::endl;
-		std::cout << "SharedSystemMem: " << m_gpuInfo.sharedSystemMemory << std::endl;
-		std::cout << "Revision: " << adapterDesc.Revision << std::endl;
+		std::cout << "GPU info:" << std::endl;
+		std::cout << "\tDesc: " <<  m_gpuInfo.description << std::endl;
+		std::cout << "\tDedicatedVideoMem: " << m_gpuInfo.dedicatedVideoMemory << std::endl;
+		std::cout << "\tDedicatedSystemMem: " << m_gpuInfo.dedicatedSystemMemory << std::endl;
+		std::cout << "\tSharedSystemMem: " << m_gpuInfo.sharedSystemMemory << std::endl;
+		std::cout << "\tRevision: " << adapterDesc.Revision << std::endl;
 
 		m_adapter3 = (IDXGIAdapter3*)adapter;
 

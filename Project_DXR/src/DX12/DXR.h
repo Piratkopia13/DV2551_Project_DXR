@@ -90,10 +90,9 @@ private:
 
 private:
 	bool m_updateBLAS;
-	//bool m_newInPlace;
 
 	bool m_resizeAll;
-	int m_framesResized;
+	unsigned int m_framesResized;
 
 	bool m_updateTLAS;
 	bool m_numMeshesChanged;
@@ -104,7 +103,6 @@ private:
 	DX12Renderer* m_renderer;
 
 	const std::vector<std::unique_ptr<DX12Mesh>>* m_meshes;
-	//DX12Mesh* m_mesh; // Not owned by DXR. TODO: support multiple meshes
 	std::unique_ptr<DX12ConstantBuffer> m_sceneCB; // Temporary constant buffer
 	std::unique_ptr<DX12ConstantBuffer> m_rayGenSettingsCB; // Temporary constant buffer
 
@@ -166,8 +164,6 @@ private:
 
 	std::vector<MeshHandles> m_rtMeshHandles;
 
-	//D3D12_GPU_VIRTUAL_ADDRESS m_vb_GPU = {};
-
 	const WCHAR* m_rayGenName = L"rayGen";
 	const WCHAR* m_closestHitName = L"closestHit";
 	const WCHAR* m_missName = L"miss";
@@ -187,7 +183,6 @@ private:
 	std::unique_ptr<DX12Mesh> m_taMesh;
 	std::unique_ptr<DX12Material> m_taMaterial;
 	std::unique_ptr<DX12Technique> m_taTechnique;
-	//std::vector<wComPtr<ID3D12Resource1>> m_taLastFrames;
 	wComPtr<ID3D12Resource1> m_taLastFrameBuffer;
 	wComPtr<ID3D12DescriptorHeap> m_taSrvDescriptorHeap = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE m_taSrvGPUHandle;

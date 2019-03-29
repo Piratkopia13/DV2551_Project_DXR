@@ -105,5 +105,5 @@ void TimerSaver::saveToFile(const std::string& filePrefix) {
 }
 
 unsigned int TimerSaver::getSizeOf(const std::string& name, int column) {
-	return m_results[name][column].size();
+	return static_cast<unsigned int>(m_results[name][column].size());
 }

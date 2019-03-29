@@ -25,12 +25,10 @@ DXR::DXR(DX12Renderer* renderer)
 	, m_skyboxTexture(nullptr)
 	, m_gen(m_rd())
 	, m_dis(0.f, 1.0f)
-	//, m_numMeshes(0)
 {
 }
 
 DXR::~DXR() {
-	//SafeDelete(m_vb);
 	delete m_sceneCBData;
 }
 
@@ -55,7 +53,6 @@ void DXR::updateAS(ID3D12GraphicsCommandList4* cmdList) {
 	if (firstFrame || m_numMeshesChanged) {
 		m_resizeAll = true;
 		m_framesResized = 0;
-		//m_newInPlace[frameIndex] = false;
 	}
 	if (m_framesResized >= m_renderer->getNumSwapBuffers()) {
 		m_resizeAll = false;
@@ -103,7 +100,6 @@ void DXR::doTheRays(ID3D12GraphicsCommandList4* cmdList){
 
 	m_rayGenCBData.frameCount++;
 	m_rayGenSettingsCB->setData(&m_rayGenCBData, 0);
-	//m_rayGenSettingsCB->forceUpdate(0);
 
 
 	//Set constant buffer descriptor heap
@@ -217,10 +213,7 @@ void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
 		m_numMeshesChanged = true;
 	m_meshes = &meshes;
 	m_updateBLAS = true;
-	/*for (unsigned int i = 0; i < m_renderer->getNumSwapBuffers(); i++)
-		m_newInPlace[i] = false;*/
 	if (m_numMeshesChanged) {
-		std::cout << "num meshes changed" << std::endl;
 		m_resizeAll = true;
 		m_framesResized = 0;
 	}
@@ -229,7 +222,6 @@ void DXR::setMeshes(const std::vector<std::unique_ptr<DX12Mesh>>& meshes) {
 
 void DXR::setSkyboxTexture(DX12Texture2D* texture) {
 	m_skyboxTexture = texture;
-	//m_skyboxGPUDescHandle = m_skyboxTexture->getGpuDescHandle();
 }
 
 void DXR::updateBLASnextFrame(bool inPlace) {
@@ -238,8 +230,6 @@ void DXR::updateBLASnextFrame(bool inPlace) {
 		m_resizeAll = true;
 		m_framesResized = 0;
 	}
-	//for (unsigned int i = 0; i < m_renderer->getNumSwapBuffers(); i++)
-		//m_newInPlace[m_renderer->getFrameIndex()] = inPlace;
 }
 
 void DXR::updateTLASnextFrame(std::function<XMFLOAT3X4(int)> instanceTransform) {
@@ -442,16 +432,13 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 		unsigned int frameIndex = m_renderer->getFrameIndex();
 
 		if (!onlyUpdate) {
-			std::cout << "FULL BLAS BUILD" << std::endl;
+			//std::cout << "FULL BLAS BUILD" << std::endl;
 			// Release old buffers if they exist
 			for (auto& blas : m_DXR_BottomBuffers[frameIndex]) {
 				blas.release();
 			}
-			//m_DXR_BottomBuffers.clear();
 			// Resize all BLAS vectors
-			//for (unsigned int i = 0; i < m_renderer->getNumSwapBuffers(); i++) {
-				m_DXR_BottomBuffers[frameIndex].resize(m_meshes->size());
-			//}
+			m_DXR_BottomBuffers[frameIndex].resize(m_meshes->size());
 		}
 
 		m_renderer->getTimer().start(cmdList, Timers::BLAS);
@@ -474,7 +461,7 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			// Get the size requirements for the scratch and AS buffers
 			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
 			inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-			inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+			inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE; // Changing this flag depending on mesh can speed up performance significantly!
 			/*if (onlyUpdate) {
 				inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
 			}*/
@@ -499,8 +486,8 @@ void DXR::createBLAS(ID3D12GraphicsCommandList4* cmdList, bool onlyUpdate) {
 			asDesc.Inputs = inputs;
 			asDesc.ScratchAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].scratch->GetGPUVirtualAddress();
 			asDesc.DestAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].result->GetGPUVirtualAddress();
-			/*if (onlyUpdate)
-				asDesc.SourceAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].result->GetGPUVirtualAddress();*/
+			if (inputs.Flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE)
+				asDesc.SourceAccelerationStructureData = m_DXR_BottomBuffers[frameIndex][i].result->GetGPUVirtualAddress();
 
 			cmdList->BuildRaytracingAccelerationStructure(&asDesc, 0, nullptr);
 
@@ -537,27 +524,24 @@ void DXR::createTLAS(ID3D12GraphicsCommandList4* cmdList, std::function<DirectX:
 
 	m_DXR_TopBuffers[frameIndex].release();
 
-	// on first call, create the buffer
-	//if (m_DXR_TopBuffers[frameIndex].instanceDesc == nullptr) {
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info;
-		m_renderer->getDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+	// Re-create the buffer
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info;
+	m_renderer->getDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
-		// Create the buffers
-		if (m_DXR_TopBuffers[frameIndex].scratch == nullptr) {
-			m_DXR_TopBuffers[frameIndex].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
-			m_DXR_TopBuffers[frameIndex].scratch->SetName(L"TLAS_SCRATCH");
+	// Create the buffers
+	if (m_DXR_TopBuffers[frameIndex].scratch == nullptr) {
+		m_DXR_TopBuffers[frameIndex].scratch = D3DUtils::createBuffer(m_renderer->getDevice(), info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3DUtils::sDefaultHeapProps);
+		m_DXR_TopBuffers[frameIndex].scratch->SetName(L"TLAS_SCRATCH");
 
-		}
+	}
 
-		if (m_DXR_TopBuffers[frameIndex].result == nullptr) {
-			m_DXR_TopBuffers[frameIndex].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
-			m_DXR_TopBuffers[frameIndex].result->SetName(L"TLAS_RESULT");
-		}
+	if (m_DXR_TopBuffers[frameIndex].result == nullptr) {
+		m_DXR_TopBuffers[frameIndex].result = D3DUtils::createBuffer(m_renderer->getDevice(), info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, D3DUtils::sDefaultHeapProps);
+		m_DXR_TopBuffers[frameIndex].result->SetName(L"TLAS_RESULT");
+	}
 
-		m_DXR_TopBuffers[frameIndex].instanceDesc = D3DUtils::createBuffer(m_renderer->getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * max(instanceCount, 1), D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties);
-		m_DXR_TopBuffers[frameIndex].instanceDesc->SetName(L"TLAS_INSTANCE_DESC");
-
-	//}
+	m_DXR_TopBuffers[frameIndex].instanceDesc = D3DUtils::createBuffer(m_renderer->getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * max(instanceCount, 1), D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties);
+	m_DXR_TopBuffers[frameIndex].instanceDesc->SetName(L"TLAS_INSTANCE_DESC");
 
 	D3D12_RAYTRACING_INSTANCE_DESC* pInstanceDesc;
 	m_DXR_TopBuffers[frameIndex].instanceDesc->Map(0, nullptr, (void**)&pInstanceDesc);
@@ -768,9 +752,6 @@ ID3D12RootSignature* DXR::createMissLocalRootSignature() {
 	rootParams[DXRMissRootParam::SRV_SKYBOX].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[DXRMissRootParam::SRV_SKYBOX].DescriptorTable.NumDescriptorRanges = _countof(range);
 	rootParams[DXRMissRootParam::SRV_SKYBOX].DescriptorTable.pDescriptorRanges = range;
-	/*rootParams[DXRMissRootParam::SRV_SKYBOX].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-	rootParams[DXRMissRootParam::SRV_SKYBOX].Descriptor.ShaderRegister = 3;
-	rootParams[DXRMissRootParam::SRV_SKYBOX].Descriptor.RegisterSpace = 0;*/
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
 	staticSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -822,19 +803,12 @@ void DXR::createTemporalAccumulationResources(ID3D12GraphicsCommandList4* cmdLis
 	// create a default heap where the upload heap will copy its contents into (contents being the texture)
 	m_taLastFrameBuffer = D3DUtils::createBuffer(m_renderer->getDevice(), 0, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST, D3DUtils::sDefaultHeapProps, &textureDesc);
 	m_taLastFrameBuffer->SetName(L"Temporal Accumulation Texture Buffer Resource Heap");
-	/*for (UINT i = 0; i < m_renderer->getNumSwapBuffers(); i++) {
-		m_taLastFrames.emplace_back(D3DUtils::createBuffer(m_renderer->getDevice(), textureUploadBufferSize, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, D3DUtils::sUploadHeapProperties));
-		m_taLastFrames.back()->SetName(L"Temporal Accumulation Texture Buffer Upload Resource Heap");
-	}*/
-
+	
 	UINT64 textureUploadBufferSize;
 	// this function gets the size an upload buffer needs to be to upload a texture to the gpu.
 	m_renderer->getDevice()->GetCopyableFootprints(&textureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &textureUploadBufferSize);
 
-
 	D3DUtils::setResourceTransitionBarrier(cmdList, m_taLastFrameBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
 
 	// TODO: Create a heap for each swap buffer
 	m_taSrvDescriptorHeap.Reset();
@@ -892,8 +866,6 @@ void DXR::createTemporalAccumulationResources(ID3D12GraphicsCommandList4* cmdLis
 	m_taMaterial->compileMaterial(err, inputElementDesc, 1);
 
 	m_taTechnique = std::make_unique<DX12Technique>(m_taMaterial.get(), (DX12RenderState*)m_renderer->makeRenderState(), m_renderer, false);
-
-	//m_taCB = std::make_unique<DX12ConstantBuffer>("TA Constant Buffer", sizeof(TAConstantBufferData), m_renderer);
 
 	m_taCBData.accumCount = 0;
 	m_taMaterial->addConstantBuffer("TA Constant Buffer", 0, sizeof(TAConstantBufferData));

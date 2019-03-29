@@ -95,9 +95,9 @@ public:
 			}
 		}
 		XMMATRIX interpLinear(XMMATRIX & m1, XMMATRIX & m2, float t) {
-			if (t > 1.0f || t < 0.0) {
+			/*if (t > 1.0f || t < 0.0) {
 				std::cout << t << std::endl;
-			}
+			}*/
 			XMVECTOR scal1, scal2; //for scaling
 			XMVECTOR quat1, quat2; //for rotation
 			XMVECTOR tran1, tran2; //for translation

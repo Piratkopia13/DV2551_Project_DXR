@@ -1,7 +1,5 @@
 #pragma once
 
-//#include <array>
-
 #include "Application.h"
 
 #include "Core/Texture2D.h"
@@ -22,7 +20,6 @@ public:
 	~Game();
 
 	virtual void init() override;
-	//virtual void init() override;
 	// Updates every frame
 	virtual void update(double dt) override;
 	// Tries to update 60 times per second
@@ -32,8 +29,10 @@ public:
 
 private:
 	void imguiFunc();
+#ifdef PERFORMANCE_TESTING
 	Transform getNextPosition();
 	bool addObject(PotatoModel* model, int animationIndex, Transform& transform);
+#endif
 	
 private:
 	DX12Renderer* m_dxRenderer;
@@ -42,20 +41,15 @@ private:
 	std::unique_ptr<CameraController> m_persCameraController;
 
 	std::unique_ptr<Technique> m_technique;
-	/*std::unique_ptr<Texture2D> m_texture;
-	std::unique_ptr<Texture2D> m_floorTexture;*/
 	std::unique_ptr<DX12Texture2DArray> m_ballbotTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_cornellTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_dragonTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_floorTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_reflectTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_refractTexArray;
-	std::unique_ptr<DX12Texture2DArray> m_diffuseTexArray;
 	std::unique_ptr<DX12Texture2DArray> m_mirrorTextures;
 	std::unique_ptr<Sampler2D> m_sampler;
 	std::unique_ptr<Material> m_material;
-	//std::unique_ptr<VertexBuffer> m_vertexBuffer;
-	//std::unique_ptr<Mesh> m_mesh;
 
 	std::vector<std::unique_ptr<VertexBuffer>> m_vertexBuffers;
 	std::vector<std::unique_ptr<IndexBuffer>> m_indexBuffers;
@@ -64,7 +58,7 @@ private:
 	std::unique_ptr<PotatoFBXImporter> m_fbxImporter;
 	std::vector<PotatoModel*> m_models;
 	float m_animationSpeed;
-	size_t m_animatedModelsStartIndex;
+	unsigned int m_animatedModelsStartIndex;
 	std::vector<GameObject> m_gameObjects;
 
 

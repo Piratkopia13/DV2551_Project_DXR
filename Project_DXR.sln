@@ -8,31 +8,19 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
-		Debug|x86 = Debug|x86
 		PerformanceTest|x64 = PerformanceTest|x64
-		PerformanceTest|x86 = PerformanceTest|x86
 		PerformanceTestDebug|x64 = PerformanceTestDebug|x64
-		PerformanceTestDebug|x86 = PerformanceTestDebug|x86
 		Release|x64 = Release|x64
-		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Debug|x64.ActiveCfg = Debug|x64
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Debug|x64.Build.0 = Debug|x64
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Debug|x86.ActiveCfg = Debug|Win32
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Debug|x86.Build.0 = Debug|Win32
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTest|x64.ActiveCfg = PerformanceTest|x64
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTest|x64.Build.0 = PerformanceTest|x64
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTest|x86.ActiveCfg = PerformanceTest|Win32
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTest|x86.Build.0 = PerformanceTest|Win32
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTestDebug|x64.ActiveCfg = PerformanceTestDebug|x64
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTestDebug|x64.Build.0 = PerformanceTestDebug|x64
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTestDebug|x86.ActiveCfg = PerformanceTestDebug|Win32
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.PerformanceTestDebug|x86.Build.0 = PerformanceTestDebug|Win32
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Release|x64.ActiveCfg = Release|x64
 		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Release|x64.Build.0 = Release|x64
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Release|x86.ActiveCfg = Release|Win32
-		{522FD7BB-E5B3-4AEE-B318-D340B23499FA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
